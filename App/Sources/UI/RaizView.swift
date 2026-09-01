@@ -53,7 +53,7 @@ struct RaizView: View {
                                     CartaoDetalheView(
                                         modelo: cartaoDetalhe,
                                         aoPagarFatura: abrirPagarFatura,
-                                        aoEditarCartao: { _ in }
+                                        aoEditarCartao: editarCartao
                                     )
                                 }
                             }
@@ -175,6 +175,14 @@ struct RaizView: View {
             repositorio: RepositorioCartoesSwiftData(contexto: contexto),
             carteiraID: carteira.id,
             cartaoExistente: nil
+        )
+    }
+
+    private func editarCartao(_ cartao: Cartao) {
+        cartaoForm = CartaoFormModelo(
+            repositorio: RepositorioCartoesSwiftData(contexto: contexto),
+            carteiraID: carteira?.id ?? cartao.carteiraID,
+            cartaoExistente: cartao
         )
     }
 

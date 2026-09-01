@@ -3,8 +3,9 @@ import Foundation
 import SwiftData
 
 enum Bootstrap {
-    /// Garante que existe uma carteira e o catálogo de categorias.
-    /// Idempotente: pode rodar a cada abertura do app sem duplicar dado.
+    /// Garante que existe uma carteira, uma conta corrente padrão e o
+    /// catálogo de categorias. Idempotente: pode rodar a cada abertura do
+    /// app sem duplicar dado.
     @discardableResult
     static func prepararSeNecessario(contexto: ModelContext, donoID: UUID) throws -> Carteira {
         let carteirasExistentes = try contexto.fetch(FetchDescriptor<CarteiraRegistro>())
@@ -22,6 +23,17 @@ enum Bootstrap {
             )
             contexto.insert(CarteiraRegistro(dominio: nova))
             carteira = nova
+        }
+
+        let carteiraAlvo = carteira.id
+        let contasDaCarteira = try contexto.fetch(
+            FetchDescriptor<ContaRegistro>(
+                predicate: #Predicate { $0.carteiraID == carteiraAlvo }
+            )
+        )
+        if contasDaCarteira.isEmpty {
+            let padrao = Conta(carteiraID: carteira.id, nome: "Corrente", tipo: .corrente)
+            contexto.insert(ContaRegistro(dominio: padrao))
         }
 
         // swiftlint:disable:next todo

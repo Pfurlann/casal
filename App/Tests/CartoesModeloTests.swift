@@ -162,4 +162,33 @@ struct CartoesModeloTests {
         // motor usa uma fatura transitória para a competência atual.
         #expect(modelo.resumoPorCartao[meuCartao.id]?.faturaAtual == Money(centavos: 50_000))
     }
+
+    @Test("total do mês após pagamento integral da fatura atual fica zerado")
+    func totalDoMesAposPagamento() throws {
+        let (modelo, contexto) = try modelo()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let repoFaturas = RepositorioFaturasSwiftData(contexto: contexto)
+
+        let meuCartao = cartao("Nosso")
+        try repoCartoes.salvarCartao(meuCartao)
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: meuCartao.carteiraID, tipo: .despesa, valor: Money(centavos: 100_000),
+            data: data(2026, 9, 10), cartaoID: meuCartao.id, criadoPor: UUID(), hashDedup: "paga"
+        ))
+
+        var fatura = try repoFaturas.faturaOuCriar(
+            cartao: meuCartao, competencia: Competencia(ano: 2026, mes: 9), calendario: calendario
+        )
+        fatura = PagamentoFatura.aplicar(
+            pagamento: Money(centavos: 100_000),
+            em: fatura,
+            totalDaFatura: Money(centavos: 100_000)
+        )
+        try repoFaturas.atualizarFatura(fatura)
+
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        #expect(modelo.totalDoMes == Money.zero)
+        #expect(modelo.resumoPorCartao[meuCartao.id]?.faturaAtual == Money(centavos: 100_000))
+    }
 }

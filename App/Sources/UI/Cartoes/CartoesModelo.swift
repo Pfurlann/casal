@@ -48,6 +48,7 @@ final class CartoesModelo {
         let competenciaAtual = Competencia(data: referencia, calendario: calendario)
         var resumos: [UUID: ResumoCartao] = [:]
         var curvaAcumulada: [Competencia: Money] = [:]
+        var aPagarPorCartao: [Money] = []
 
         for cartao in cartoes {
             let horizonte = HorizonteFaturas.proximas(
@@ -62,13 +63,15 @@ final class CartoesModelo {
                     (curvaAcumulada[ponto.competencia] ?? .zero) + ponto.total
             }
 
-            resumos[cartao.id] = resumo(
+            let (resumoDoCartao, aPagar) = resumo(
                 de: cartao, horizonte: horizonte, competenciaAtual: competenciaAtual, transacoes: transacoes
             )
+            resumos[cartao.id] = resumoDoCartao
+            aPagarPorCartao.append(aPagar)
         }
 
         resumoPorCartao = resumos
-        totalDoMes = resumos.values.reduce(Money.zero) { $0 + $1.faturaAtual }
+        totalDoMes = aPagarPorCartao.reduce(Money.zero, +)
         curva = (0..<Self.mesesNoHorizonte).map { passo in
             let competencia = competenciaAtual.avancando(meses: passo)
             return (competencia, curvaAcumulada[competencia] ?? .zero)
@@ -87,7 +90,7 @@ final class CartoesModelo {
         horizonte: [(competencia: Competencia, total: Money)],
         competenciaAtual: Competencia,
         transacoes: [Transacao]
-    ) -> ResumoCartao {
+    ) -> (ResumoCartao, Money) {
         let persistidas = (try? repositorioFaturas.listarFaturas(cartaoID: cartao.id)) ?? []
         let competenciaProxima = competenciaAtual.avancando(meses: 1)
 
@@ -107,21 +110,30 @@ final class CartoesModelo {
         // vão virar fatura de verdade em meses futuros.
         let comprometidoFuturo = horizonte.dropFirst(2).reduce(Money.zero) { $0 + $1.total }
 
-        return ResumoCartao(
-            faturaAtual: horizonte.first?.total ?? .zero,
-            proximaFatura: horizonte.count > 1 ? horizonte[1].total : .zero,
-            limiteDisponivel: LimiteCartao.disponivel(
-                cartao: cartao,
-                faturas: faturas,
-                totaisPorFatura: totais,
-                parcelasFuturas: comprometidoFuturo
+        let faturaDoMes = faturas.first { $0.competencia == competenciaAtual }
+        let totalDoMesDoCartao = faturaDoMes.flatMap { totais[$0.id] } ?? .zero
+        let aPagar = faturaDoMes.map {
+            PagamentoFatura.saldoDevedor(fatura: $0, total: totalDoMesDoCartao)
+        } ?? .zero
+
+        return (
+            ResumoCartao(
+                faturaAtual: horizonte.first?.total ?? .zero,
+                proximaFatura: horizonte.count > 1 ? horizonte[1].total : .zero,
+                limiteDisponivel: LimiteCartao.disponivel(
+                    cartao: cartao,
+                    faturas: faturas,
+                    totaisPorFatura: totais,
+                    parcelasFuturas: comprometidoFuturo
+                ),
+                fechaEm: CalendarioFatura.fechamento(
+                    competencia: competenciaAtual, cartao: cartao, calendario: calendario
+                ),
+                venceEm: CalendarioFatura.vencimento(
+                    competencia: competenciaAtual, cartao: cartao, calendario: calendario
+                )
             ),
-            fechaEm: CalendarioFatura.fechamento(
-                competencia: competenciaAtual, cartao: cartao, calendario: calendario
-            ),
-            venceEm: CalendarioFatura.vencimento(
-                competencia: competenciaAtual, cartao: cartao, calendario: calendario
-            )
+            aPagar
         )
     }
 

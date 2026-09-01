@@ -7,11 +7,7 @@ import Testing
 @Suite("Bootstrap")
 struct BootstrapTests {
     private func contextoEmMemoria() throws -> ModelContext {
-        let container = try ModelContainer(
-            for: TransacaoRegistro.self, CarteiraRegistro.self, CategoriaRegistro.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
-        return ModelContext(container)
+        ModelContext(try SchemaCasal.container(emMemoria: true))
     }
 
     @Test("primeiro launch cria a carteira padrão e o catálogo de categorias")
@@ -22,6 +18,10 @@ struct BootstrapTests {
         #expect(carteira.nome == "Nosso")
         let categorias = try contexto.fetch(FetchDescriptor<CategoriaRegistro>())
         #expect(categorias.count == Categoria.padrao.count)
+        let contas = try contexto.fetch(FetchDescriptor<ContaRegistro>())
+        #expect(contas.count == 1)
+        #expect(contas.first?.nome == "Corrente")
+        #expect(contas.first?.carteiraID == carteira.id)
     }
 
     @Test("rodar de novo não duplica nada")
@@ -34,5 +34,6 @@ struct BootstrapTests {
         #expect(primeira.id == segunda.id)
         #expect(try contexto.fetch(FetchDescriptor<CarteiraRegistro>()).count == 1)
         #expect(try contexto.fetch(FetchDescriptor<CategoriaRegistro>()).count == Categoria.padrao.count)
+        #expect(try contexto.fetch(FetchDescriptor<ContaRegistro>()).count == 1)
     }
 }

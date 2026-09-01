@@ -1,0 +1,11 @@
+included:
+  - App/Sources
+  - Packages/CasalDomain/Sources
+excluded:
+  - App/Casal.xcodeproj
+line_length:
+  warning: 160
+  error: 160
+identifier_name:
+  min_length: 2
+type_contents_order: false

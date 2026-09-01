@@ -1,0 +1,42 @@
+name: Casal
+options:
+  bundleIdPrefix: br.com.casal
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  CasalDomain:
+    path: ../Packages/CasalDomain
+
+targets:
+  Casal:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    dependencies:
+      - package: CasalDomain
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: ca$al
+        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: br.com.casal.app
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+  CasalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Casal
+      - package: CasalDomain

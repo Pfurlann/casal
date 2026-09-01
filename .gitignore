@@ -2,3 +2,6 @@
 .DS_Store
 .build/
 .swiftpm/
+App/Casal.xcodeproj/
+DerivedData/
+*.xcuserstate

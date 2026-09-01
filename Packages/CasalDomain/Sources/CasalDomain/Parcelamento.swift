@@ -17,12 +17,18 @@ public struct ParcelaPlanejada: Hashable, Sendable {
 public enum Parcelamento: Sendable {
     /// Distribui uma compra em `vezes` parcelas, uma por competência
     /// consecutiva a partir da fatura em que a compra cai.
+    ///
+    /// `calendario` não tem valor padrão de propósito: o mesmo calendário
+    /// precisa ser passado depois para `transacoes(de:...)`, que reconstrói a
+    /// data de fechamento de cada parcela a partir da competência calculada
+    /// aqui. Um padrão silencioso deixaria as duas chamadas divergirem sem
+    /// erro de compilação, e uma parcela cairia no mês errado sem aviso.
     public static func planejar(
         total: Money,
         vezes: Int,
         compraEm data: Date,
         cartao: Cartao,
-        calendario: Calendar = .current
+        calendario: Calendar
     ) -> [ParcelaPlanejada] {
         guard vezes > 0 else { return [] }
 
@@ -47,6 +53,12 @@ public enum Parcelamento: Sendable {
     /// O `hashDedup` inclui o número da parcela: sem isso, doze parcelas de
     /// mesmo valor no mesmo estabelecimento colidiriam entre si na detecção de
     /// duplicata, e onze parcelas legítimas pareceriam repetição.
+    ///
+    /// `calendario` não tem valor padrão de propósito: precisa ser o mesmo
+    /// calendário usado em `planejar(...)` para gerar `parcelas`. Se
+    /// divergirem, a data de fechamento estampada aqui é calculada num fuso
+    /// diferente do que decidiu o mês da competência, e a parcela pode cair
+    /// silenciosamente no mês errado.
     public static func transacoes(
         de parcelas: [ParcelaPlanejada],
         carteiraID: UUID,
@@ -54,7 +66,7 @@ public enum Parcelamento: Sendable {
         descricao: String,
         criadoPor: UUID,
         cartao: Cartao,
-        calendario: Calendar = .current
+        calendario: Calendar
     ) -> [Transacao] {
         guard !parcelas.isEmpty else { return [] }
         let grupo = UUID()

@@ -65,6 +65,28 @@ struct CalendarioFaturaTests {
         #expect(partes.day == 28)
     }
 
+    @Test("fechamento no dia 31 trunca para o último dia de abril, mês de 30 dias")
+    func mesCurtoAbril() {
+        let c = cartao(fecha: 31, vence: 10)
+        let fechamento = CalendarioFatura.fechamento(
+            competencia: Competencia(ano: 2026, mes: 4), cartao: c, calendario: calendario
+        )
+        let partes = calendario.dateComponents([.year, .month, .day], from: fechamento)
+        #expect(partes.month == 4)
+        #expect(partes.day == 30)
+    }
+
+    @Test("fechamento no dia 31 trunca para o dia 29 em fevereiro de ano bissexto")
+    func mesCurtoFevereiroBissexto() {
+        let c = cartao(fecha: 31, vence: 10)
+        let fechamento = CalendarioFatura.fechamento(
+            competencia: Competencia(ano: 2028, mes: 2), cartao: c, calendario: calendario
+        )
+        let partes = calendario.dateComponents([.year, .month, .day], from: fechamento)
+        #expect(partes.month == 2)
+        #expect(partes.day == 29)
+    }
+
     @Test("vencimento maior que fechamento vence no mesmo mês")
     func venceNoMesmoMes() {
         let c = cartao(fecha: 2, vence: 10)

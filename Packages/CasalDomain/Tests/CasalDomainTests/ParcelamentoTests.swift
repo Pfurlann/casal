@@ -95,7 +95,7 @@ struct ParcelamentoTests {
         )
         let transacoes = Parcelamento.transacoes(
             de: planejadas, carteiraID: carteira, categoriaID: categoria,
-            descricao: "Apple Store", criadoPor: autor, cartao: meuCartao
+            descricao: "Apple Store", criadoPor: autor, cartao: meuCartao, calendario: calendario
         )
 
         #expect(transacoes.count == 12)
@@ -117,7 +117,7 @@ struct ParcelamentoTests {
         )
         let transacoes = Parcelamento.transacoes(
             de: planejadas, carteiraID: UUID(), categoriaID: nil,
-            descricao: "Apple Store", criadoPor: UUID(), cartao: meuCartao
+            descricao: "Apple Store", criadoPor: UUID(), cartao: meuCartao, calendario: calendario
         )
         #expect(Set(transacoes.map(\.hashDedup)).count == 12)
     }

@@ -10,6 +10,11 @@ struct RaizView: View {
     @State private var lancamento: LancamentoModelo?
     @State private var inicio: InicioModelo?
     @State private var cartoes: CartoesModelo?
+    // Mesma regra do lançamento: dono é este @State, não a closure que abre a
+    // tela — senão uma reavaliação de body descartaria o carrossel/aba já
+    // selecionados, ou o formulário já preenchido.
+    @State private var cartaoDetalhe: CartaoDetalheModelo?
+    @State private var cartaoForm: CartaoFormModelo?
     @State private var carteira: Carteira?
     @State private var categorias: [Categoria] = []
 
@@ -36,9 +41,21 @@ struct RaizView: View {
                         if let cartoes {
                             CartoesView(
                                 modelo: cartoes,
-                                aoAbrirCartao: { _ in },
-                                aoAdicionarCartao: { }
+                                aoAbrirCartao: abrirCartao,
+                                aoAdicionarCartao: adicionarCartao
                             )
+                            .navigationDestination(isPresented: Binding(
+                                get: { cartaoDetalhe != nil },
+                                set: { aberto in if !aberto { cartaoDetalhe = nil } }
+                            )) {
+                                if let cartaoDetalhe {
+                                    CartaoDetalheView(
+                                        modelo: cartaoDetalhe,
+                                        aoPagarFatura: { _, _, _ in },
+                                        aoEditarCartao: { _ in }
+                                    )
+                                }
+                            }
                         } else {
                             ProgressView()
                         }
@@ -72,6 +89,18 @@ struct RaizView: View {
         .sheet(item: $lancamento, onDismiss: { inicio?.recarregar() }, content: { modelo in
             LancamentoView(modelo: modelo)
         })
+        .sheet(
+            isPresented: Binding(
+                get: { cartaoForm != nil },
+                set: { aberto in if !aberto { cartaoForm = nil } }
+            ),
+            onDismiss: { cartoes?.recarregar() },
+            content: {
+                if let cartaoForm {
+                    CartaoFormView(modelo: cartaoForm)
+                }
+            }
+        )
     }
 
     private var botaoCentral: some View {
@@ -93,6 +122,28 @@ struct RaizView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Novo lançamento")
+    }
+
+    private func abrirCartao(_ cartao: Cartao) {
+        let modelo = CartaoDetalheModelo(
+            repositorioCartoes: RepositorioCartoesSwiftData(contexto: contexto),
+            repositorioFaturas: RepositorioFaturasSwiftData(contexto: contexto),
+            repositorioTransacoes: RepositorioSwiftData(contexto: contexto)
+        )
+        modelo.recarregar()
+        if let indice = modelo.cartoes.firstIndex(where: { $0.id == cartao.id }) {
+            modelo.indiceSelecionado = indice
+        }
+        cartaoDetalhe = modelo
+    }
+
+    private func adicionarCartao() {
+        guard let carteira else { return }
+        cartaoForm = CartaoFormModelo(
+            repositorio: RepositorioCartoesSwiftData(contexto: contexto),
+            carteiraID: carteira.id,
+            cartaoExistente: nil
+        )
     }
 
     private func preparar() async {

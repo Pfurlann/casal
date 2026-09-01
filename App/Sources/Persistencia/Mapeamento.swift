@@ -136,3 +136,87 @@ extension CategoriaRegistro {
         )
     }
 }
+
+extension CartaoRegistro {
+    convenience init(dominio: Cartao) {
+        self.init()
+        id = dominio.id
+        carteiraID = dominio.carteiraID
+        apelido = dominio.apelido
+        banco = dominio.banco
+        bandeiraBruta = dominio.bandeira.rawValue
+        ultimos4 = dominio.ultimos4
+        cor = dominio.cor
+        limiteCentavos = dominio.limite.centavos
+        diaFechamento = dominio.diaFechamento
+        diaVencimento = dominio.diaVencimento
+        contaPagamentoID = dominio.contaPagamentoID
+        arquivado = dominio.arquivado
+    }
+
+    func paraDominio() -> Cartao {
+        Cartao(
+            id: id,
+            carteiraID: carteiraID,
+            apelido: apelido,
+            banco: banco,
+            bandeira: decodificar(bandeiraBruta, campo: "bandeiraBruta", padrao: .outra),
+            ultimos4: ultimos4,
+            cor: cor,
+            limite: Money(centavos: limiteCentavos),
+            diaFechamento: diaFechamento,
+            diaVencimento: diaVencimento,
+            contaPagamentoID: contaPagamentoID,
+            arquivado: arquivado
+        )
+    }
+}
+
+extension ContaRegistro {
+    convenience init(dominio: Conta) {
+        self.init()
+        id = dominio.id
+        carteiraID = dominio.carteiraID
+        nome = dominio.nome
+        tipoBruto = dominio.tipo.rawValue
+        saldoInicialCentavos = dominio.saldoInicial.centavos
+        arquivada = dominio.arquivada
+    }
+
+    func paraDominio() -> Conta {
+        Conta(
+            id: id,
+            carteiraID: carteiraID,
+            nome: nome,
+            tipo: decodificar(tipoBruto, campo: "tipoBruto (conta)", padrao: .corrente),
+            saldoInicial: Money(centavos: saldoInicialCentavos),
+            arquivada: arquivada
+        )
+    }
+}
+
+extension FaturaRegistro {
+    convenience init(dominio: Fatura) {
+        self.init()
+        id = dominio.id
+        cartaoID = dominio.cartaoID
+        competenciaAno = dominio.competencia.ano
+        competenciaMes = dominio.competencia.mes
+        fechaEm = dominio.fechaEm
+        venceEm = dominio.venceEm
+        statusBruto = dominio.status.rawValue
+        valorPagoCentavos = dominio.valorPago.centavos
+    }
+
+    func paraDominio() -> Fatura {
+        Fatura(
+            id: id,
+            cartaoID: cartaoID,
+            competencia: Competencia(ano: competenciaAno, mes: competenciaMes),
+            fechaEm: fechaEm,
+            venceEm: venceEm,
+            status: decodificar(statusBruto, campo: "statusBruto", padrao: .aberta),
+            valorPago: Money(centavos: valorPagoCentavos)
+        )
+    }
+}

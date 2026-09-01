@@ -100,7 +100,9 @@ final class LancamentoModelo: Identifiable {
             contexto: contexto
         )
         for transacao in transacoes {
-            try repositorio.salvar(transacao)
+            var carimbada = transacao
+            carimbada.dispositivoID = IdentidadeLocal.dispositivoID
+            try repositorio.salvar(carimbada)
         }
     }
 

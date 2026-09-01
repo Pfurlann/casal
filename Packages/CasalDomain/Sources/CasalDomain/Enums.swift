@@ -26,3 +26,15 @@ public enum VisibilidadeCarteira: String, Codable, Sendable, CaseIterable {
 public enum RotuloCarteira: String, Codable, Sendable, CaseIterable {
     case pessoal, compartilhada, pj
 }
+
+public enum StatusFatura: String, Codable, Sendable, CaseIterable {
+    case aberta, fechada, parcial, paga
+}
+
+public enum TipoConta: String, Codable, Sendable, CaseIterable {
+    case corrente, poupanca, dinheiro
+}
+
+public enum BandeiraCartao: String, Codable, Sendable, CaseIterable {
+    case visa, mastercard, elo, amex, hipercard, outra
+}

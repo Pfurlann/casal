@@ -12,6 +12,15 @@ struct EntradaValor {
     var podeSalvar: Bool { centavos > 0 }
     var texto: String { valor.formatadoBRL }
 
+    init() {}
+
+    /// Carrega um valor já existente, para edição. Usado quando o formulário
+    /// abre sobre um registro que já tem limite — sem isso a edição sempre
+    /// começaria do zero, como se fosse um cartão novo.
+    init(centavos: Int) {
+        self.centavos = max(0, min(centavos, Self.tetoCentavos))
+    }
+
     mutating func digitar(_ digito: Int) {
         guard (0...9).contains(digito) else { return }
         let candidato = centavos * 10 + digito

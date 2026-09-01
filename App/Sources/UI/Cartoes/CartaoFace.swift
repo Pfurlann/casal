@@ -146,7 +146,9 @@ struct CartaoFace: View {
     /// inventar uma cor.
     static func componentes(deHex hex: String) -> ComponentesDeCor? {
         let limpo = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
-        guard limpo.count == 6, let valor = Int(limpo, radix: 16) else { return nil }
+        guard limpo.count == 6, limpo.allSatisfy(\.isHexDigit), let valor = Int(limpo, radix: 16) else {
+            return nil
+        }
         return ComponentesDeCor(
             vermelho: (valor >> 16) & 0xFF,
             verde: (valor >> 8) & 0xFF,

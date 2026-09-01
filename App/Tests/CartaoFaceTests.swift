@@ -1,5 +1,4 @@
 import CasalDomain
-import SwiftUI
 import Testing
 @testable import Casal
 
@@ -17,6 +16,12 @@ struct CartaoFaceTests {
         #expect(CartaoFace.componentes(deHex: "") == nil)
         #expect(CartaoFace.componentes(deHex: "#ZZZZZZ") == nil)
         #expect(CartaoFace.componentes(deHex: "#FFF") == nil)
+    }
+
+    @Test("sinal de mais ou menos não conta como dígito hexadecimal")
+    func hexComSinal() {
+        #expect(CartaoFace.componentes(deHex: "-FFFFF") == nil)
+        #expect(CartaoFace.componentes(deHex: "+FFFFF") == nil)
     }
 
     @Test("os componentes correspondem ao roxo do design")

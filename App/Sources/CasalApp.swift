@@ -7,9 +7,7 @@ struct CasalApp: App {
 
     init() {
         do {
-            container = try ModelContainer(
-                for: TransacaoRegistro.self, CarteiraRegistro.self, CategoriaRegistro.self
-            )
+            container = try SchemaCasal.container()
             try Bootstrap.prepararSeNecessario(
                 contexto: ModelContext(container),
                 donoID: IdentidadeLocal.donoID

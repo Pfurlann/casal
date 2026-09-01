@@ -124,4 +124,17 @@ struct LancamentoComCartaoTests {
         #expect(modelo.cartoesDisponiveis.count == 1)
         #expect(modelo.cartoesDisponiveis.first?.id == cartao.id)
     }
+
+    @Test("cada parcela carimba o dispositivoID exigido pela seção 7 do spec")
+    func parcelaCarimbaDispositivo() throws {
+        let (modelo, repo, cartao) = try montar()
+        modelo.cartaoSelecionado = cartao
+        modelo.parcelas = 3
+        for digito in [3, 0, 0, 0] { modelo.entrada.digitar(digito) }
+        try modelo.salvar()
+
+        let gravadas = try repo.listar(de: .distantPast, ate: .distantFuture)
+        #expect(gravadas.count == 3)
+        #expect(gravadas.allSatisfy { $0.dispositivoID == IdentidadeLocal.dispositivoID })
+    }
 }

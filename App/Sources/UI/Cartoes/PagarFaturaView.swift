@@ -59,17 +59,32 @@ final class PagarFaturaModelo {
     /// tanto a transação quanto a fatura atualizada precisam ser
     /// persistidas — ao contrário das telas de exibição de Cartões, que
     /// nunca gravam nada.
+    ///
+    /// A `fatura` recebida no `init` pode ser transiente — a tela de
+    /// detalhe monta uma na hora, com `id` novo a cada acesso, quando ainda
+    /// não existe linha gravada para a competência (ver
+    /// `CartaoDetalheModelo.faturaDaAbaAtual`). Gravar a transação direto
+    /// contra esse `id` a deixaria órfã: `atualizarFatura` não encontra
+    /// linha nenhuma e no-opa em silêncio. `faturaOuCriar` casa por cartão
+    /// + competência, não por id, então resolve para a linha existente ou
+    /// cria uma — e é exatamente o momento que `RepositorioFaturas.swift`
+    /// documenta como o nascimento legítimo da fatura.
     func pagar() throws {
         guard let conta = contaSelecionada, entrada.podeSalvar else { return }
 
+        fatura = try repositorioFaturas.faturaOuCriar(
+            cartao: cartao, competencia: fatura.competencia, calendario: .current
+        )
+
         let contexto = ContextoDeLancamento(carteiraID: carteiraID, criadoPor: autorID, calendario: .current)
-        let transacao = PagamentoFatura.transacao(
+        var transacao = PagamentoFatura.transacao(
             valor: entrada.valor,
             faturaID: fatura.id,
             contaID: conta.id,
             contexto: contexto,
             data: Date()
         )
+        transacao.dispositivoID = IdentidadeLocal.dispositivoID
         try repositorioTransacoes.salvar(transacao)
 
         fatura = PagamentoFatura.aplicar(

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum Dedup {
+public enum Dedup: Sendable {
     public static let janelaEmDias = 2
 
     /// Chave de agrupamento gravada em cada transação. Não inclui data:
@@ -14,9 +14,13 @@ public enum Dedup {
         "\(carteiraID.uuidString)|\(valor.centavos)|\(Estabelecimento.normalizar(estabelecimento))"
     }
 
+    /// Marca dois candidatos como potenciais duplicatas para confirmação humana.
     /// Duas transações são a mesma compra quando compartilham a chave e
     /// caem dentro da janela de tolerância de datas. Transações removidas
     /// estão fora da comparação.
+    ///
+    /// INVARIANTE: Esta função marca candidatos, não executa merges ou descartes.
+    /// Nunca ligar diretamente a um fluxo de descarte automático de transações.
     public static func saoDuplicatas(
         _ primeira: Transacao,
         _ segunda: Transacao,

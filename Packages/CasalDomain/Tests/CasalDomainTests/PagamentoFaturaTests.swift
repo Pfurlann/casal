@@ -86,8 +86,9 @@ struct PagamentoFaturaTests {
             valor: Money(centavos: 284_730),
             faturaID: UUID(),
             contaID: UUID(),
-            carteiraID: UUID(),
-            criadoPor: UUID(),
+            contexto: ContextoDeLancamento(
+                carteiraID: UUID(), criadoPor: UUID(), calendario: Calendar(identifier: .gregorian)
+            ),
             data: Date(timeIntervalSince1970: 0)
         )
         #expect(transacao.tipo == .transferencia)
@@ -106,7 +107,10 @@ struct PagamentoFaturaTests {
         )
         let pagamento = PagamentoFatura.transacao(
             valor: Money(centavos: 284_730), faturaID: UUID(), contaID: UUID(),
-            carteiraID: carteira, criadoPor: autor, data: Date(timeIntervalSince1970: 0)
+            contexto: ContextoDeLancamento(
+                carteiraID: carteira, criadoPor: autor, calendario: Calendar(identifier: .gregorian)
+            ),
+            data: Date(timeIntervalSince1970: 0)
         )
 
         let resumo = ResumoMensal.calcular(

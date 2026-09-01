@@ -18,22 +18,23 @@ public enum Parcelamento: Sendable {
     /// Distribui uma compra em `vezes` parcelas, uma por competência
     /// consecutiva a partir da fatura em que a compra cai.
     ///
-    /// `calendario` não tem valor padrão de propósito: o mesmo calendário
-    /// precisa ser passado depois para `transacoes(de:...)`, que reconstrói a
-    /// data de fechamento de cada parcela a partir da competência calculada
-    /// aqui. Um padrão silencioso deixaria as duas chamadas divergirem sem
-    /// erro de compilação, e uma parcela cairia no mês errado sem aviso.
+    /// `contexto.calendario` não tem valor padrão de propósito: o mesmo
+    /// calendário precisa ser passado depois para `transacoes(de:...)`, que
+    /// reconstrói a data de fechamento de cada parcela a partir da
+    /// competência calculada aqui. Passar o mesmo `ContextoDeLancamento` para
+    /// as duas chamadas torna impossível elas divergirem sem erro de
+    /// compilação, e uma parcela cairia no mês errado sem aviso.
     public static func planejar(
         total: Money,
         vezes: Int,
         compraEm data: Date,
         cartao: Cartao,
-        calendario: Calendar
+        contexto: ContextoDeLancamento
     ) -> [ParcelaPlanejada] {
         guard vezes > 0 else { return [] }
 
         let primeira = CalendarioFatura.competencia(
-            deCompraEm: data, cartao: cartao, calendario: calendario
+            deCompraEm: data, cartao: cartao, calendario: contexto.calendario
         )
         let valores = total.dividir(em: vezes)
 
@@ -54,42 +55,40 @@ public enum Parcelamento: Sendable {
     /// mesmo valor no mesmo estabelecimento colidiriam entre si na detecção de
     /// duplicata, e onze parcelas legítimas pareceriam repetição.
     ///
-    /// `calendario` não tem valor padrão de propósito: precisa ser o mesmo
-    /// calendário usado em `planejar(...)` para gerar `parcelas`. Se
+    /// `contexto.calendario` não tem valor padrão de propósito: precisa ser
+    /// o mesmo calendário usado em `planejar(...)` para gerar `parcelas`. Se
     /// divergirem, a data de fechamento estampada aqui é calculada num fuso
     /// diferente do que decidiu o mês da competência, e a parcela pode cair
     /// silenciosamente no mês errado.
     public static func transacoes(
         de parcelas: [ParcelaPlanejada],
-        carteiraID: UUID,
         categoriaID: UUID?,
         descricao: String,
-        criadoPor: UUID,
         cartao: Cartao,
-        calendario: Calendar
+        contexto: ContextoDeLancamento
     ) -> [Transacao] {
         guard !parcelas.isEmpty else { return [] }
         let grupo = UUID()
 
         return parcelas.map { parcela in
             let dataDaParcela = CalendarioFatura.fechamento(
-                competencia: parcela.competencia, cartao: cartao, calendario: calendario
+                competencia: parcela.competencia, cartao: cartao, calendario: contexto.calendario
             )
             let chaveBase = Dedup.chave(
-                carteiraID: carteiraID,
+                carteiraID: contexto.carteiraID,
                 tipo: .despesa,
                 valor: parcela.valor,
                 estabelecimento: descricao
             )
             return Transacao(
-                carteiraID: carteiraID,
+                carteiraID: contexto.carteiraID,
                 tipo: .despesa,
                 valor: parcela.valor,
                 data: dataDaParcela,
                 categoriaID: categoriaID,
                 descricao: descricao,
                 cartaoID: cartao.id,
-                criadoPor: criadoPor,
+                criadoPor: contexto.criadoPor,
                 hashDedup: "\(chaveBase)|p\(parcela.numero)de\(parcela.total)",
                 grupoParcela: grupo,
                 parcelaN: parcela.numero,

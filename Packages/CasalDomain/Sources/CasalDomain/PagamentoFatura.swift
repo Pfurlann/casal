@@ -31,12 +31,11 @@ public enum PagamentoFatura: Sendable {
         valor: Money,
         faturaID: UUID,
         contaID: UUID,
-        carteiraID: UUID,
-        criadoPor: UUID,
+        contexto: ContextoDeLancamento,
         data: Date
     ) -> Transacao {
         Transacao(
-            carteiraID: carteiraID,
+            carteiraID: contexto.carteiraID,
             tipo: .transferencia,
             valor: valor,
             data: data,
@@ -44,7 +43,7 @@ public enum PagamentoFatura: Sendable {
             descricao: "Pagamento de fatura",
             contaID: contaID,
             faturaID: faturaID,
-            criadoPor: criadoPor,
+            criadoPor: contexto.criadoPor,
             hashDedup: "pagamento|\(faturaID.uuidString)|\(valor.centavos)"
         )
     }

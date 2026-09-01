@@ -26,16 +26,20 @@ struct HorizonteFaturasTests {
         return calendario.date(from: partes)!
     }
 
+    private var contexto: ContextoDeLancamento {
+        ContextoDeLancamento(carteiraID: UUID(), criadoPor: UUID(), calendario: calendario)
+    }
+
     @Test("uma compra em 12x aparece em doze competências da curva")
     func curvaDeParcelas() {
         let meuCartao = cartao
         let planejadas = Parcelamento.planejar(
             total: Money(centavos: 300_000), vezes: 12,
-            compraEm: data(2026, 9, 10), cartao: meuCartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: meuCartao, contexto: contexto
         )
         let transacoes = Parcelamento.transacoes(
-            de: planejadas, carteiraID: UUID(), categoriaID: nil,
-            descricao: "Sofá", criadoPor: UUID(), cartao: meuCartao, calendario: calendario
+            de: planejadas, categoriaID: nil,
+            descricao: "Sofá", cartao: meuCartao, contexto: contexto
         )
 
         let curva = HorizonteFaturas.proximas(
@@ -55,10 +59,10 @@ struct HorizonteFaturasTests {
         let aVista = Parcelamento.transacoes(
             de: Parcelamento.planejar(
                 total: Money(centavos: 5000), vezes: 1,
-                compraEm: data(2026, 9, 10), cartao: meuCartao, calendario: calendario
+                compraEm: data(2026, 9, 10), cartao: meuCartao, contexto: contexto
             ),
-            carteiraID: UUID(), categoriaID: nil, descricao: "Café",
-            criadoPor: UUID(), cartao: meuCartao, calendario: calendario
+            categoriaID: nil, descricao: "Café",
+            cartao: meuCartao, contexto: contexto
         )
 
         let curva = HorizonteFaturas.proximas(
@@ -77,10 +81,10 @@ struct HorizonteFaturasTests {
         var transacoes = Parcelamento.transacoes(
             de: Parcelamento.planejar(
                 total: Money(centavos: 20_000), vezes: 2,
-                compraEm: data(2026, 9, 10), cartao: meuCartao, calendario: calendario
+                compraEm: data(2026, 9, 10), cartao: meuCartao, contexto: contexto
             ),
-            carteiraID: UUID(), categoriaID: nil, descricao: "Tênis",
-            criadoPor: UUID(), cartao: meuCartao, calendario: calendario
+            categoriaID: nil, descricao: "Tênis",
+            cartao: meuCartao, contexto: contexto
         )
         transacoes[0].removidoEm = Date()
 
@@ -102,10 +106,10 @@ struct HorizonteFaturasTests {
         let doOutro = Parcelamento.transacoes(
             de: Parcelamento.planejar(
                 total: Money(centavos: 90_000), vezes: 3,
-                compraEm: data(2026, 9, 5), cartao: outroCartao, calendario: calendario
+                compraEm: data(2026, 9, 5), cartao: outroCartao, contexto: contexto
             ),
-            carteiraID: UUID(), categoriaID: nil, descricao: "Pneu",
-            criadoPor: UUID(), cartao: outroCartao, calendario: calendario
+            categoriaID: nil, descricao: "Pneu",
+            cartao: outroCartao, contexto: contexto
         )
 
         let curva = HorizonteFaturas.proximas(

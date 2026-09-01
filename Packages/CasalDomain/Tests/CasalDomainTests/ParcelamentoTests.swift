@@ -26,11 +26,15 @@ struct ParcelamentoTests {
         )
     }
 
+    private var contexto: ContextoDeLancamento {
+        ContextoDeLancamento(carteiraID: UUID(), criadoPor: UUID(), calendario: calendario)
+    }
+
     @Test("à vista gera uma única parcela na fatura da compra")
     func aVista() {
         let parcelas = Parcelamento.planejar(
             total: Money(centavos: 4200), vezes: 1,
-            compraEm: data(2026, 9, 10), cartao: cartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: cartao, contexto: contexto
         )
         #expect(parcelas.count == 1)
         #expect(parcelas[0].competencia == Competencia(ano: 2026, mes: 9))
@@ -43,7 +47,7 @@ struct ParcelamentoTests {
     func dozeVezes() {
         let parcelas = Parcelamento.planejar(
             total: Money(centavos: 300_000), vezes: 12,
-            compraEm: data(2026, 9, 10), cartao: cartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: cartao, contexto: contexto
         )
         #expect(parcelas.count == 12)
         #expect(parcelas.first?.competencia == Competencia(ano: 2026, mes: 9))
@@ -56,7 +60,7 @@ struct ParcelamentoTests {
     func somaEArredondamento() {
         let parcelas = Parcelamento.planejar(
             total: Money(centavos: 10_000), vezes: 3,
-            compraEm: data(2026, 9, 10), cartao: cartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: cartao, contexto: contexto
         )
         #expect(parcelas.map(\.valor) == [
             Money(centavos: 3334), Money(centavos: 3333), Money(centavos: 3333)
@@ -68,7 +72,7 @@ struct ParcelamentoTests {
     func depoisDoFechamento() {
         let parcelas = Parcelamento.planejar(
             total: Money(centavos: 60_000), vezes: 6,
-            compraEm: data(2026, 9, 29), cartao: cartao, calendario: calendario
+            compraEm: data(2026, 9, 29), cartao: cartao, contexto: contexto
         )
         #expect(parcelas.first?.competencia == Competencia(ano: 2026, mes: 10))
         #expect(parcelas.last?.competencia == Competencia(ano: 2027, mes: 3))
@@ -78,7 +82,7 @@ struct ParcelamentoTests {
     func vezesInvalido() {
         #expect(Parcelamento.planejar(
             total: Money(centavos: 100), vezes: 0,
-            compraEm: data(2026, 9, 10), cartao: cartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: cartao, contexto: contexto
         ).isEmpty)
     }
 
@@ -89,13 +93,16 @@ struct ParcelamentoTests {
         let autor = UUID()
         let meuCartao = cartao
 
+        let contextoDoTeste = ContextoDeLancamento(
+            carteiraID: carteira, criadoPor: autor, calendario: calendario
+        )
         let planejadas = Parcelamento.planejar(
             total: Money(centavos: 300_000), vezes: 12,
-            compraEm: data(2026, 9, 10), cartao: meuCartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: meuCartao, contexto: contextoDoTeste
         )
         let transacoes = Parcelamento.transacoes(
-            de: planejadas, carteiraID: carteira, categoriaID: categoria,
-            descricao: "Apple Store", criadoPor: autor, cartao: meuCartao, calendario: calendario
+            de: planejadas, categoriaID: categoria,
+            descricao: "Apple Store", cartao: meuCartao, contexto: contextoDoTeste
         )
 
         #expect(transacoes.count == 12)
@@ -113,11 +120,11 @@ struct ParcelamentoTests {
         let meuCartao = cartao
         let planejadas = Parcelamento.planejar(
             total: Money(centavos: 300_000), vezes: 12,
-            compraEm: data(2026, 9, 10), cartao: meuCartao, calendario: calendario
+            compraEm: data(2026, 9, 10), cartao: meuCartao, contexto: contexto
         )
         let transacoes = Parcelamento.transacoes(
-            de: planejadas, carteiraID: UUID(), categoriaID: nil,
-            descricao: "Apple Store", criadoPor: UUID(), cartao: meuCartao, calendario: calendario
+            de: planejadas, categoriaID: nil,
+            descricao: "Apple Store", cartao: meuCartao, contexto: contexto
         )
         #expect(Set(transacoes.map(\.hashDedup)).count == 12)
     }

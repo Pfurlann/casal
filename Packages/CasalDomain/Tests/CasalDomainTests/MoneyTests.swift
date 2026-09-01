@@ -23,8 +23,8 @@ struct MoneyTests {
         formatador.currencyCode = "BRL"
         formatador.locale = Locale(identifier: "pt_BR")
 
-        let esperado1234_56 = formatador.string(from: NSDecimalNumber(value: 1_234.56))!
-        let esperado0 = formatador.string(from: NSDecimalNumber(value: 0))!
+        let esperado1234_56 = formatador.string(from: NSDecimalNumber(decimal: Decimal(string: "1234.56")!))!
+        let esperado0 = formatador.string(from: NSDecimalNumber(decimal: Decimal(string: "0")!))!
 
         #expect(Money(centavos: 123_456).formatadoBRL == esperado1234_56)
         #expect(Money.zero.formatadoBRL == esperado0)

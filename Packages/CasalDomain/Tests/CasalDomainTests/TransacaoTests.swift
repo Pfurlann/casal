@@ -23,9 +23,30 @@ struct TransacaoTests {
         #expect(t.descricao == "")
     }
 
-    @Test("transferência é um tipo, não uma entidade separada")
-    func transferenciaEhTipo() {
-        #expect(TipoTransacao.allCases.contains(.transferencia))
+    @Test("raw values dos enums persistidos são snake_case e travados como formato de dado")
+    func rawValuesPersistidos() {
+        #expect(TipoTransacao.despesa.rawValue == "despesa")
+        #expect(TipoTransacao.receita.rawValue == "receita")
+        #expect(TipoTransacao.transferencia.rawValue == "transferencia")
+
+        #expect(OrigemTransacao.manual.rawValue == "manual")
+        #expect(OrigemTransacao.walletShortcut.rawValue == "wallet_shortcut")
+        #expect(OrigemTransacao.ofx.rawValue == "ofx")
+        #expect(OrigemTransacao.openFinance.rawValue == "open_finance")
+
+        #expect(EstadoTransacao.confirmada.rawValue == "confirmada")
+        #expect(EstadoTransacao.pendente.rawValue == "pendente")
+
+        #expect(TipoCategoria.despesa.rawValue == "despesa")
+        #expect(TipoCategoria.receita.rawValue == "receita")
+
+        #expect(VisibilidadeCarteira.aberta.rawValue == "aberta")
+        #expect(VisibilidadeCarteira.resumo.rawValue == "resumo")
+        #expect(VisibilidadeCarteira.fechada.rawValue == "fechada")
+
+        #expect(RotuloCarteira.pessoal.rawValue == "pessoal")
+        #expect(RotuloCarteira.compartilhada.rawValue == "compartilhada")
+        #expect(RotuloCarteira.pj.rawValue == "pj")
     }
 
     @Test("carteira fechada não aceita membros além do dono")

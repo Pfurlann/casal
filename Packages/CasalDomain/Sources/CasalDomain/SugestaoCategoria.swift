@@ -1,6 +1,6 @@
 import Foundation
 
-public enum SugestaoCategoria {
+public enum SugestaoCategoria: Sendable {
     /// Ordena categorias pela frequência com que já foram usadas naquele
     /// estabelecimento. Sem histórico do local, usa a frequência geral —
     /// um chute útil vale mais que nenhum chute.
@@ -13,7 +13,7 @@ public enum SugestaoCategoria {
 
         let uteis = historico.filter { !$0.estaRemovida && $0.categoriaID != nil }
 
-        let doLocal = uteis.filter { Estabelecimento.normalizar($0.descricao) == alvo }
+        let doLocal = alvo.isEmpty ? [] : uteis.filter { Estabelecimento.normalizar($0.descricao) == alvo }
         let base = doLocal.isEmpty ? uteis : doLocal
 
         var frequencia: [UUID: Int] = [:]
@@ -32,7 +32,7 @@ public enum SugestaoCategoria {
                 // desempate estável: quem apareceu primeiro no histórico
                 return (primeiraAparicao[esquerda.key] ?? 0) < (primeiraAparicao[direita.key] ?? 0)
             }
-            .prefix(limite)
+            .prefix(max(0, limite))
             .map(\.key)
     }
 }

@@ -14,14 +14,7 @@ public enum Estabelecimento: Sendable {
             locale: Locale(identifier: "pt_BR")
         ).uppercased()
 
-        // Barra e ponto desaparecem para que "S/A" e "S.A." virem o token "SA",
-        // que o conjunto de ruído reconhece. Trocá-las por espaço criaria
-        // os tokens "S" e "A", resolvidos depois pelo merge de single-letters.
-        let semBarraEPonto = semAcento
-            .replacingOccurrences(of: "/", with: "")
-            .replacingOccurrences(of: ".", with: "")
-
-        let apenasPermitidos = semBarraEPonto.map { caractere -> Character in
+        let apenasPermitidos = semAcento.map { caractere -> Character in
             caractere.isLetter || caractere.isNumber || caractere == " " ? caractere : " "
         }
 

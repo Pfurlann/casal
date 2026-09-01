@@ -71,4 +71,41 @@ struct SugestaoCategoriaTests {
         let historico = [removida, semCategoria, lancamento("Zaffari", mercado, dia: 3)]
         #expect(SugestaoCategoria.sugerir(paraEstabelecimento: "Zaffari", historico: historico, limite: 2) == [mercado])
     }
+
+    @Test("estabelecimento em branco vai direto para o fallback geral, sem comparar contra outros lançamentos em branco")
+    func estabelecimentoEmBrancoUsaFallbackGeral() {
+        let historico = [
+            lancamento("", restaurante, dia: 1),
+            lancamento("", restaurante, dia: 2),
+            lancamento("Posto", combustivel, dia: 3),
+            lancamento("Posto", combustivel, dia: 4),
+            lancamento("Posto", combustivel, dia: 5)
+        ]
+        let sugeridas = SugestaoCategoria.sugerir(
+            paraEstabelecimento: "",
+            historico: historico,
+            limite: 2
+        )
+        #expect(sugeridas == [combustivel, restaurante])
+    }
+
+    @Test("limite negativo não trava, devolve lista vazia")
+    func limiteNegativo() {
+        let historico = [lancamento("Ifood", restaurante, dia: 1)]
+        #expect(SugestaoCategoria.sugerir(paraEstabelecimento: "Ifood", historico: historico, limite: -1).isEmpty)
+    }
+
+    @Test("empate de frequência é desfeito por ordem de primeira aparição no histórico")
+    func desempatePorPrimeiraAparicao() {
+        let historico = [
+            lancamento("Loja", restaurante, dia: 1),
+            lancamento("Loja", mercado, dia: 2)
+        ]
+        let sugeridas = SugestaoCategoria.sugerir(
+            paraEstabelecimento: "Loja",
+            historico: historico,
+            limite: 2
+        )
+        #expect(sugeridas == [restaurante, mercado])
+    }
 }

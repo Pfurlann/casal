@@ -28,5 +28,18 @@ struct MoneyTests {
 
         #expect(Money(centavos: 123_456).formatadoBRL == esperado1234_56)
         #expect(Money.zero.formatadoBRL == esperado0)
+
+        // Trava o formato em si, não só a igualdade com o NumberFormatter cru:
+        // não usa espaço comum entre "R$" e o número, e sim U+00A0.
+        let formatado = Money(centavos: 123_456).formatadoBRL
+        #expect(formatado.hasPrefix("R$"))
+        #expect(formatado.contains("1.234,56"))
+    }
+
+    @Test("valor negativo formata com o sinal preservado")
+    func formatacaoNegativa() {
+        let formatado = Money(centavos: -123_456).formatadoBRL
+        #expect(formatado.contains("1.234,56"))
+        #expect(formatado.contains("-"))
     }
 }

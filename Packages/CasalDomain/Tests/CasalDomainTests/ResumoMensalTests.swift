@@ -88,7 +88,7 @@ struct ResumoMensalTests {
         #expect(resumo.totalDespesas == Money(centavos: 4200))
     }
 
-    @Test("o período é fechado nas duas pontas")
+    @Test("o período é meio-aberto: início incluído, fim excluído")
     func limitesDoPeriodo() {
         let resumo = ResumoMensal.calcular(
             transacoes: [
@@ -99,7 +99,36 @@ struct ResumoMensalTests {
             de: dia(10),
             ate: dia(20)
         )
-        #expect(resumo.totalDespesas == Money(centavos: 300))
+        #expect(resumo.totalDespesas == Money(centavos: 100))
+    }
+
+    @Test("transação exatamente em fim é excluída; um segundo antes é incluída")
+    func fronteiraDoFim() {
+        let fim = dia(20)
+        let noFim = Transacao(
+            carteiraID: carteira,
+            tipo: .despesa,
+            valor: Money(centavos: 500),
+            data: fim,
+            criadoPor: autor,
+            hashDedup: UUID().uuidString
+        )
+        let umSegundoAntes = Transacao(
+            carteiraID: carteira,
+            tipo: .despesa,
+            valor: Money(centavos: 700),
+            data: fim.addingTimeInterval(-1),
+            criadoPor: autor,
+            hashDedup: UUID().uuidString
+        )
+
+        let resumo = ResumoMensal.calcular(
+            transacoes: [noFim, umSegundoAntes],
+            de: dia(10),
+            ate: fim
+        )
+        #expect(resumo.totalDespesas == Money(centavos: 700))
+        #expect(resumo.quantidade == 1)
     }
 
     @Test("lista vazia devolve resumo zerado")

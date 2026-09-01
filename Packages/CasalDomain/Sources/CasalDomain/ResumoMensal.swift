@@ -16,6 +16,9 @@ public struct ResumoMensal: Hashable, Sendable {
     /// Agrega o período. Transferência nunca entra: mover dinheiro entre
     /// potes não é gasto nem ganho. Removidas e pendentes também ficam fora
     /// — pendente é captura ainda não confirmada por uma pessoa.
+    ///
+    /// O intervalo é meio-aberto: `[inicio, fim)`. `fim` é exclusivo, então
+    /// uma transação no instante exato de `fim` pertence ao próximo período.
     public static func calcular(
         transacoes: [Transacao],
         de inicio: Date,
@@ -26,7 +29,7 @@ public struct ResumoMensal: Hashable, Sendable {
                 && transacao.estado == .confirmada
                 && transacao.tipo != .transferencia
                 && transacao.data >= inicio
-                && transacao.data <= fim
+                && transacao.data < fim
         }
 
         let despesas = elegiveis

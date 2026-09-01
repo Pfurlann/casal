@@ -5,7 +5,10 @@ public enum TipoTransacao: String, Codable, Sendable, CaseIterable {
 }
 
 public enum OrigemTransacao: String, Codable, Sendable, CaseIterable {
-    case manual, walletShortcut, ofx, openFinance
+    case manual
+    case walletShortcut = "wallet_shortcut"
+    case ofx
+    case openFinance = "open_finance"
 }
 
 public enum EstadoTransacao: String, Codable, Sendable, CaseIterable {

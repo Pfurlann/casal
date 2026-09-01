@@ -23,4 +23,13 @@ struct CategoriaPadraoTests {
     func saoGlobais() {
         #expect(Categoria.padrao.allSatisfy { $0.carteiraID == nil })
     }
+
+    @Test("ids são estáveis entre leituras e distintos entre si")
+    func idsEstaveis() {
+        let primeira = Categoria.padrao.map(\.id)
+        let segunda = Categoria.padrao.map(\.id)
+        #expect(primeira == segunda)
+        #expect(Set(primeira).count == 14)
+        #expect(Categoria.padrao.count == 14)
+    }
 }

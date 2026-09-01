@@ -35,4 +35,10 @@ struct EstabelecimentoTests {
         #expect(Estabelecimento.normalizar("CIA DO CHURRASCO") == "CIA DO CHURRASCO")
         #expect(Estabelecimento.normalizar("ZAFFARI LTDA 4412") == "ZAFFARI")
     }
+
+    @Test("ponto vira espaço em vez de ser apagado, então não gruda palavras")
+    func pontoViraEspaco() {
+        #expect(Estabelecimento.normalizar("REST.DA VILA") == Estabelecimento.normalizar("REST DA VILA"))
+        #expect(Estabelecimento.normalizar("SUPERM.ZAFFARI") != "SUPERMZAFFARI")
+    }
 }

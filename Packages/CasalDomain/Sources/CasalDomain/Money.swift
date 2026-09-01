@@ -25,8 +25,8 @@ public struct Money: Hashable, Sendable, Comparable, Codable {
     public var formatadoBRL: String {
         let formatador = NumberFormatter()
         formatador.numberStyle = .currency
-        formatador.currencyCode = "BRL"
         formatador.locale = Locale(identifier: "pt_BR")
+        formatador.currencyCode = "BRL"
         let valor = NSDecimalNumber(value: centavos).dividing(by: 100)
         return formatador.string(from: valor) ?? "R$ 0,00"
     }

@@ -10,24 +10,38 @@ final class LancamentoModelo: Identifiable {
     var descricao: String = ""
     var data: Date = Date()
     var categoriasSugeridas: [Categoria] = []
+    var cartaoSelecionado: Cartao?
+    var parcelas: Int = 1
 
     let carteira: Carteira
     let categorias: [Categoria]
 
     private let repositorio: RepositorioTransacoes
+    private let repositorioCartoes: RepositorioCartoes
     private let autorID: UUID
+    private let calendario: Calendar
 
     init(
         repositorio: RepositorioTransacoes,
+        repositorioCartoes: RepositorioCartoes,
         carteira: Carteira,
         categorias: [Categoria],
-        autorID: UUID
+        autorID: UUID,
+        calendario: Calendar = .current
     ) {
         self.repositorio = repositorio
+        self.repositorioCartoes = repositorioCartoes
         self.carteira = carteira
         self.categorias = categorias
         self.autorID = autorID
+        self.calendario = calendario
         atualizarSugestoes(paraEstabelecimento: "")
+    }
+
+    /// Cartões elegíveis para "Pago com". Vazio quando o casal ainda não
+    /// cadastrou nenhum — o lançamento continua funcionando em dinheiro.
+    var cartoesDisponiveis: [Cartao] {
+        (try? repositorioCartoes.listarCartoes()) ?? []
     }
 
     /// Recalcula os chips e já seleciona o mais provável, para que o caso
@@ -52,6 +66,45 @@ final class LancamentoModelo: Identifiable {
     func salvar() throws {
         guard entrada.podeSalvar else { return }
 
+        // Parcelamento só existe dentro de um cartão: parcela sem fatura não
+        // tem onde cair. Sem cartão escolhido, o lançamento é único.
+        if let cartao = cartaoSelecionado, parcelas > 1 {
+            try salvarParcelado(cartao: cartao)
+        } else {
+            try salvarUnico()
+        }
+
+        entrada.limpar()
+        descricao = ""
+        data = Date()
+        parcelas = 1
+        cartaoSelecionado = nil
+    }
+
+    private func salvarParcelado(cartao: Cartao) throws {
+        let contexto = ContextoDeLancamento(
+            carteiraID: carteira.id, criadoPor: autorID, calendario: calendario
+        )
+        let planejadas = Parcelamento.planejar(
+            total: entrada.valor,
+            vezes: parcelas,
+            compraEm: data,
+            cartao: cartao,
+            contexto: contexto
+        )
+        let transacoes = Parcelamento.transacoes(
+            de: planejadas,
+            categoriaID: categoriaSelecionada?.id,
+            descricao: descricao,
+            cartao: cartao,
+            contexto: contexto
+        )
+        for transacao in transacoes {
+            try repositorio.salvar(transacao)
+        }
+    }
+
+    private func salvarUnico() throws {
         let transacao = Transacao(
             carteiraID: carteira.id,
             tipo: .despesa,
@@ -59,6 +112,7 @@ final class LancamentoModelo: Identifiable {
             data: data,
             categoriaID: categoriaSelecionada?.id,
             descricao: descricao,
+            cartaoID: cartaoSelecionado?.id,
             criadoPor: autorID,
             hashDedup: Dedup.chave(
                 carteiraID: carteira.id,
@@ -68,10 +122,6 @@ final class LancamentoModelo: Identifiable {
             ),
             dispositivoID: IdentidadeLocal.dispositivoID
         )
-
         try repositorio.salvar(transacao)
-        entrada.limpar()
-        descricao = ""
-        data = Date()
     }
 }

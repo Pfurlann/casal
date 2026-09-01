@@ -9,6 +9,12 @@ struct InicioView: View {
             VStack(alignment: .leading, spacing: 18) {
                 cartaoResumo
 
+                if modelo.comprometidoNoMes.centavos > 0 {
+                    Text("Comprometido em faturas: \(modelo.comprometidoNoMes.formatadoBRL)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if modelo.transacoes.isEmpty {
                     vazio
                 } else {

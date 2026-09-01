@@ -13,6 +13,16 @@ private final class RepositorioFalso: RepositorioTransacoes {
     func historicoRecente(limite: Int) throws -> [Transacao] { Array(historico.prefix(limite)) }
 }
 
+/// O M1 não sabia de cartões: este teste cobre só o lançamento sem cartão,
+/// então o falso nunca precisa devolver nada além de lista vazia.
+private final class RepositorioCartoesFalso: RepositorioCartoes {
+    func salvarCartao(_ cartao: Cartao) throws {}
+    func listarCartoes() throws -> [Cartao] { [] }
+    func arquivarCartao(id: UUID) throws {}
+    func salvarConta(_ conta: Conta) throws {}
+    func listarContas() throws -> [Conta] { [] }
+}
+
 @Suite("LancamentoModelo")
 struct LancamentoModeloTests {
     private func fazerModelo(
@@ -21,6 +31,7 @@ struct LancamentoModeloTests {
     ) -> LancamentoModelo {
         LancamentoModelo(
             repositorio: repositorio,
+            repositorioCartoes: RepositorioCartoesFalso(),
             carteira: Carteira(nome: "Nosso", donoID: UUID()),
             categorias: categorias,
             autorID: UUID()

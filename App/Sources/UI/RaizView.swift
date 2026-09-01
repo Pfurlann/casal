@@ -15,6 +15,7 @@ struct RaizView: View {
     // selecionados, ou o formulário já preenchido.
     @State private var cartaoDetalhe: CartaoDetalheModelo?
     @State private var cartaoForm: CartaoFormModelo?
+    @State private var pagarFatura: PagarFaturaModelo?
     @State private var carteira: Carteira?
     @State private var categorias: [Categoria] = []
 
@@ -51,7 +52,7 @@ struct RaizView: View {
                                 if let cartaoDetalhe {
                                     CartaoDetalheView(
                                         modelo: cartaoDetalhe,
-                                        aoPagarFatura: { _, _, _ in },
+                                        aoPagarFatura: abrirPagarFatura,
                                         aoEditarCartao: { _ in }
                                     )
                                 }
@@ -101,6 +102,22 @@ struct RaizView: View {
                 }
             }
         )
+        .sheet(
+            isPresented: Binding(
+                get: { pagarFatura != nil },
+                set: { aberto in if !aberto { pagarFatura = nil } }
+            ),
+            onDismiss: {
+                cartaoDetalhe?.recarregar()
+                cartoes?.recarregar()
+                inicio?.recarregar()
+            },
+            content: {
+                if let pagarFatura {
+                    PagarFaturaView(modelo: pagarFatura)
+                }
+            }
+        )
     }
 
     private var botaoCentral: some View {
@@ -108,6 +125,7 @@ struct RaizView: View {
             guard let carteira else { return }
             lancamento = LancamentoModelo(
                 repositorio: RepositorioSwiftData(contexto: contexto),
+                repositorioCartoes: RepositorioCartoesSwiftData(contexto: contexto),
                 carteira: carteira,
                 categorias: categorias,
                 autorID: IdentidadeLocal.donoID
@@ -137,6 +155,20 @@ struct RaizView: View {
         cartaoDetalhe = modelo
     }
 
+    private func abrirPagarFatura(_ cartao: Cartao, _ fatura: Fatura, _ totalDaFatura: Money) {
+        guard let carteira else { return }
+        pagarFatura = PagarFaturaModelo(
+            repositorioTransacoes: RepositorioSwiftData(contexto: contexto),
+            repositorioFaturas: RepositorioFaturasSwiftData(contexto: contexto),
+            repositorioCartoes: RepositorioCartoesSwiftData(contexto: contexto),
+            cartao: cartao,
+            fatura: fatura,
+            totalDaFatura: totalDaFatura,
+            carteiraID: carteira.id,
+            autorID: IdentidadeLocal.donoID
+        )
+    }
+
     private func adicionarCartao() {
         guard let carteira else { return }
         cartaoForm = CartaoFormModelo(
@@ -151,7 +183,11 @@ struct RaizView: View {
         carteira = try? Bootstrap.prepararSeNecessario(contexto: contexto, donoID: IdentidadeLocal.donoID)
         categorias = ((try? contexto.fetch(FetchDescriptor<CategoriaRegistro>())) ?? [])
             .map { $0.paraDominio() }
-        let modelo = InicioModelo(repositorio: repositorio, categorias: categorias)
+        let modelo = InicioModelo(
+            repositorio: repositorio,
+            repositorioCartoes: RepositorioCartoesSwiftData(contexto: contexto),
+            categorias: categorias
+        )
         modelo.recarregar()
         inicio = modelo
 

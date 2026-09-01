@@ -15,6 +15,16 @@ private final class RepositorioComDados: RepositorioTransacoes {
     func historicoRecente(limite: Int) throws -> [Transacao] { Array(itens.prefix(limite)) }
 }
 
+/// Nenhum teste aqui cobre cartão: o falso sempre devolve lista vazia, então
+/// `comprometidoNoMes` fica em zero e não interfere nas asserções do M1.
+private final class RepositorioCartoesFalso: RepositorioCartoes {
+    func salvarCartao(_ cartao: Cartao) throws {}
+    func listarCartoes() throws -> [Cartao] { [] }
+    func arquivarCartao(id: UUID) throws {}
+    func salvarConta(_ conta: Conta) throws {}
+    func listarContas() throws -> [Conta] { [] }
+}
+
 @Suite("InicioModelo")
 struct InicioModeloTests {
     @Test("o resumo do mês soma apenas o período corrente")
@@ -30,7 +40,9 @@ struct InicioModeloTests {
                       data: mesPassado, criadoPor: UUID(), hashDedup: "b")
         ]
 
-        let modelo = InicioModelo(repositorio: repositorio, categorias: Categoria.padrao)
+        let modelo = InicioModelo(
+            repositorio: repositorio, repositorioCartoes: RepositorioCartoesFalso(), categorias: Categoria.padrao
+        )
         modelo.recarregar(referencia: agora)
 
         #expect(modelo.resumo.totalDespesas == Money(centavos: 4200))
@@ -39,7 +51,11 @@ struct InicioModeloTests {
 
     @Test("mês sem lançamento mostra resumo zerado sem estourar")
     func mesVazio() {
-        let modelo = InicioModelo(repositorio: RepositorioComDados(), categorias: Categoria.padrao)
+        let modelo = InicioModelo(
+            repositorio: RepositorioComDados(),
+            repositorioCartoes: RepositorioCartoesFalso(),
+            categorias: Categoria.padrao
+        )
         modelo.recarregar(referencia: Date())
         #expect(modelo.resumo.totalDespesas == Money.zero)
         #expect(modelo.transacoes.isEmpty)
@@ -61,7 +77,9 @@ struct InicioModeloTests {
                       data: umSegundoAntes, criadoPor: UUID(), hashDedup: "um-segundo-antes")
         ]
 
-        let modelo = InicioModelo(repositorio: repositorio, categorias: Categoria.padrao)
+        let modelo = InicioModelo(
+            repositorio: repositorio, repositorioCartoes: RepositorioCartoesFalso(), categorias: Categoria.padrao
+        )
         modelo.recarregar(referencia: referencia)
 
         #expect(modelo.transacoes.count == 1)

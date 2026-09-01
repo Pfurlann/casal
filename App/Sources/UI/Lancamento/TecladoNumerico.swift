@@ -6,8 +6,10 @@ struct TecladoNumerico: View {
     let aoAbrirMais: () -> Void
     let aoSalvar: () -> Void
     let podeSalvar: Bool
-
-    private let colunas = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
+    /// No lançamento as teclas `···` e Salvar fazem parte do fluxo.
+    /// Em formulários (limite, pagar fatura) o salvar vive na toolbar —
+    /// deixar essas teclas mortas só come altura e confunde.
+    var mostraAcoes: Bool = true
 
     var body: some View {
         VStack(spacing: 6) {
@@ -16,16 +18,36 @@ struct TecladoNumerico: View {
                 botaoApagar
             }
 
-            LazyVGrid(columns: colunas, spacing: 6) {
-                ForEach(1...9, id: \.self) { numero in
-                    tecla("\(numero)") { aoDigitar(numero) }
+            // VStack+HStack, não LazyVGrid: dentro de Form/List o grid
+            // preguiçoso não reporta altura e a fileira do 0 some cortada.
+            VStack(spacing: 6) {
+                fileira([1, 2, 3])
+                fileira([4, 5, 6])
+                fileira([7, 8, 9])
+                HStack(spacing: 6) {
+                    if mostraAcoes {
+                        tecla("···", peso: .regular, action: aoAbrirMais)
+                    } else {
+                        Color.clear.frame(minHeight: 56)
+                    }
+                    tecla("0") { aoDigitar(0) }
+                    if mostraAcoes {
+                        teclaSalvar
+                    } else {
+                        Color.clear.frame(minHeight: 56)
+                    }
                 }
-                tecla("···", peso: .regular, action: aoAbrirMais)
-                tecla("0") { aoDigitar(0) }
-                teclaSalvar
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    private func fileira(_ numeros: [Int]) -> some View {
+        HStack(spacing: 6) {
+            ForEach(numeros, id: \.self) { numero in
+                tecla("\(numero)") { aoDigitar(numero) }
+            }
+        }
     }
 
     /// Afordância visível para corrigir um dígito errado. Antes disso a

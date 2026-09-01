@@ -117,14 +117,6 @@ struct PagarFaturaView: View {
                         ValorTexto(valor: modelo.entrada.valor, tamanho: 22)
                         Spacer()
                     }
-                    TecladoNumerico(
-                        aoDigitar: { modelo.entrada.digitar($0) },
-                        aoApagar: { modelo.entrada.apagar() },
-                        aoAbrirMais: {},
-                        aoSalvar: {},
-                        podeSalvar: false
-                    )
-                    .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
                 }
 
                 Section("Sai de") {
@@ -147,6 +139,20 @@ struct PagarFaturaView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                TecladoNumerico(
+                    aoDigitar: { modelo.entrada.digitar($0) },
+                    aoApagar: { modelo.entrada.apagar() },
+                    aoAbrirMais: {},
+                    aoSalvar: {},
+                    podeSalvar: false,
+                    mostraAcoes: false
+                )
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+                .background(.bar)
             }
             .navigationTitle("Pagar fatura")
             .navigationBarTitleDisplayMode(.inline)

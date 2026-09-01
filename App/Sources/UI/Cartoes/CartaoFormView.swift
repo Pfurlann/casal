@@ -18,6 +18,10 @@ struct CartaoFormView: View {
                 corSection
                 errosSection
             }
+            .contentMargins(.bottom, 12, for: .scrollContent)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                tecladoDeLimite
+            }
             .navigationTitle("Cartão")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -71,15 +75,22 @@ struct CartaoFormView: View {
                 Spacer()
                 ValorTexto(valor: modelo.entradaLimite.valor, tamanho: 17)
             }
-            TecladoNumerico(
-                aoDigitar: { modelo.entradaLimite.digitar($0) },
-                aoApagar: { modelo.entradaLimite.apagar() },
-                aoAbrirMais: {},
-                aoSalvar: {},
-                podeSalvar: false
-            )
-            .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
         }
+    }
+
+    private var tecladoDeLimite: some View {
+        TecladoNumerico(
+            aoDigitar: { modelo.entradaLimite.digitar($0) },
+            aoApagar: { modelo.entradaLimite.apagar() },
+            aoAbrirMais: {},
+            aoSalvar: {},
+            podeSalvar: false,
+            mostraAcoes: false
+        )
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .background(.bar)
     }
 
     private var cicloSection: some View {

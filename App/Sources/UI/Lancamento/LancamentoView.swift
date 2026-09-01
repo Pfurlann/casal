@@ -6,6 +6,7 @@ struct LancamentoView: View {
     @Environment(\.dismiss) private var fechar
     @State private var mostrandoMaisOpcoes = false
     @State private var mostrandoTodasCategorias = false
+    @State private var erroAoSalvar: String?
 
     var body: some View {
         VStack(spacing: 14) {
@@ -20,7 +21,13 @@ struct LancamentoView: View {
                             if gesto.translation.width < 0 { modelo.entrada.apagar() }
                         }
                 )
-                .accessibilityHint("Deslize para a esquerda para apagar o último dígito")
+                .accessibilityHint(
+                    "Deslize para a esquerda para apagar o último dígito, "
+                        + "ou use a ação de apagar do rotor"
+                )
+                .accessibilityAction(named: "Apagar último dígito") {
+                    modelo.entrada.apagar()
+                }
 
             Text(modelo.data.formatted(.dateTime.weekday(.wide).day().month()))
                 .font(.caption)
@@ -50,6 +57,17 @@ struct LancamentoView: View {
                 categorias: modelo.categorias.filter { $0.tipo == .despesa },
                 selecionada: $modelo.categoriaSelecionada
             )
+        }
+        .alert(
+            "Não foi possível salvar",
+            isPresented: Binding(
+                get: { erroAoSalvar != nil },
+                set: { if !$0 { erroAoSalvar = nil } }
+            )
+        ) {
+            Button("OK") { erroAoSalvar = nil }
+        } message: {
+            Text(erroAoSalvar ?? "")
         }
     }
 
@@ -81,6 +99,7 @@ struct LancamentoView: View {
         } catch {
             // Escrita local que falha é bug, não estado esperado.
             assertionFailure("Falha ao salvar lançamento: \(error)")
+            erroAoSalvar = "Não foi possível salvar o lançamento. Tente novamente."
         }
     }
 }

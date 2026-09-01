@@ -44,6 +44,12 @@ struct CartaoTests {
         #expect(TipoConta.corrente.rawValue == "corrente")
         #expect(TipoConta.poupanca.rawValue == "poupanca")
         #expect(TipoConta.dinheiro.rawValue == "dinheiro")
+        #expect(BandeiraCartao.visa.rawValue == "visa")
+        #expect(BandeiraCartao.mastercard.rawValue == "mastercard")
+        #expect(BandeiraCartao.elo.rawValue == "elo")
+        #expect(BandeiraCartao.amex.rawValue == "amex")
+        #expect(BandeiraCartao.hipercard.rawValue == "hipercard")
+        #expect(BandeiraCartao.outra.rawValue == "outra")
     }
 
     @Test("fatura nasce aberta e sem nada pago")

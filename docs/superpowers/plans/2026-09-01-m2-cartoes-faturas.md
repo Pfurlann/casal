@@ -3309,3 +3309,1541 @@ git add App/Sources/UI/Cartoes/CartoesModelo.swift App/Sources/UI/Cartoes/Cartoe
         App/Sources/UI/RaizView.swift App/Tests/CartoesModeloTests.swift
 git commit -m "feat(ui): tela de entrada de cartoes com total e curva de futuras"
 ```
+
+---
+
+## Task 13: Detalhe do cartão em carrossel
+
+O desenho aprovado: cartão grande como herói, swipe horizontal entre cartões, abas para fatura atual, próxima e futuras, lançamentos abaixo.
+
+**Files:**
+- Create: `App/Sources/UI/Cartoes/CartaoDetalheModelo.swift`
+- Create: `App/Sources/UI/Cartoes/CartaoDetalheView.swift`
+- Modify: `App/Sources/UI/Cartoes/CartoesView.swift`
+- Test: `App/Tests/CartaoDetalheModeloTests.swift`
+
+**Interfaces:**
+- Consumes: `RepositorioCartoes`, `RepositorioFaturas`, `RepositorioTransacoes`, `CalendarioFatura`, `HorizonteFaturas`, `CartaoFace`, `Competencia`
+- Produces: `enum AbaFatura { case atual, proxima, futuras }`, `CartaoDetalheModelo` com `cartoes`, `indiceSelecionado`, `aba`, `cartaoAtual`, `lancamentos`, `totalDaAba`, `faturasFuturas`, `recarregar(referencia:)`; e `CartaoDetalheView`
+
+- [ ] **Step 1: Escrever o teste que falha**
+
+`App/Tests/CartaoDetalheModeloTests.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import SwiftData
+import Testing
+@testable import Casal
+
+@Suite("CartaoDetalheModelo")
+struct CartaoDetalheModeloTests {
+    private var calendario: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        return c
+    }
+
+    private func data(_ ano: Int, _ mes: Int, _ dia: Int) -> Date {
+        var partes = DateComponents()
+        partes.year = ano
+        partes.month = mes
+        partes.day = dia
+        partes.hour = 12
+        return calendario.date(from: partes)!
+    }
+
+    private func montar() throws -> (CartaoDetalheModelo, ModelContext) {
+        let contexto = ModelContext(try SchemaCasal.container(emMemoria: true))
+        let modelo = CartaoDetalheModelo(
+            repositorioCartoes: RepositorioCartoesSwiftData(contexto: contexto),
+            repositorioFaturas: RepositorioFaturasSwiftData(contexto: contexto),
+            repositorioTransacoes: RepositorioSwiftData(contexto: contexto),
+            calendario: calendario
+        )
+        return (modelo, contexto)
+    }
+
+    private func cartao(_ apelido: String) -> Cartao {
+        Cartao(
+            carteiraID: UUID(), apelido: apelido, banco: "Nubank", ultimos4: "4417",
+            limite: Money(centavos: 800_000), diaFechamento: 28, diaVencimento: 5
+        )
+    }
+
+    @Test("a aba atual mostra só os lançamentos da fatura corrente")
+    func abaAtual() throws {
+        let (modelo, contexto) = try montar()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let meu = cartao("Nosso")
+        try repoCartoes.salvarCartao(meu)
+
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: meu.carteiraID, tipo: .despesa, valor: Money(centavos: 41_280),
+            data: data(2026, 9, 10), descricao: "Zaffari", criadoPor: UUID(),
+            cartaoID: meu.id, hashDedup: "set"
+        ))
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: meu.carteiraID, tipo: .despesa, valor: Money(centavos: 8740),
+            data: data(2026, 9, 29), descricao: "Ifood", criadoPor: UUID(),
+            cartaoID: meu.id, hashDedup: "out"
+        ))
+
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        modelo.aba = .atual
+        #expect(modelo.lancamentos.count == 1)
+        #expect(modelo.lancamentos.first?.descricao == "Zaffari")
+        #expect(modelo.totalDaAba == Money(centavos: 41_280))
+    }
+
+    @Test("a aba próxima mostra o que passou do fechamento")
+    func abaProxima() throws {
+        let (modelo, contexto) = try montar()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let meu = cartao("Nosso")
+        try repoCartoes.salvarCartao(meu)
+
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: meu.carteiraID, tipo: .despesa, valor: Money(centavos: 8740),
+            data: data(2026, 9, 29), descricao: "Ifood", criadoPor: UUID(),
+            cartaoID: meu.id, hashDedup: "out"
+        ))
+
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        modelo.aba = .proxima
+        #expect(modelo.lancamentos.count == 1)
+        #expect(modelo.lancamentos.first?.descricao == "Ifood")
+        #expect(modelo.totalDaAba == Money(centavos: 8740))
+    }
+
+    @Test("a aba futuras resume as competências seguintes, sem listar lançamento")
+    func abaFuturas() throws {
+        let (modelo, contexto) = try montar()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let meu = cartao("Nosso")
+        try repoCartoes.salvarCartao(meu)
+
+        let parcelas = Parcelamento.transacoes(
+            de: Parcelamento.planejar(
+                total: Money(centavos: 120_000), vezes: 6,
+                compraEm: data(2026, 9, 10), cartao: meu, calendario: calendario
+            ),
+            carteiraID: meu.carteiraID, categoriaID: nil, descricao: "Sofá",
+            criadoPor: UUID(), cartao: meu, calendario: calendario
+        )
+        for parcela in parcelas { try repoTransacoes.salvar(parcela) }
+
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        modelo.aba = .futuras
+        // futuras começa na terceira competência: setembro é atual, outubro é próxima
+        #expect(modelo.faturasFuturas.count == 4)
+        #expect(modelo.faturasFuturas.allSatisfy { $0.total == Money(centavos: 20_000) })
+    }
+
+    @Test("trocar de cartão troca os lançamentos exibidos")
+    func trocaDeCartao() throws {
+        let (modelo, contexto) = try montar()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let a = cartao("A")
+        let b = cartao("B")
+        try repoCartoes.salvarCartao(a)
+        try repoCartoes.salvarCartao(b)
+
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: a.carteiraID, tipo: .despesa, valor: Money(centavos: 10_000),
+            data: data(2026, 9, 10), descricao: "do A", criadoPor: UUID(),
+            cartaoID: a.id, hashDedup: "a"
+        ))
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: b.carteiraID, tipo: .despesa, valor: Money(centavos: 20_000),
+            data: data(2026, 9, 10), descricao: "do B", criadoPor: UUID(),
+            cartaoID: b.id, hashDedup: "b"
+        ))
+
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        #expect(modelo.cartoes.count == 2)
+
+        let apelidoDoPrimeiro = modelo.cartaoAtual?.apelido
+        let descricaoDoPrimeiro = modelo.lancamentos.first?.descricao
+        modelo.indiceSelecionado = 1
+        #expect(modelo.cartaoAtual?.apelido != apelidoDoPrimeiro)
+        #expect(modelo.lancamentos.first?.descricao != descricaoDoPrimeiro)
+    }
+
+    @Test("índice fora da lista não estoura e não devolve cartão")
+    func indiceInvalido() throws {
+        let (modelo, _) = try montar()
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        modelo.indiceSelecionado = 5
+        #expect(modelo.cartaoAtual == nil)
+        #expect(modelo.lancamentos.isEmpty)
+        #expect(modelo.totalDaAba == Money.zero)
+    }
+
+    @Test("lançamento removido não aparece em aba nenhuma")
+    func removidoIgnorado() throws {
+        let (modelo, contexto) = try montar()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let meu = cartao("Nosso")
+        try repoCartoes.salvarCartao(meu)
+
+        let alvo = Transacao(
+            carteiraID: meu.carteiraID, tipo: .despesa, valor: Money(centavos: 41_280),
+            data: data(2026, 9, 10), descricao: "Zaffari", criadoPor: UUID(),
+            cartaoID: meu.id, hashDedup: "set"
+        )
+        try repoTransacoes.salvar(alvo)
+        try repoTransacoes.remover(id: alvo.id)
+
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        modelo.aba = .atual
+        #expect(modelo.lancamentos.isEmpty)
+        #expect(modelo.totalDaAba == Money.zero)
+    }
+}
+```
+
+- [ ] **Step 2: Rodar e confirmar que falha**
+
+Run: `cd App && xcodebuild test -project Casal.xcodeproj -scheme Casal -destination 'platform=iOS Simulator,name=iPhone 17'`
+Expected: FALHA, `cannot find 'CartaoDetalheModelo' in scope`
+
+- [ ] **Step 3: Implementar o modelo**
+
+`App/Sources/UI/Cartoes/CartaoDetalheModelo.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import Observation
+
+enum AbaFatura: String, CaseIterable, Identifiable {
+    case atual, proxima, futuras
+
+    var id: String { rawValue }
+
+    var titulo: String {
+        switch self {
+        case .atual: "Atual"
+        case .proxima: "Próxima"
+        case .futuras: "Futuras"
+        }
+    }
+}
+
+@Observable
+final class CartaoDetalheModelo {
+    private(set) var cartoes: [Cartao] = []
+    var indiceSelecionado = 0
+    var aba: AbaFatura = .atual
+
+    private var todasAsTransacoes: [Transacao] = []
+    private var referencia = Date()
+
+    private let repositorioCartoes: RepositorioCartoes
+    private let repositorioFaturas: RepositorioFaturas
+    private let repositorioTransacoes: RepositorioTransacoes
+    private let calendario: Calendar
+
+    static let mesesFuturosExibidos = 4
+
+    init(
+        repositorioCartoes: RepositorioCartoes,
+        repositorioFaturas: RepositorioFaturas,
+        repositorioTransacoes: RepositorioTransacoes,
+        calendario: Calendar = .current
+    ) {
+        self.repositorioCartoes = repositorioCartoes
+        self.repositorioFaturas = repositorioFaturas
+        self.repositorioTransacoes = repositorioTransacoes
+        self.calendario = calendario
+    }
+
+    func recarregar(referencia: Date = Date()) {
+        self.referencia = referencia
+        cartoes = (try? repositorioCartoes.listarCartoes()) ?? []
+        todasAsTransacoes = (try? repositorioTransacoes.listar(
+            de: .distantPast, ate: .distantFuture
+        )) ?? []
+        if indiceSelecionado >= cartoes.count { indiceSelecionado = 0 }
+    }
+
+    var cartaoAtual: Cartao? {
+        cartoes.indices.contains(indiceSelecionado) ? cartoes[indiceSelecionado] : nil
+    }
+
+    private var competenciaAtual: Competencia {
+        Competencia(data: referencia, calendario: calendario)
+    }
+
+    /// Competência que a aba selecionada representa. `futuras` não tem uma
+    /// competência única — é resumo, e devolve nil de propósito.
+    private var competenciaDaAba: Competencia? {
+        switch aba {
+        case .atual: competenciaAtual
+        case .proxima: competenciaAtual.avancando(meses: 1)
+        case .futuras: nil
+        }
+    }
+
+    var lancamentos: [Transacao] {
+        guard let cartao = cartaoAtual, let competencia = competenciaDaAba else { return [] }
+        return todasAsTransacoes
+            .filter { transacao in
+                transacao.cartaoID == cartao.id
+                    && !transacao.estaRemovida
+                    && transacao.tipo == .despesa
+                    && CalendarioFatura.competencia(
+                        deCompraEm: transacao.data, cartao: cartao, calendario: calendario
+                    ) == competencia
+            }
+            .sorted { $0.data > $1.data }
+    }
+
+    var totalDaAba: Money {
+        switch aba {
+        case .atual, .proxima:
+            lancamentos.reduce(Money.zero) { $0 + $1.valor }
+        case .futuras:
+            faturasFuturas.reduce(Money.zero) { $0 + $1.total }
+        }
+    }
+
+    /// As competências depois da próxima. Começa em +2 porque +0 é a aba atual
+    /// e +1 é a aba próxima.
+    var faturasFuturas: [(competencia: Competencia, total: Money)] {
+        guard let cartao = cartaoAtual else { return [] }
+        let horizonte = HorizonteFaturas.proximas(
+            2 + Self.mesesFuturosExibidos,
+            desde: competenciaAtual,
+            transacoes: todasAsTransacoes,
+            cartao: cartao,
+            calendario: calendario
+        )
+        return Array(horizonte.dropFirst(2))
+    }
+
+    var faturaDaAbaAtual: Fatura? {
+        guard let cartao = cartaoAtual, let competencia = competenciaDaAba else { return nil }
+        return try? repositorioFaturas.faturaOuCriar(
+            cartao: cartao, competencia: competencia, calendario: calendario
+        )
+    }
+}
+```
+
+- [ ] **Step 4: Implementar a view**
+
+`App/Sources/UI/Cartoes/CartaoDetalheView.swift`:
+
+```swift
+import CasalDomain
+import SwiftUI
+
+struct CartaoDetalheView: View {
+    @Bindable var modelo: CartaoDetalheModelo
+    let aoPagarFatura: (Cartao, Fatura, Money) -> Void
+    let aoEditarCartao: (Cartao) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                carrossel
+                seletorDeAba
+
+                if modelo.aba == .futuras {
+                    listaDeFuturas
+                } else {
+                    cabecalhoDaFatura
+                    listaDeLancamentos
+                }
+            }
+            .padding(16)
+        }
+        .navigationTitle(modelo.cartaoAtual?.apelido ?? "Cartão")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if let cartao = modelo.cartaoAtual {
+                    Button("Editar") { aoEditarCartao(cartao) }
+                }
+            }
+        }
+        .onAppear { modelo.recarregar() }
+    }
+
+    private var carrossel: some View {
+        TabView(selection: $modelo.indiceSelecionado) {
+            ForEach(Array(modelo.cartoes.enumerated()), id: \.element.id) { indice, cartao in
+                CartaoFace(
+                    cartao: cartao,
+                    tamanho: .grande,
+                    faturaAtual: modelo.aba == .futuras ? nil : modelo.totalDaAba
+                )
+                .tag(indice)
+                .padding(.horizontal, 2)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: modelo.cartoes.count > 1 ? .automatic : .never))
+        .frame(height: TamanhoCartaoFace.grande.altura + 28)
+    }
+
+    private var seletorDeAba: some View {
+        Picker("Fatura", selection: $modelo.aba) {
+            ForEach(AbaFatura.allCases) { aba in
+                Text(aba.titulo).tag(aba)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var cabecalhoDaFatura: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                if let fatura = modelo.faturaDaAbaAtual {
+                    Text("Vence \(fatura.venceEm.formatted(.dateTime.day().month(.abbreviated)))")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                ValorTexto(valor: modelo.totalDaAba, tamanho: 24)
+            }
+            Spacer()
+            if let cartao = modelo.cartaoAtual,
+               let fatura = modelo.faturaDaAbaAtual,
+               fatura.status != .paga,
+               modelo.totalDaAba.centavos > 0 {
+                Button("Pagar") {
+                    aoPagarFatura(cartao, fatura, modelo.totalDaAba)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 12))
+    }
+
+    private var listaDeLancamentos: some View {
+        VStack(spacing: 0) {
+            if modelo.lancamentos.isEmpty {
+                Text("Nenhum lançamento nesta fatura")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 26)
+            } else {
+                ForEach(modelo.lancamentos) { transacao in
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(transacao.descricao.isEmpty ? "Sem descrição" : transacao.descricao)
+                                .font(.subheadline.weight(.semibold))
+                            Text(transacao.data.formatted(.dateTime.day().month(.abbreviated)))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(transacao.valor.formatadoBRL)
+                                .font(.subheadline.weight(.bold))
+                                .monospacedDigit()
+                            if transacao.parcelaTotal > 1 {
+                                Text("\(transacao.parcelaN) de \(transacao.parcelaTotal)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 7)
+
+                    if transacao.id != modelo.lancamentos.last?.id { Divider() }
+                }
+            }
+        }
+    }
+
+    private var listaDeFuturas: some View {
+        VStack(spacing: 0) {
+            ForEach(modelo.faturasFuturas, id: \.competencia) { ponto in
+                HStack {
+                    Text("\(ponto.competencia.rotuloCurto) \(String(ponto.competencia.ano))")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(ponto.total.formatadoBRL)
+                        .font(.subheadline.weight(.bold))
+                        .monospacedDigit()
+                }
+                .padding(.vertical, 9)
+
+                if ponto.competencia != modelo.faturasFuturas.last?.competencia { Divider() }
+            }
+        }
+    }
+}
+```
+
+- [ ] **Step 5: Ligar a navegação a partir da lista**
+
+Em `App/Sources/UI/Cartoes/CartoesView.swift`, o callback `aoAbrirCartao` já existe. Faça a `RaizView` (ou a `NavigationStack` da aba Cartões) empurrar `CartaoDetalheView` com um `CartaoDetalheModelo` cujo `indiceSelecionado` já aponta para o cartão tocado. O modelo tem de ter dono em `@State` — modelo criado dentro de closure de apresentação perde estado, defeito que o review final do M1 já pegou uma vez neste projeto.
+
+- [ ] **Step 6: Rodar, buildar e conferir na tela**
+
+Rode a suíte, depois instale e tire screenshot como na Tarefa 12, esperando pelo menos quatro segundos após o launch. Confirme na imagem: o cartão grande aparece com gradiente e últimos quatro dígitos, o seletor de três abas está visível, e a lista abaixo mostra o lançamento com "3 de 12" quando houver parcela.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add App/Sources/UI/Cartoes/CartaoDetalheModelo.swift \
+        App/Sources/UI/Cartoes/CartaoDetalheView.swift \
+        App/Sources/UI/Cartoes/CartoesView.swift App/Sources/UI/RaizView.swift \
+        App/Tests/CartaoDetalheModeloTests.swift
+git commit -m "feat(ui): detalhe do cartao em carrossel com abas de fatura"
+```
+
+---
+
+## Task 14: Cadastro e edição de cartão
+
+Sem esta tela o M2 inteiro é inalcançável: não há como criar o primeiro cartão.
+
+**Files:**
+- Create: `App/Sources/UI/Cartoes/CartaoFormModelo.swift`
+- Create: `App/Sources/UI/Cartoes/CartaoFormView.swift`
+- Test: `App/Tests/CartaoFormModeloTests.swift`
+
+**Interfaces:**
+- Consumes: `RepositorioCartoes`, `Cartao`, `BandeiraCartao`, `Money`, `EntradaValor`, `CartaoFace`
+- Produces: `CartaoFormModelo` com `apelido`, `banco`, `ultimos4`, `bandeira`, `cor`, `entradaLimite`, `diaFechamento`, `diaVencimento`, `podeSalvar`, `erros: [String]`, `salvar()`, `cartaoDePrevia`; e `CartaoFormView`
+
+- [ ] **Step 1: Escrever o teste que falha**
+
+`App/Tests/CartaoFormModeloTests.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import SwiftData
+import Testing
+@testable import Casal
+
+private final class RepositorioCartoesFalso: RepositorioCartoes {
+    var cartoesSalvos: [Cartao] = []
+    var contasSalvas: [Conta] = []
+
+    func salvarCartao(_ cartao: Cartao) throws { cartoesSalvos.append(cartao) }
+    func listarCartoes() throws -> [Cartao] { cartoesSalvos }
+    func arquivarCartao(id: UUID) throws { cartoesSalvos.removeAll { $0.id == id } }
+    func salvarConta(_ conta: Conta) throws { contasSalvas.append(conta) }
+    func listarContas() throws -> [Conta] { contasSalvas }
+}
+
+@Suite("CartaoFormModelo")
+struct CartaoFormModeloTests {
+    private func modeloNovo(
+        _ repositorio: RepositorioCartoesFalso = RepositorioCartoesFalso()
+    ) -> CartaoFormModelo {
+        CartaoFormModelo(repositorio: repositorio, carteiraID: UUID(), cartaoExistente: nil)
+    }
+
+    @Test("formulário vazio não pode salvar e explica o que falta")
+    func vazioNaoSalva() {
+        let modelo = modeloNovo()
+        #expect(modelo.podeSalvar == false)
+        #expect(modelo.erros.isEmpty == false)
+    }
+
+    @Test("preenchido corretamente pode salvar e não tem erro")
+    func preenchidoSalva() {
+        let modelo = modeloNovo()
+        modelo.apelido = "Nosso"
+        modelo.banco = "Nubank"
+        modelo.ultimos4 = "4417"
+        modelo.diaFechamento = 28
+        modelo.diaVencimento = 5
+        for digito in [8, 0, 0, 0, 0, 0] { modelo.entradaLimite.digitar(digito) }
+
+        #expect(modelo.erros.isEmpty)
+        #expect(modelo.podeSalvar)
+    }
+
+    @Test("limite zero é recusado — cartão sem limite não calcula disponível")
+    func limiteZero() {
+        let modelo = modeloNovo()
+        modelo.apelido = "Nosso"
+        modelo.banco = "Nubank"
+        modelo.ultimos4 = "4417"
+        #expect(modelo.podeSalvar == false)
+    }
+
+    @Test("últimos quatro dígitos exigem exatamente quatro números")
+    func ultimos4Invalido() {
+        let modelo = modeloNovo()
+        modelo.apelido = "Nosso"
+        modelo.banco = "Nubank"
+        for digito in [8, 0, 0, 0, 0, 0] { modelo.entradaLimite.digitar(digito) }
+
+        modelo.ultimos4 = "441"
+        #expect(modelo.podeSalvar == false)
+        modelo.ultimos4 = "44177"
+        #expect(modelo.podeSalvar == false)
+        modelo.ultimos4 = "44a7"
+        #expect(modelo.podeSalvar == false)
+        modelo.ultimos4 = "4417"
+        #expect(modelo.podeSalvar)
+    }
+
+    @Test("dias fora de 1 a 31 são recusados")
+    func diasInvalidos() {
+        let modelo = modeloNovo()
+        modelo.apelido = "Nosso"
+        modelo.banco = "Nubank"
+        modelo.ultimos4 = "4417"
+        for digito in [8, 0, 0, 0, 0, 0] { modelo.entradaLimite.digitar(digito) }
+
+        modelo.diaFechamento = 0
+        #expect(modelo.podeSalvar == false)
+        modelo.diaFechamento = 32
+        #expect(modelo.podeSalvar == false)
+        modelo.diaFechamento = 28
+        modelo.diaVencimento = 0
+        #expect(modelo.podeSalvar == false)
+        modelo.diaVencimento = 5
+        #expect(modelo.podeSalvar)
+    }
+
+    @Test("salvar grava o cartão com o limite digitado em centavos")
+    func salvaComLimite() throws {
+        let repositorio = RepositorioCartoesFalso()
+        let modelo = modeloNovo(repositorio)
+        modelo.apelido = "Nosso"
+        modelo.banco = "Nubank"
+        modelo.ultimos4 = "4417"
+        modelo.bandeira = .visa
+        modelo.diaFechamento = 28
+        modelo.diaVencimento = 5
+        for digito in [8, 0, 0, 0, 0, 0] { modelo.entradaLimite.digitar(digito) }
+
+        try modelo.salvar()
+
+        #expect(repositorio.cartoesSalvos.count == 1)
+        let gravado = try #require(repositorio.cartoesSalvos.first)
+        #expect(gravado.apelido == "Nosso")
+        #expect(gravado.limite == Money(centavos: 800_000))
+        #expect(gravado.bandeira == .visa)
+        #expect(gravado.diaFechamento == 28)
+        #expect(gravado.diaVencimento == 5)
+    }
+
+    @Test("editar preserva o id do cartão em vez de criar outro")
+    func edicaoPreservaID() throws {
+        let repositorio = RepositorioCartoesFalso()
+        let existente = Cartao(
+            carteiraID: UUID(), apelido: "Antigo", banco: "Nubank", ultimos4: "4417",
+            limite: Money(centavos: 500_000), diaFechamento: 10, diaVencimento: 20
+        )
+        let modelo = CartaoFormModelo(
+            repositorio: repositorio, carteiraID: existente.carteiraID, cartaoExistente: existente
+        )
+        #expect(modelo.apelido == "Antigo")
+        #expect(modelo.entradaLimite.valor == Money(centavos: 500_000))
+
+        modelo.apelido = "Renovado"
+        try modelo.salvar()
+
+        #expect(repositorio.cartoesSalvos.first?.id == existente.id)
+        #expect(repositorio.cartoesSalvos.first?.apelido == "Renovado")
+    }
+
+    @Test("a prévia reflete o que já foi digitado")
+    func previa() {
+        let modelo = modeloNovo()
+        modelo.banco = "Itaú"
+        modelo.ultimos4 = "9999"
+        #expect(modelo.cartaoDePrevia.banco == "Itaú")
+        #expect(modelo.cartaoDePrevia.ultimos4 == "9999")
+    }
+}
+```
+
+- [ ] **Step 2: Rodar e confirmar que falha**
+
+Run: `cd App && xcodebuild test -project Casal.xcodeproj -scheme Casal -destination 'platform=iOS Simulator,name=iPhone 17'`
+Expected: FALHA, `cannot find 'CartaoFormModelo' in scope`
+
+- [ ] **Step 3: Implementar o modelo**
+
+`App/Sources/UI/Cartoes/CartaoFormModelo.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import Observation
+
+@Observable
+final class CartaoFormModelo {
+    var apelido: String = ""
+    var banco: String = ""
+    var ultimos4: String = ""
+    var bandeira: BandeiraCartao = .outra
+    var cor: String = "#7C5CFF"
+    var entradaLimite = EntradaValor()
+    var diaFechamento: Int = 28
+    var diaVencimento: Int = 5
+
+    private let repositorio: RepositorioCartoes
+    private let carteiraID: UUID
+    private let idExistente: UUID?
+    private let contaPagamentoID: UUID?
+
+    init(repositorio: RepositorioCartoes, carteiraID: UUID, cartaoExistente: Cartao?) {
+        self.repositorio = repositorio
+        self.carteiraID = carteiraID
+        idExistente = cartaoExistente?.id
+        contaPagamentoID = cartaoExistente?.contaPagamentoID
+
+        if let existente = cartaoExistente {
+            apelido = existente.apelido
+            banco = existente.banco
+            ultimos4 = existente.ultimos4
+            bandeira = existente.bandeira
+            cor = existente.cor
+            diaFechamento = existente.diaFechamento
+            diaVencimento = existente.diaVencimento
+            entradaLimite = EntradaValor(centavos: existente.limite.centavos)
+        }
+    }
+
+    /// Mensagens do que falta, na ordem em que o usuário preenche. Existe para
+    /// que o botão desabilitado não seja um mistério.
+    var erros: [String] {
+        var lista: [String] = []
+        if apelido.trimmingCharacters(in: .whitespaces).isEmpty {
+            lista.append("Dê um apelido ao cartão")
+        }
+        if banco.trimmingCharacters(in: .whitespaces).isEmpty {
+            lista.append("Informe o banco")
+        }
+        if ultimos4.count != 4 || !ultimos4.allSatisfy(\.isNumber) {
+            lista.append("Informe os quatro últimos dígitos")
+        }
+        if entradaLimite.valor.centavos <= 0 {
+            lista.append("Informe o limite do cartão")
+        }
+        if !Cartao.diaValido(diaFechamento) {
+            lista.append("Dia de fechamento entre 1 e 31")
+        }
+        if !Cartao.diaValido(diaVencimento) {
+            lista.append("Dia de vencimento entre 1 e 31")
+        }
+        return lista
+    }
+
+    var podeSalvar: Bool { erros.isEmpty }
+
+    var cartaoDePrevia: Cartao {
+        Cartao(
+            id: idExistente ?? UUID(),
+            carteiraID: carteiraID,
+            apelido: apelido.isEmpty ? "Apelido" : apelido,
+            banco: banco.isEmpty ? "Banco" : banco,
+            bandeira: bandeira,
+            ultimos4: ultimos4.isEmpty ? "0000" : ultimos4,
+            cor: cor,
+            limite: entradaLimite.valor,
+            diaFechamento: diaFechamento,
+            diaVencimento: diaVencimento,
+            contaPagamentoID: contaPagamentoID
+        )
+    }
+
+    func salvar() throws {
+        guard podeSalvar else { return }
+        try repositorio.salvarCartao(cartaoDePrevia)
+    }
+}
+```
+
+Nota: `EntradaValor` do M1 só sabe receber dígito por dígito. Esta tarefa precisa carregá-la com um valor existente para a edição, então acrescente a `App/Sources/UI/Componentes/ValorTexto.swift` um inicializador que aceita centavos direto, mantendo o inicializador vazio existente:
+
+```swift
+    init() {}
+
+    init(centavos: Int) {
+        self.centavos = max(0, min(centavos, Self.tetoCentavos))
+    }
+```
+
+- [ ] **Step 4: Implementar a view**
+
+`App/Sources/UI/Cartoes/CartaoFormView.swift`:
+
+```swift
+import CasalDomain
+import SwiftUI
+
+struct CartaoFormView: View {
+    @Bindable var modelo: CartaoFormModelo
+    @Environment(\.dismiss) private var fechar
+    @State private var erroAoSalvar: String?
+
+    private let cores = ["#7C5CFF", "#8A2BE2", "#FF9F0A", "#FF453A", "#34C759", "#0A84FF", "#2C2C2E"]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    CartaoFace(cartao: modelo.cartaoDePrevia, tamanho: .media)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+
+                Section("Identificação") {
+                    TextField("Apelido", text: $modelo.apelido)
+                        .textInputAutocapitalization(.words)
+                    TextField("Banco", text: $modelo.banco)
+                        .textInputAutocapitalization(.words)
+                    TextField("Últimos 4 dígitos", text: $modelo.ultimos4)
+                        .keyboardType(.numberPad)
+                    Picker("Bandeira", selection: $modelo.bandeira) {
+                        ForEach(BandeiraCartao.allCases, id: \.self) { bandeira in
+                            Text(bandeira == .outra ? "Outra" : bandeira.rawValue.capitalized)
+                                .tag(bandeira)
+                        }
+                    }
+                }
+
+                Section("Limite") {
+                    HStack {
+                        Text("Limite total")
+                        Spacer()
+                        ValorTexto(valor: modelo.entradaLimite.valor, tamanho: 17)
+                    }
+                    TecladoNumerico(
+                        aoDigitar: { modelo.entradaLimite.digitar($0) },
+                        aoApagar: { modelo.entradaLimite.apagar() },
+                        aoAbrirMais: {},
+                        aoSalvar: {},
+                        podeSalvar: false
+                    )
+                    .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
+                }
+
+                Section("Ciclo") {
+                    Stepper("Fecha no dia \(modelo.diaFechamento)",
+                            value: $modelo.diaFechamento, in: 1...31)
+                    Stepper("Vence no dia \(modelo.diaVencimento)",
+                            value: $modelo.diaVencimento, in: 1...31)
+                    Text(explicacaoDoCiclo)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Cor") {
+                    HStack(spacing: 9) {
+                        ForEach(cores, id: \.self) { hex in
+                            Circle()
+                                .fill(CartaoFace.cor(deHex: hex))
+                                .frame(width: 28, height: 28)
+                                .overlay(
+                                    Circle().stroke(.primary, lineWidth: modelo.cor == hex ? 2 : 0)
+                                )
+                                .onTapGesture { modelo.cor = hex }
+                                .accessibilityLabel("Cor \(hex)")
+                        }
+                    }
+                }
+
+                if !modelo.erros.isEmpty {
+                    Section {
+                        ForEach(modelo.erros, id: \.self) { erro in
+                            Label(erro, systemImage: "exclamationmark.circle")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Cartão")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { fechar() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salvar", action: salvar).disabled(!modelo.podeSalvar)
+                }
+            }
+            .alert("Não foi possível salvar", isPresented: Binding(
+                get: { erroAoSalvar != nil },
+                set: { if !$0 { erroAoSalvar = nil } }
+            )) {
+                Button("OK") { erroAoSalvar = nil }
+            } message: {
+                Text(erroAoSalvar ?? "")
+            }
+        }
+    }
+
+    /// Explica em texto o efeito da combinação escolhida, porque a relação
+    /// entre fechamento e vencimento decide em que mês a fatura vence e é a
+    /// parte que mais confunde.
+    private var explicacaoDoCiclo: String {
+        modelo.diaVencimento > modelo.diaFechamento
+            ? "A fatura fecha e vence no mesmo mês."
+            : "A fatura fecha num mês e vence no mês seguinte."
+    }
+
+    private func salvar() {
+        do {
+            try modelo.salvar()
+            fechar()
+        } catch {
+            erroAoSalvar = "Não foi possível salvar o cartão. Tente novamente."
+        }
+    }
+}
+```
+
+- [ ] **Step 5: Rodar, buildar e conferir na tela**
+
+Rode a suíte, instale e tire screenshot esperando quatro segundos. Confirme: a prévia do cartão no topo muda enquanto os campos são preenchidos, e a frase sobre o ciclo troca ao mexer nos dois steppers.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add App/Sources/UI/Cartoes/CartaoFormModelo.swift \
+        App/Sources/UI/Cartoes/CartaoFormView.swift \
+        App/Sources/UI/Componentes/ValorTexto.swift \
+        App/Tests/CartaoFormModeloTests.swift
+git commit -m "feat(ui): cadastro e edicao de cartao com previa"
+```
+
+---
+
+## Task 15: Lançar no cartão, parcelar e pagar fatura
+
+A tarefa que fecha o M2. Sem ela o motor existe mas nada o alimenta: o fluxo de lançamento do M1 não sabe escolher cartão nem parcelar, e não há como pagar uma fatura.
+
+**Files:**
+- Modify: `App/Sources/UI/Lancamento/LancamentoModelo.swift`
+- Modify: `App/Sources/UI/Lancamento/MaisOpcoesView.swift`
+- Create: `App/Sources/UI/Cartoes/PagarFaturaView.swift`
+- Modify: `App/Sources/UI/InicioModelo.swift`
+- Modify: `App/Sources/UI/InicioView.swift`
+- Test: `App/Tests/LancamentoComCartaoTests.swift`
+- Test: `App/Tests/PagarFaturaTests.swift`
+
+**Interfaces:**
+- Consumes: `LancamentoModelo` do M1, `RepositorioCartoes`, `RepositorioFaturas`, `Parcelamento`, `PagamentoFatura`, `HorizonteFaturas`
+- Produces: em `LancamentoModelo`, as propriedades `cartaoSelecionado: Cartao?`, `cartoesDisponiveis: [Cartao]`, `parcelas: Int` e o comportamento novo de `salvar()`; `PagarFaturaModelo` com `entrada`, `contaSelecionada`, `saldoDevedor`, `pagar()`; `PagarFaturaView`; e em `InicioModelo` a propriedade `comprometidoNoMes: Money`
+
+- [ ] **Step 1: Escrever os testes que falham**
+
+`App/Tests/LancamentoComCartaoTests.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import SwiftData
+import Testing
+@testable import Casal
+
+@Suite("Lancamento com cartao e parcelas")
+struct LancamentoComCartaoTests {
+    private var calendario: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        return c
+    }
+
+    private func data(_ ano: Int, _ mes: Int, _ dia: Int) -> Date {
+        var partes = DateComponents()
+        partes.year = ano
+        partes.month = mes
+        partes.day = dia
+        partes.hour = 12
+        return calendario.date(from: partes)!
+    }
+
+    private func montar() throws -> (LancamentoModelo, RepositorioSwiftData, Cartao) {
+        let contexto = ModelContext(try SchemaCasal.container(emMemoria: true))
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+
+        let carteira = Carteira(nome: "Nosso", donoID: UUID())
+        let cartao = Cartao(
+            carteiraID: carteira.id, apelido: "Nosso", banco: "Nubank", ultimos4: "4417",
+            limite: Money(centavos: 1_000_000), diaFechamento: 28, diaVencimento: 5
+        )
+        try repoCartoes.salvarCartao(cartao)
+
+        let modelo = LancamentoModelo(
+            repositorio: repoTransacoes,
+            repositorioCartoes: repoCartoes,
+            carteira: carteira,
+            categorias: Categoria.padrao,
+            autorID: UUID(),
+            calendario: calendario
+        )
+        return (modelo, repoTransacoes, cartao)
+    }
+
+    @Test("sem cartão escolhido, o lançamento continua sendo uma transação só")
+    func semCartao() throws {
+        let (modelo, repo, _) = try montar()
+        modelo.entrada.digitar(4)
+        modelo.entrada.digitar(2)
+        modelo.entrada.digitar(0)
+        modelo.entrada.digitar(0)
+        try modelo.salvar()
+
+        let gravadas = try repo.listar(de: .distantPast, ate: .distantFuture)
+        #expect(gravadas.count == 1)
+        #expect(gravadas.first?.cartaoID == nil)
+        #expect(gravadas.first?.parcelaTotal == 1)
+    }
+
+    @Test("com cartão à vista, grava uma transação já vinculada ao cartão")
+    func cartaoAVista() throws {
+        let (modelo, repo, cartao) = try montar()
+        modelo.cartaoSelecionado = cartao
+        modelo.parcelas = 1
+        modelo.data = data(2026, 9, 10)
+        for digito in [4, 2, 0, 0] { modelo.entrada.digitar(digito) }
+        try modelo.salvar()
+
+        let gravadas = try repo.listar(de: .distantPast, ate: .distantFuture)
+        #expect(gravadas.count == 1)
+        #expect(gravadas.first?.cartaoID == cartao.id)
+        #expect(gravadas.first?.valor == Money(centavos: 4200))
+    }
+
+    @Test("com cartão em 12x, grava doze transações do mesmo grupo")
+    func cartaoParcelado() throws {
+        let (modelo, repo, cartao) = try montar()
+        modelo.cartaoSelecionado = cartao
+        modelo.parcelas = 12
+        modelo.data = data(2026, 9, 10)
+        modelo.descricao = "Apple Store"
+        for digito in [3, 0, 0, 0, 0, 0] { modelo.entrada.digitar(digito) }
+        try modelo.salvar()
+
+        let gravadas = try repo.listar(de: .distantPast, ate: .distantFuture)
+        #expect(gravadas.count == 12)
+        #expect(Set(gravadas.compactMap(\.grupoParcela)).count == 1)
+        #expect(gravadas.reduce(Money.zero) { $0 + $1.valor } == Money(centavos: 300_000))
+        #expect(Set(gravadas.map(\.parcelaN)) == Set(1...12))
+        #expect(gravadas.allSatisfy { $0.parcelaTotal == 12 })
+    }
+
+    @Test("parcelamento sem cartão é recusado — parcela sem fatura não existe")
+    func parcelaSemCartao() throws {
+        let (modelo, repo, _) = try montar()
+        modelo.cartaoSelecionado = nil
+        modelo.parcelas = 6
+        for digito in [3, 0, 0, 0, 0, 0] { modelo.entrada.digitar(digito) }
+        try modelo.salvar()
+
+        let gravadas = try repo.listar(de: .distantPast, ate: .distantFuture)
+        #expect(gravadas.count == 1)
+        #expect(gravadas.first?.parcelaTotal == 1)
+    }
+
+    @Test("o estado limpa depois de salvar, inclusive cartão e parcelas")
+    func estadoLimpo() throws {
+        let (modelo, _, cartao) = try montar()
+        modelo.cartaoSelecionado = cartao
+        modelo.parcelas = 6
+        for digito in [3, 0, 0, 0, 0, 0] { modelo.entrada.digitar(digito) }
+        try modelo.salvar()
+
+        #expect(modelo.entrada.valor == Money.zero)
+        #expect(modelo.parcelas == 1)
+        #expect(modelo.cartaoSelecionado == nil)
+    }
+
+    @Test("os cartões disponíveis vêm do repositório")
+    func cartoesDisponiveis() throws {
+        let (modelo, _, cartao) = try montar()
+        #expect(modelo.cartoesDisponiveis.count == 1)
+        #expect(modelo.cartoesDisponiveis.first?.id == cartao.id)
+    }
+}
+```
+
+`App/Tests/PagarFaturaTests.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import SwiftData
+import Testing
+@testable import Casal
+
+@Suite("PagarFaturaModelo")
+struct PagarFaturaTests {
+    private var calendario: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        return c
+    }
+
+    private func montar(totalDaFatura: Int) throws -> (PagarFaturaModelo, RepositorioSwiftData, RepositorioFaturasSwiftData, Fatura) {
+        let contexto = ModelContext(try SchemaCasal.container(emMemoria: true))
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+        let repoFaturas = RepositorioFaturasSwiftData(contexto: contexto)
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+
+        let carteira = UUID()
+        let cartao = Cartao(
+            carteiraID: carteira, apelido: "Nosso", banco: "Nubank", ultimos4: "4417",
+            limite: Money(centavos: 1_000_000), diaFechamento: 28, diaVencimento: 5
+        )
+        try repoCartoes.salvarCartao(cartao)
+        let conta = Conta(carteiraID: carteira, nome: "Corrente")
+        try repoCartoes.salvarConta(conta)
+
+        let fatura = try repoFaturas.faturaOuCriar(
+            cartao: cartao, competencia: Competencia(ano: 2026, mes: 9), calendario: calendario
+        )
+
+        let modelo = PagarFaturaModelo(
+            repositorioTransacoes: repoTransacoes,
+            repositorioFaturas: repoFaturas,
+            repositorioCartoes: repoCartoes,
+            cartao: cartao,
+            fatura: fatura,
+            totalDaFatura: Money(centavos: totalDaFatura),
+            carteiraID: carteira,
+            autorID: UUID()
+        )
+        return (modelo, repoTransacoes, repoFaturas, fatura)
+    }
+
+    @Test("o valor sugerido é o saldo devedor inteiro")
+    func sugereTotal() throws {
+        let (modelo, _, _, _) = try montar(totalDaFatura: 284_730)
+        #expect(modelo.saldoDevedor == Money(centavos: 284_730))
+        #expect(modelo.entrada.valor == Money(centavos: 284_730))
+    }
+
+    @Test("pagar grava uma transferência, nunca uma despesa")
+    func gravaTransferencia() throws {
+        let (modelo, repoTransacoes, _, _) = try montar(totalDaFatura: 284_730)
+        modelo.contaSelecionada = try #require(modelo.contasDisponiveis.first)
+        try modelo.pagar()
+
+        let gravadas = try repoTransacoes.listar(de: .distantPast, ate: .distantFuture)
+        #expect(gravadas.count == 1)
+        #expect(gravadas.first?.tipo == .transferencia)
+        #expect(gravadas.first?.faturaID != nil)
+    }
+
+    @Test("pagamento integral marca a fatura como paga")
+    func integralMarcaPaga() throws {
+        let (modelo, _, repoFaturas, fatura) = try montar(totalDaFatura: 284_730)
+        modelo.contaSelecionada = try #require(modelo.contasDisponiveis.first)
+        try modelo.pagar()
+
+        let recarregada = try repoFaturas.listarFaturas(cartaoID: fatura.cartaoID).first
+        #expect(recarregada?.status == .paga)
+        #expect(recarregada?.valorPago == Money(centavos: 284_730))
+    }
+
+    @Test("pagamento parcial marca parcial e deixa saldo devedor")
+    func parcial() throws {
+        let (modelo, _, repoFaturas, fatura) = try montar(totalDaFatura: 284_730)
+        modelo.contaSelecionada = try #require(modelo.contasDisponiveis.first)
+        modelo.entrada.limpar()
+        for digito in [1, 0, 0, 0, 0, 0] { modelo.entrada.digitar(digito) }
+        try modelo.pagar()
+
+        let recarregada = try #require(try repoFaturas.listarFaturas(cartaoID: fatura.cartaoID).first)
+        #expect(recarregada.status == .parcial)
+        #expect(recarregada.valorPago == Money(centavos: 100_000))
+        #expect(PagamentoFatura.saldoDevedor(
+            fatura: recarregada, total: Money(centavos: 284_730)
+        ) == Money(centavos: 184_730))
+    }
+
+    @Test("sem conta escolhida não grava nada")
+    func semConta() throws {
+        let (modelo, repoTransacoes, _, _) = try montar(totalDaFatura: 284_730)
+        modelo.contaSelecionada = nil
+        try modelo.pagar()
+        #expect(try repoTransacoes.listar(de: .distantPast, ate: .distantFuture).isEmpty)
+    }
+
+    @Test("pagar zero não grava nada")
+    func pagarZero() throws {
+        let (modelo, repoTransacoes, _, _) = try montar(totalDaFatura: 284_730)
+        modelo.contaSelecionada = try #require(modelo.contasDisponiveis.first)
+        modelo.entrada.limpar()
+        try modelo.pagar()
+        #expect(try repoTransacoes.listar(de: .distantPast, ate: .distantFuture).isEmpty)
+    }
+
+    @Test("o pagamento não infla o total de despesas do mês")
+    func naoContaComoDespesa() throws {
+        let (modelo, repoTransacoes, _, _) = try montar(totalDaFatura: 284_730)
+        modelo.contaSelecionada = try #require(modelo.contasDisponiveis.first)
+        try modelo.pagar()
+
+        let todas = try repoTransacoes.listar(de: .distantPast, ate: .distantFuture)
+        let resumo = ResumoMensal.calcular(transacoes: todas, de: .distantPast, ate: .distantFuture)
+        #expect(resumo.totalDespesas == Money.zero)
+        #expect(resumo.quantidade == 0)
+    }
+}
+```
+
+- [ ] **Step 2: Rodar e confirmar que falham**
+
+Run: `cd App && xcodebuild test -project Casal.xcodeproj -scheme Casal -destination 'platform=iOS Simulator,name=iPhone 17'`
+Expected: FALHA, o inicializador de `LancamentoModelo` não aceita `repositorioCartoes`
+
+- [ ] **Step 3: Estender LancamentoModelo**
+
+Em `App/Sources/UI/Lancamento/LancamentoModelo.swift`, acrescentar ao inicializador os parâmetros `repositorioCartoes: RepositorioCartoes` e `calendario: Calendar = .current`, guardá-los, e acrescentar:
+
+```swift
+    var cartaoSelecionado: Cartao?
+    var parcelas: Int = 1
+
+    var cartoesDisponiveis: [Cartao] {
+        (try? repositorioCartoes.listarCartoes()) ?? []
+    }
+```
+
+E substituir o corpo de `salvar()` por:
+
+```swift
+    func salvar() throws {
+        guard entrada.podeSalvar else { return }
+
+        // Parcelamento só existe dentro de um cartão: parcela sem fatura não
+        // tem onde cair. Sem cartão escolhido, o lançamento é único.
+        if let cartao = cartaoSelecionado, parcelas > 1 {
+            let planejadas = Parcelamento.planejar(
+                total: entrada.valor,
+                vezes: parcelas,
+                compraEm: data,
+                cartao: cartao,
+                calendario: calendario
+            )
+            let transacoes = Parcelamento.transacoes(
+                de: planejadas,
+                carteiraID: carteira.id,
+                categoriaID: categoriaSelecionada?.id,
+                descricao: descricao,
+                criadoPor: autorID,
+                cartao: cartao,
+                calendario: calendario
+            )
+            for transacao in transacoes {
+                try repositorio.salvar(transacao)
+            }
+        } else {
+            let transacao = Transacao(
+                carteiraID: carteira.id,
+                tipo: .despesa,
+                valor: entrada.valor,
+                data: data,
+                categoriaID: categoriaSelecionada?.id,
+                descricao: descricao,
+                cartaoID: cartaoSelecionado?.id,
+                criadoPor: autorID,
+                hashDedup: Dedup.chave(
+                    carteiraID: carteira.id,
+                    tipo: .despesa,
+                    valor: entrada.valor,
+                    estabelecimento: descricao
+                )
+            )
+            try repositorio.salvar(transacao)
+        }
+
+        entrada.limpar()
+        descricao = ""
+        data = Date()
+        parcelas = 1
+        cartaoSelecionado = nil
+    }
+```
+
+Confira a ordem real dos parâmetros de `Transacao.init` antes de copiar: a onda de correção do M1 acrescentou campos, e `cartaoID` fica depois de `contaID`.
+
+**Este passo quebra três chamadores existentes, e é sua responsabilidade consertar os três no mesmo commit:**
+
+1. `App/Tests/LancamentoModeloTests.swift` — o `RepositorioFalso` implementa só `RepositorioTransacoes`, e o modelo agora exige também um `RepositorioCartoes`. Acrescente um falso de cartões que devolva lista vazia, e passe-o em todas as construções do modelo. **Não altere as asserções existentes** — elas cobrem o comportamento do M1 e têm de continuar passando iguais.
+2. `App/Sources/UI/RaizView.swift` — a construção do `LancamentoModelo` precisa do repositório de cartões.
+3. Qualquer outro ponto que `grep -rn "LancamentoModelo(" App/` revelar.
+
+Rode esse `grep` antes de compilar, para não descobrir os chamadores um erro por vez.
+
+- [ ] **Step 4: Expor cartão e parcelas em MaisOpcoesView**
+
+Em `App/Sources/UI/Lancamento/MaisOpcoesView.swift`, remover a frase "Parcelas e cartão de crédito chegam em breve." e acrescentar duas seções. A seção de parcelas só aparece quando há cartão escolhido — parcelamento sem cartão não existe, e mostrar o campo desabilitado sem explicação é pior que não mostrar:
+
+```swift
+                Section("Pago com") {
+                    Picker("Cartão", selection: $modelo.cartaoSelecionado) {
+                        Text("Dinheiro, Pix ou débito").tag(nil as Cartao?)
+                        ForEach(modelo.cartoesDisponiveis) { cartao in
+                            Text("\(cartao.banco) ••\(cartao.ultimos4)").tag(cartao as Cartao?)
+                        }
+                    }
+                }
+
+                if modelo.cartaoSelecionado != nil {
+                    Section("Parcelas") {
+                        Picker("Parcelar em", selection: $modelo.parcelas) {
+                            Text("À vista").tag(1)
+                            ForEach(2...24, id: \.self) { vezes in
+                                Text("\(vezes)x").tag(vezes)
+                            }
+                        }
+                        if modelo.parcelas > 1 {
+                            let cada = modelo.entrada.valor.dividir(em: modelo.parcelas).first ?? .zero
+                            Text("\(modelo.parcelas)x de \(cada.formatadoBRL), primeira parcela maior se houver sobra")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+```
+
+Também aplique aqui a correção que ficou pendente do M1: o limite superior do `DatePicker` usa `intervalo.end`, que é meia-noite do dia 1 do mês seguinte. Num `ClosedRange` isso ainda permite escolher esse dia e gravar num mês invisível. Troque para um limite exclusivo, usando `intervalo.end.addingTimeInterval(-1)` como limite superior fechado ou reconstruindo o intervalo com o último instante do mês.
+
+- [ ] **Step 5: Implementar PagarFaturaView**
+
+`App/Sources/UI/Cartoes/PagarFaturaView.swift`:
+
+```swift
+import CasalDomain
+import Foundation
+import Observation
+import SwiftUI
+
+@Observable
+final class PagarFaturaModelo {
+    var entrada: EntradaValor
+    var contaSelecionada: Conta?
+
+    let cartao: Cartao
+    let totalDaFatura: Money
+    private(set) var fatura: Fatura
+
+    private let repositorioTransacoes: RepositorioTransacoes
+    private let repositorioFaturas: RepositorioFaturas
+    private let repositorioCartoes: RepositorioCartoes
+    private let carteiraID: UUID
+    private let autorID: UUID
+
+    init(
+        repositorioTransacoes: RepositorioTransacoes,
+        repositorioFaturas: RepositorioFaturas,
+        repositorioCartoes: RepositorioCartoes,
+        cartao: Cartao,
+        fatura: Fatura,
+        totalDaFatura: Money,
+        carteiraID: UUID,
+        autorID: UUID
+    ) {
+        self.repositorioTransacoes = repositorioTransacoes
+        self.repositorioFaturas = repositorioFaturas
+        self.repositorioCartoes = repositorioCartoes
+        self.cartao = cartao
+        self.fatura = fatura
+        self.totalDaFatura = totalDaFatura
+        self.carteiraID = carteiraID
+        self.autorID = autorID
+
+        let devedor = PagamentoFatura.saldoDevedor(fatura: fatura, total: totalDaFatura)
+        entrada = EntradaValor(centavos: devedor.centavos)
+        contaSelecionada = (try? repositorioCartoes.listarContas())?.first
+    }
+
+    var contasDisponiveis: [Conta] {
+        (try? repositorioCartoes.listarContas()) ?? []
+    }
+
+    var saldoDevedor: Money {
+        PagamentoFatura.saldoDevedor(fatura: fatura, total: totalDaFatura)
+    }
+
+    var podePagar: Bool {
+        entrada.podeSalvar && contaSelecionada != nil
+    }
+
+    func pagar() throws {
+        guard let conta = contaSelecionada, entrada.podeSalvar else { return }
+
+        let transacao = PagamentoFatura.transacao(
+            valor: entrada.valor,
+            faturaID: fatura.id,
+            contaID: conta.id,
+            carteiraID: carteiraID,
+            criadoPor: autorID,
+            data: Date()
+        )
+        try repositorioTransacoes.salvar(transacao)
+
+        fatura = PagamentoFatura.aplicar(
+            pagamento: entrada.valor, em: fatura, totalDaFatura: totalDaFatura
+        )
+        try repositorioFaturas.atualizarFatura(fatura)
+    }
+}
+
+struct PagarFaturaView: View {
+    @Bindable var modelo: PagarFaturaModelo
+    @Environment(\.dismiss) private var fechar
+    @State private var erro: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Saldo devedor")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ValorTexto(valor: modelo.saldoDevedor, tamanho: 26)
+                    }
+                }
+
+                Section("Valor a pagar") {
+                    HStack {
+                        Spacer()
+                        ValorTexto(valor: modelo.entrada.valor, tamanho: 22)
+                        Spacer()
+                    }
+                    TecladoNumerico(
+                        aoDigitar: { modelo.entrada.digitar($0) },
+                        aoApagar: { modelo.entrada.apagar() },
+                        aoAbrirMais: {},
+                        aoSalvar: {},
+                        podeSalvar: false
+                    )
+                    .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
+                }
+
+                Section("Sai de") {
+                    if modelo.contasDisponiveis.isEmpty {
+                        Text("Cadastre uma conta em Mais para registrar o pagamento.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Picker("Conta", selection: $modelo.contaSelecionada) {
+                            ForEach(modelo.contasDisponiveis) { conta in
+                                Text(conta.nome).tag(conta as Conta?)
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Text("O pagamento entra como transferência, não como gasto novo — a compra já foi contada quando aconteceu.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Pagar fatura")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { fechar() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Pagar", action: pagar).disabled(!modelo.podePagar)
+                }
+            }
+            .alert("Não foi possível pagar", isPresented: Binding(
+                get: { erro != nil }, set: { if !$0 { erro = nil } }
+            )) {
+                Button("OK") { erro = nil }
+            } message: {
+                Text(erro ?? "")
+            }
+        }
+    }
+
+    private func pagar() {
+        do {
+            try modelo.pagar()
+            fechar()
+        } catch {
+            erro = "Não foi possível registrar o pagamento. Tente novamente."
+        }
+    }
+}
+```
+
+- [ ] **Step 6: Mostrar o comprometido na home**
+
+Em `App/Sources/UI/InicioModelo.swift`, acrescentar `private(set) var comprometidoNoMes: Money = .zero` e calculá-lo em `recarregar` somando a fatura corrente de todos os cartões, via `HorizonteFaturas.proximas(1, ...)` por cartão. Isso exige injetar `RepositorioCartoes` no inicializador — o teste de `InicioModelo` do M1 usa um repositório falso, então atualize-o para o novo inicializador sem mudar as asserções existentes.
+
+Em `App/Sources/UI/InicioView.swift`, acrescentar abaixo do cartão de resumo uma linha discreta: `"Comprometido em faturas: <valor>"`, só quando o valor for maior que zero. Não invente o cálculo de sobra segura aqui — isso é M4.
+
+- [ ] **Step 7: Rodar tudo, buildar e conferir na tela**
+
+```bash
+cd Packages/CasalDomain && swift test
+cd ../../App && xcodegen generate
+xcodebuild test -project Casal.xcodeproj -scheme Casal -destination 'platform=iOS Simulator,name=iPhone 17'
+cd .. && swiftlint --strict
+```
+
+Depois instale e tire screenshot esperando quatro segundos. Confirme na imagem: a aba Cartões lista o cartão cadastrado com fatura e curva, e a home mostra a linha de comprometido.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add App/Sources/UI/Lancamento/LancamentoModelo.swift \
+        App/Sources/UI/Lancamento/MaisOpcoesView.swift \
+        App/Sources/UI/Cartoes/PagarFaturaView.swift \
+        App/Sources/UI/InicioModelo.swift App/Sources/UI/InicioView.swift \
+        App/Tests/LancamentoComCartaoTests.swift App/Tests/PagarFaturaTests.swift
+git commit -m "feat(ui): lancamento no cartao com parcelas e pagamento de fatura"
+```
+
+---
+
+## Definição de pronto do M2
+
+- [ ] `swift test` no domínio verde, incluindo os ~45 testes novos das Tarefas 1 a 7
+- [ ] `xcodebuild test` verde no simulador
+- [ ] `swiftlint --strict` sem violação
+- [ ] Um cartão pode ser cadastrado pela interface, com prévia ao vivo
+- [ ] Uma compra em 12x gera doze transações do mesmo grupo, distribuídas em doze competências
+- [ ] A aba Cartões mostra total do mês, lista de cartões e a curva de seis meses
+- [ ] O detalhe mostra o cartão grande, as três abas de fatura e "N de M" nas parcelas
+- [ ] Pagar fatura grava transferência, marca a fatura, e **não** aumenta o total de despesas do mês
+- [ ] Compra depois do dia de fechamento aparece na fatura seguinte, não na atual
+- [ ] Nenhum `import SwiftUI`, `SwiftData` ou `UIKit` em `Packages/CasalDomain/Sources`
+
+Verificação da última linha:
+
+```bash
+! grep -rE "import (SwiftUI|SwiftData|UIKit|Combine)" Packages/CasalDomain/Sources
+```
+
+## Herdado do M1 e resolvido aqui
+
+- **Schema versionado** (Tarefa 8) — dívida que o review final do M1 adiou explicitamente para o momento em que entidades novas chegassem.
+- **Limite do `DatePicker`** (Tarefa 15, Step 4) — o `ClosedRange` ainda aceitava o dia 1 do mês seguinte.
+
+## Fica para o M3 ou depois
+
+- Precedência de tombstone em `RepositorioSwiftData.salvar` — o delete+insert descarta o `removidoEm` gravado, e isso quebra "apagar vence editar" quando o outbox do M3 reenviar uma escrita velha.
+- `fatalError` no lançamento do app virando tela de erro com opção de reset.
+- Filtro por `carteiraID` nas consultas, que só faz sentido junto com RLS.
+- Tipos de fonte fixos ignorando Dynamic Type.
+- Incluir `App/Tests` no escopo do SwiftLint.
+- Juros de rotativo, se algum dia deixar de estar fora de escopo.

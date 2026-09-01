@@ -8,7 +8,9 @@ private final class RepositorioComDados: RepositorioTransacoes {
     func salvar(_ transacao: Transacao) throws { itens.append(transacao) }
     func remover(id: UUID) throws { itens.removeAll { $0.id == id } }
     func listar(de inicio: Date, ate fim: Date) throws -> [Transacao] {
-        itens.filter { $0.data >= inicio && $0.data <= fim }
+        // Meio-aberto [inicio, fim), igual ao contrato de RepositorioSwiftData
+        // e de ResumoMensal.calcular: `fim` é exclusivo.
+        itens.filter { $0.data >= inicio && $0.data < fim }
     }
     func historicoRecente(limite: Int) throws -> [Transacao] { Array(itens.prefix(limite)) }
 }
@@ -41,5 +43,28 @@ struct InicioModeloTests {
         modelo.recarregar(referencia: Date())
         #expect(modelo.resumo.totalDespesas == Money.zero)
         #expect(modelo.transacoes.isEmpty)
+    }
+
+    @Test("transação exatamente no fim do intervalo fica de fora; um segundo antes entra")
+    func fronteiraDoIntervalo() throws {
+        let repositorio = RepositorioComDados()
+        let calendario = Calendar.current
+        let referencia = Date()
+        let intervalo = try #require(calendario.dateInterval(of: .month, for: referencia))
+        let noFim = intervalo.end
+        let umSegundoAntes = try #require(calendario.date(byAdding: .second, value: -1, to: intervalo.end))
+
+        repositorio.itens = [
+            Transacao(carteiraID: UUID(), tipo: .despesa, valor: Money(centavos: 100),
+                      data: noFim, criadoPor: UUID(), hashDedup: "no-fim"),
+            Transacao(carteiraID: UUID(), tipo: .despesa, valor: Money(centavos: 200),
+                      data: umSegundoAntes, criadoPor: UUID(), hashDedup: "um-segundo-antes")
+        ]
+
+        let modelo = InicioModelo(repositorio: repositorio, categorias: Categoria.padrao)
+        modelo.recarregar(referencia: referencia)
+
+        #expect(modelo.transacoes.count == 1)
+        #expect(modelo.transacoes.first?.hashDedup == "um-segundo-antes")
     }
 }

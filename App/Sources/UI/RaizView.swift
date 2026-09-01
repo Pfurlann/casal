@@ -9,35 +9,55 @@ struct RaizView: View {
     @State private var carteira: Carteira?
     @State private var categorias: [Categoria] = []
 
+    /// Altura padrão do conteúdo (ícone + rótulo) da tab bar do sistema,
+    /// sem a faixa de segurança inferior — usada para erguer o botão
+    /// central acima dela sem sobrepor nenhum rótulo de aba.
+    private static let alturaConteudoBarraDeAbas: CGFloat = 49
+    private static let respiroAcimaDaBarra: CGFloat = 14
+
     var body: some View {
-        ZStack(alignment: .bottom) {
-            TabView {
-                NavigationStack {
-                    if let inicio {
-                        InicioView(modelo: inicio)
-                    } else {
-                        ProgressView()
+        GeometryReader { geometria in
+            ZStack(alignment: .bottom) {
+                TabView {
+                    NavigationStack {
+                        if let inicio {
+                            InicioView(modelo: inicio)
+                        } else {
+                            ProgressView()
+                        }
                     }
-                }
-                .tabItem { Label("Início", systemImage: "circle.circle") }
+                    .tabItem { Label("Início", systemImage: "circle.circle") }
 
-                NavigationStack {
-                    ChegaNoProximoMilestone(titulo: "Cartões", detalhe: "Faturas e parcelas chegam no M2.")
-                }
-                .tabItem { Label("Cartões", systemImage: "creditcard") }
+                    NavigationStack {
+                        ChegaNoProximoMilestone(
+                            titulo: "Cartões",
+                            detalhe: "Em breve você vai poder acompanhar faturas e parcelas de cartão por aqui."
+                        )
+                    }
+                    .tabItem { Label("Cartões", systemImage: "creditcard") }
 
-                NavigationStack {
-                    ChegaNoProximoMilestone(titulo: "Metas", detalhe: "Tetos e objetivos chegam no M4.")
-                }
-                .tabItem { Label("Metas", systemImage: "target") }
+                    NavigationStack {
+                        ChegaNoProximoMilestone(
+                            titulo: "Metas",
+                            detalhe: "Em breve você vai poder definir tetos de gasto e acompanhar objetivos por aqui."
+                        )
+                    }
+                    .tabItem { Label("Metas", systemImage: "target") }
 
-                NavigationStack {
-                    ChegaNoProximoMilestone(titulo: "Mais", detalhe: "Carteiras e ajustes chegam no M3.")
+                    NavigationStack {
+                        ChegaNoProximoMilestone(
+                            titulo: "Mais",
+                            detalhe: "Em breve você vai poder gerenciar carteiras e ajustes do app por aqui."
+                        )
+                    }
+                    .tabItem { Label("Mais", systemImage: "ellipsis") }
                 }
-                .tabItem { Label("Mais", systemImage: "ellipsis") }
+
+                botaoCentral
+                    .padding(.bottom, geometria.safeAreaInsets.bottom
+                        + Self.alturaConteudoBarraDeAbas
+                        + Self.respiroAcimaDaBarra)
             }
-
-            botaoCentral
         }
         .task { await preparar() }
         .sheet(isPresented: $mostrandoLancamento, onDismiss: { inicio?.recarregar() }, content: {
@@ -66,7 +86,6 @@ struct RaizView: View {
                 .shadow(color: .accentColor.opacity(0.45), radius: 12, y: 5)
         }
         .buttonStyle(.plain)
-        .offset(y: -6)
         .accessibilityLabel("Novo lançamento")
     }
 

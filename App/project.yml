@@ -1,0 +1,54 @@
+name: Casal
+options:
+  bundleIdPrefix: br.com.casal
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  CasalDomain:
+    path: ../Packages/CasalDomain
+
+targets:
+  Casal:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    dependencies:
+      - package: CasalDomain
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: ca$al
+        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: br.com.casal.app
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Sem ícone de app neste milestone: XcodeGen injeta AppIcon por
+        # padrão para alvos "application", o que quebra a compilação do
+        # catálogo sem um app icon set. Desliga só essa parte.
+        # ATENÇÃO: ao adicionar o ícone real, remova esta linha (ou troque
+        # para "AppIcon") — senão o catálogo compila mas o ícone nunca
+        # aparece no dispositivo.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+
+  CasalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Casal
+      - package: CasalDomain
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES

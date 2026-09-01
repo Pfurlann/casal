@@ -1,2 +1,8 @@
 .superpowers/
 .DS_Store
+.build/
+.swiftpm/
+App/Casal.xcodeproj/
+App/Info.plist
+DerivedData/
+*.xcuserstate

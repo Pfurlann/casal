@@ -9,6 +9,7 @@ struct RaizView: View {
     // recriar o modelo e descartar valor/data/categoria já digitados.
     @State private var lancamento: LancamentoModelo?
     @State private var inicio: InicioModelo?
+    @State private var cartoes: CartoesModelo?
     @State private var carteira: Carteira?
     @State private var categorias: [Categoria] = []
 
@@ -32,10 +33,15 @@ struct RaizView: View {
                     .tabItem { Label("Início", systemImage: "circle.circle") }
 
                     NavigationStack {
-                        ChegaNoProximoMilestone(
-                            titulo: "Cartões",
-                            detalhe: "Em breve você vai poder acompanhar faturas e parcelas de cartão por aqui."
-                        )
+                        if let cartoes {
+                            CartoesView(
+                                modelo: cartoes,
+                                aoAbrirCartao: { _ in },
+                                aoAdicionarCartao: { }
+                            )
+                        } else {
+                            ProgressView()
+                        }
                     }
                     .tabItem { Label("Cartões", systemImage: "creditcard") }
 
@@ -97,6 +103,14 @@ struct RaizView: View {
         let modelo = InicioModelo(repositorio: repositorio, categorias: categorias)
         modelo.recarregar()
         inicio = modelo
+
+        let modeloDeCartoes = CartoesModelo(
+            repositorioCartoes: RepositorioCartoesSwiftData(contexto: contexto),
+            repositorioFaturas: RepositorioFaturasSwiftData(contexto: contexto),
+            repositorioTransacoes: repositorio
+        )
+        modeloDeCartoes.recarregar()
+        cartoes = modeloDeCartoes
     }
 }
 

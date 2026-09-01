@@ -36,7 +36,7 @@ struct TecladoTests {
     func teto() {
         var entrada = EntradaValor()
         for _ in 0..<12 { entrada.digitar(9) }
-        #expect(entrada.valor.centavos <= EntradaValor.tetoCentavos)
+        #expect(entrada.valor.centavos == 99_999_999)
     }
 
     @Test("valor zerado é inválido para salvar")

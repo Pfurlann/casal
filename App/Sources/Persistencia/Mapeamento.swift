@@ -1,6 +1,19 @@
 import CasalDomain
 import Foundation
 
+/// Decodifica um valor bruto persistido para o enum de domínio correspondente.
+/// Um valor malformado nunca deveria existir — se existir, é corrupção de
+/// dado (ex.: uma "receita" virando "despesa" no card do mês). Isso não pode
+/// passar em silêncio: assertionFailure é gratuito em release e estoura no
+/// test suite se algum caminho algum dia gravar um valor inválido.
+private func decodificar<T: RawRepresentable>(
+    _ bruto: String, campo: String, padrao: T
+) -> T where T.RawValue == String {
+    if let valor = T(rawValue: bruto) { return valor }
+    assertionFailure("\(campo) armazenado é inválido: \(bruto)")
+    return padrao
+}
+
 extension TransacaoRegistro {
     convenience init(dominio: Transacao) {
         self.init()
@@ -25,13 +38,14 @@ extension TransacaoRegistro {
         criadoEm = dominio.criadoEm
         atualizadoEm = dominio.atualizadoEm
         removidoEm = dominio.removidoEm
+        dispositivoID = dominio.dispositivoID
     }
 
     func paraDominio() -> Transacao {
         Transacao(
             id: id,
             carteiraID: carteiraID,
-            tipo: TipoTransacao(rawValue: tipoBruto) ?? .despesa,
+            tipo: decodificar(tipoBruto, campo: "tipoBruto", padrao: .despesa),
             valor: Money(centavos: valorCentavos),
             data: data,
             categoriaID: categoriaID,
@@ -40,8 +54,8 @@ extension TransacaoRegistro {
             cartaoID: cartaoID,
             faturaID: faturaID,
             criadoPor: criadoPor,
-            estado: EstadoTransacao(rawValue: estadoBruto) ?? .confirmada,
-            origem: OrigemTransacao(rawValue: origemBruta) ?? .manual,
+            estado: decodificar(estadoBruto, campo: "estadoBruto", padrao: .confirmada),
+            origem: decodificar(origemBruta, campo: "origemBruta", padrao: .manual),
             idExterno: idExterno,
             hashDedup: hashDedup,
             grupoParcela: grupoParcela,
@@ -49,7 +63,8 @@ extension TransacaoRegistro {
             parcelaTotal: parcelaTotal,
             criadoEm: criadoEm,
             atualizadoEm: atualizadoEm,
-            removidoEm: removidoEm
+            removidoEm: removidoEm,
+            dispositivoID: dispositivoID
         )
     }
 }
@@ -65,6 +80,10 @@ extension CarteiraRegistro {
         visibilidadeBruta = dominio.visibilidade.rawValue
         rotuloBruto = dominio.rotulo.rawValue
         arquivada = dominio.arquivada
+        criadoEm = dominio.criadoEm
+        atualizadoEm = dominio.atualizadoEm
+        removidoEm = dominio.removidoEm
+        dispositivoID = dominio.dispositivoID
     }
 
     func paraDominio() -> Carteira {
@@ -74,9 +93,13 @@ extension CarteiraRegistro {
             cor: cor,
             icone: icone,
             donoID: donoID,
-            visibilidade: VisibilidadeCarteira(rawValue: visibilidadeBruta) ?? .aberta,
-            rotulo: RotuloCarteira(rawValue: rotuloBruto) ?? .pessoal,
-            arquivada: arquivada
+            visibilidade: decodificar(visibilidadeBruta, campo: "visibilidadeBruta", padrao: .aberta),
+            rotulo: decodificar(rotuloBruto, campo: "rotuloBruto", padrao: .pessoal),
+            arquivada: arquivada,
+            criadoEm: criadoEm,
+            atualizadoEm: atualizadoEm,
+            removidoEm: removidoEm,
+            dispositivoID: dispositivoID
         )
     }
 }
@@ -91,6 +114,10 @@ extension CategoriaRegistro {
         cor = dominio.cor
         paiID = dominio.paiID
         tipoBruto = dominio.tipo.rawValue
+        criadoEm = dominio.criadoEm
+        atualizadoEm = dominio.atualizadoEm
+        removidoEm = dominio.removidoEm
+        dispositivoID = dominio.dispositivoID
     }
 
     func paraDominio() -> Categoria {
@@ -101,7 +128,11 @@ extension CategoriaRegistro {
             icone: icone,
             cor: cor,
             paiID: paiID,
-            tipo: TipoCategoria(rawValue: tipoBruto) ?? .despesa
+            tipo: decodificar(tipoBruto, campo: "tipoBruto (categoria)", padrao: .despesa),
+            criadoEm: criadoEm,
+            atualizadoEm: atualizadoEm,
+            removidoEm: removidoEm,
+            dispositivoID: dispositivoID
         )
     }
 }

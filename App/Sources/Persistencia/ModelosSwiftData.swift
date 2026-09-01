@@ -26,6 +26,8 @@ final class TransacaoRegistro {
     var criadoEm: Date = Date()
     var atualizadoEm: Date = Date()
     var removidoEm: Date?
+    // Seção 7 do spec: toda tabela sincronizada carrega device_id.
+    var dispositivoID: UUID?
 
     init() {}
 }
@@ -40,6 +42,12 @@ final class CarteiraRegistro {
     var visibilidadeBruta: String = "aberta"
     var rotuloBruto: String = "pessoal"
     var arquivada: Bool = false
+    // Seção 7 do spec: created_at/updated_at/deleted_at/device_id em toda
+    // tabela sincronizada. Defaults preservam a abertura de stores antigos.
+    var criadoEm: Date = Date()
+    var atualizadoEm: Date = Date()
+    var removidoEm: Date?
+    var dispositivoID: UUID?
 
     init() {}
 }
@@ -53,6 +61,12 @@ final class CategoriaRegistro {
     var cor: String = ""
     var paiID: UUID?
     var tipoBruto: String = "despesa"
+    // Seção 7 do spec: created_at/updated_at/deleted_at/device_id em toda
+    // tabela sincronizada. Defaults preservam a abertura de stores antigos.
+    var criadoEm: Date = Date()
+    var atualizadoEm: Date = Date()
+    var removidoEm: Date?
+    var dispositivoID: UUID?
 
     init() {}
 }

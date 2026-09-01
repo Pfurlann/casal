@@ -83,6 +83,28 @@ struct RepositorioTests {
         )
         // Intervalo meio-aberto: o dia 10 entra, o dia 20 nao.
         #expect(encontradas.count == 1)
+        #expect(encontradas.first?.valor == Money(centavos: 200))
+    }
+
+    @Test("o lançamento sobrevive a fechar e reabrir o armazenamento")
+    func sobreviveAoRelancamento() throws {
+        let url = URL.temporaryDirectory.appending(path: "\(UUID()).store")
+        let config = ModelConfiguration(url: url)
+        let alvo = transacao(32_000, dia: 10)
+
+        do {
+            let c1 = try ModelContainer(for: TransacaoRegistro.self, CarteiraRegistro.self,
+                                        CategoriaRegistro.self, configurations: config)
+            try RepositorioSwiftData(contexto: ModelContext(c1)).salvar(alvo)
+        }   // container descartado: simula o processo morrendo
+
+        let c2 = try ModelContainer(for: TransacaoRegistro.self, CarteiraRegistro.self,
+                                    CategoriaRegistro.self, configurations: config)
+        let encontradas = try RepositorioSwiftData(contexto: ModelContext(c2))
+            .listar(de: .distantPast, ate: .distantFuture)
+        #expect(encontradas.count == 1)
+        #expect(encontradas.first?.valor == Money(centavos: 32_000))
+        #expect(encontradas.first?.id == alvo.id)
     }
 
     @Test("histórico recente vem em ordem decrescente de data")

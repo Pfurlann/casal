@@ -8,6 +8,12 @@ public struct Categoria: Identifiable, Hashable, Sendable {
     public var cor: String
     public var paiID: UUID?
     public var tipo: TipoCategoria
+    /// Campos de sincronização exigidos pela seção 7 do spec para toda
+    /// tabela sincronizada. Sem lógica de sync ainda — só armazenamento.
+    public var criadoEm: Date
+    public var atualizadoEm: Date
+    public var removidoEm: Date?
+    public var dispositivoID: UUID?
 
     public init(
         id: UUID = UUID(),
@@ -16,7 +22,11 @@ public struct Categoria: Identifiable, Hashable, Sendable {
         icone: String,
         cor: String,
         paiID: UUID? = nil,
-        tipo: TipoCategoria = .despesa
+        tipo: TipoCategoria = .despesa,
+        criadoEm: Date = Date(),
+        atualizadoEm: Date = Date(),
+        removidoEm: Date? = nil,
+        dispositivoID: UUID? = nil
     ) {
         self.id = id
         self.carteiraID = carteiraID
@@ -25,6 +35,10 @@ public struct Categoria: Identifiable, Hashable, Sendable {
         self.cor = cor
         self.paiID = paiID
         self.tipo = tipo
+        self.criadoEm = criadoEm
+        self.atualizadoEm = atualizadoEm
+        self.removidoEm = removidoEm
+        self.dispositivoID = dispositivoID
     }
 }
 

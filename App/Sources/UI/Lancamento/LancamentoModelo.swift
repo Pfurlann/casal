@@ -3,7 +3,8 @@ import Foundation
 import Observation
 
 @Observable
-final class LancamentoModelo {
+final class LancamentoModelo: Identifiable {
+    let id = UUID()
     var entrada = EntradaValor()
     var categoriaSelecionada: Categoria?
     var descricao: String = ""
@@ -64,7 +65,8 @@ final class LancamentoModelo {
                 tipo: .despesa,
                 valor: entrada.valor,
                 estabelecimento: descricao
-            )
+            ),
+            dispositivoID: IdentidadeLocal.dispositivoID
         )
 
         try repositorio.salvar(transacao)

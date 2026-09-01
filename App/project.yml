@@ -35,6 +35,9 @@ targets:
         # Sem ícone de app neste milestone: XcodeGen injeta AppIcon por
         # padrão para alvos "application", o que quebra a compilação do
         # catálogo sem um app icon set. Desliga só essa parte.
+        # ATENÇÃO: ao adicionar o ícone real, remova esta linha (ou troque
+        # para "AppIcon") — senão o catálogo compila mas o ícone nunca
+        # aparece no dispositivo.
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
 
   CasalTests:

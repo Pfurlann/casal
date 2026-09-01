@@ -10,15 +10,36 @@ struct TecladoNumerico: View {
     private let colunas = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
 
     var body: some View {
-        LazyVGrid(columns: colunas, spacing: 6) {
-            ForEach(1...9, id: \.self) { numero in
-                tecla("\(numero)") { aoDigitar(numero) }
+        VStack(spacing: 6) {
+            HStack {
+                Spacer()
+                botaoApagar
             }
-            tecla("···", peso: .regular, action: aoAbrirMais)
-            tecla("0") { aoDigitar(0) }
-            teclaSalvar
+
+            LazyVGrid(columns: colunas, spacing: 6) {
+                ForEach(1...9, id: \.self) { numero in
+                    tecla("\(numero)") { aoDigitar(numero) }
+                }
+                tecla("···", peso: .regular, action: aoAbrirMais)
+                tecla("0") { aoDigitar(0) }
+                teclaSalvar
+            }
         }
         .padding(.horizontal, 4)
+    }
+
+    /// Afordância visível para corrigir um dígito errado. Antes disso a
+    /// única forma de apagar era o swipe não documentado sobre o valor.
+    private var botaoApagar: some View {
+        Button(action: aoApagar) {
+            Image(systemName: "delete.left")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 40, height: 32)
+                .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Apagar último dígito")
     }
 
     private func tecla(

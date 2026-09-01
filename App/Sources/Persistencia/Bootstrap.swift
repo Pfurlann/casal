@@ -17,12 +17,18 @@ enum Bootstrap {
                 nome: "Nosso",
                 donoID: donoID,
                 visibilidade: .aberta,
-                rotulo: .compartilhada
+                rotulo: .compartilhada,
+                dispositivoID: IdentidadeLocal.dispositivoID
             )
             contexto.insert(CarteiraRegistro(dominio: nova))
             carteira = nova
         }
 
+        // swiftlint:disable:next todo
+        // TODO: checa "existe alguma categoria" em vez de "o catálogo padrão
+        // está completo". No dia em que Categoria.padrao ganhar uma 15ª
+        // entrada, toda instalação existente já tem >0 categorias e nunca
+        // mais recebe a nova — silenciosamente.
         if try contexto.fetch(FetchDescriptor<CategoriaRegistro>()).isEmpty {
             for categoria in Categoria.padrao {
                 contexto.insert(CategoriaRegistro(dominio: categoria))

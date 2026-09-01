@@ -22,6 +22,9 @@ public struct Transacao: Identifiable, Hashable, Sendable {
     public var criadoEm: Date
     public var atualizadoEm: Date
     public var removidoEm: Date?
+    /// Seção 7 do spec: created_at/updated_at/deleted_at/device_id em toda
+    /// tabela sincronizada. Sem lógica de sync ainda — só armazenamento.
+    public var dispositivoID: UUID?
 
     public init(
         id: UUID = UUID(),
@@ -44,7 +47,8 @@ public struct Transacao: Identifiable, Hashable, Sendable {
         parcelaTotal: Int = 1,
         criadoEm: Date = Date(),
         atualizadoEm: Date = Date(),
-        removidoEm: Date? = nil
+        removidoEm: Date? = nil,
+        dispositivoID: UUID? = nil
     ) {
         self.id = id
         self.carteiraID = carteiraID
@@ -67,6 +71,7 @@ public struct Transacao: Identifiable, Hashable, Sendable {
         self.criadoEm = criadoEm
         self.atualizadoEm = atualizadoEm
         self.removidoEm = removidoEm
+        self.dispositivoID = dispositivoID
     }
 
     public var estaRemovida: Bool { removidoEm != nil }

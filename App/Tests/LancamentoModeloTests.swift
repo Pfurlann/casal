@@ -67,6 +67,17 @@ struct LancamentoModeloTests {
         ))
     }
 
+    @Test("salvar carimba o dispositivoID exigido pela seção 7 do spec")
+    func carimbaDispositivo() throws {
+        let repositorio = RepositorioFalso()
+        let modelo = fazerModelo(repositorio: repositorio)
+        modelo.entrada.digitar(9)
+        try modelo.salvar()
+
+        let gravada = try #require(repositorio.salvas.first)
+        #expect(gravada.dispositivoID == IdentidadeLocal.dispositivoID)
+    }
+
     @Test("valor zero não grava nada")
     func valorZeroNaoGrava() throws {
         let repositorio = RepositorioFalso()

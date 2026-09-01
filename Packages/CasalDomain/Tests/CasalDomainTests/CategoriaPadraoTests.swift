@@ -31,5 +31,9 @@ struct CategoriaPadraoTests {
         #expect(primeira == segunda)
         #expect(Set(primeira).count == 14)
         #expect(Categoria.padrao.count == 14)
+        // Esses UUIDs são persistidos como categoriaID em todo gasto salvo.
+        // Se algum dia virarem valores por processo, todo gasto histórico
+        // perde a categoria no próximo lançamento do app.
+        #expect(Categoria.padrao[0].id.uuidString == "00000000-0000-0000-0000-000000000001")
     }
 }

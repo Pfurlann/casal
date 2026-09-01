@@ -18,6 +18,7 @@ struct MapeamentoTests {
         let criadoEm = Date(timeIntervalSince1970: 1_600_000_000)
         let atualizadoEm = Date(timeIntervalSince1970: 1_650_000_000)
         let removidoEm = Date(timeIntervalSince1970: 1_680_000_000)
+        let dispositivoID = UUID()
 
         let original = Transacao(
             carteiraID: carteiraID,
@@ -39,7 +40,8 @@ struct MapeamentoTests {
             parcelaTotal: 12,
             criadoEm: criadoEm,
             atualizadoEm: atualizadoEm,
-            removidoEm: removidoEm
+            removidoEm: removidoEm,
+            dispositivoID: dispositivoID
         )
 
         let volta = TransacaoRegistro(dominio: original).paraDominio()
@@ -65,6 +67,7 @@ struct MapeamentoTests {
         #expect(volta.criadoEm == criadoEm)
         #expect(volta.atualizadoEm == atualizadoEm)
         #expect(volta.removidoEm == removidoEm)
+        #expect(volta.dispositivoID == dispositivoID)
     }
 
     @Test("valor persiste como inteiro de centavos")
@@ -86,6 +89,10 @@ struct MapeamentoTests {
     func outrasEntidades() {
         let carteiraID = UUID()
         let donoID = UUID()
+        let carteiraCriadoEm = Date(timeIntervalSince1970: 1_600_000_001)
+        let carteiraAtualizadoEm = Date(timeIntervalSince1970: 1_650_000_002)
+        let carteiraRemovidoEm = Date(timeIntervalSince1970: 1_680_000_003)
+        let carteiraDispositivoID = UUID()
         let carteira = Carteira(
             id: carteiraID,
             nome: "Nosso",
@@ -94,7 +101,11 @@ struct MapeamentoTests {
             donoID: donoID,
             visibilidade: .resumo,
             rotulo: .compartilhada,
-            arquivada: true
+            arquivada: true,
+            criadoEm: carteiraCriadoEm,
+            atualizadoEm: carteiraAtualizadoEm,
+            removidoEm: carteiraRemovidoEm,
+            dispositivoID: carteiraDispositivoID
         )
         let deVolta = CarteiraRegistro(dominio: carteira).paraDominio()
         #expect(deVolta.id == carteiraID)
@@ -105,10 +116,18 @@ struct MapeamentoTests {
         #expect(deVolta.visibilidade == .resumo)
         #expect(deVolta.rotulo == .compartilhada)
         #expect(deVolta.arquivada == true)
+        #expect(deVolta.criadoEm == carteiraCriadoEm)
+        #expect(deVolta.atualizadoEm == carteiraAtualizadoEm)
+        #expect(deVolta.removidoEm == carteiraRemovidoEm)
+        #expect(deVolta.dispositivoID == carteiraDispositivoID)
 
         let categoriaID = UUID()
         let categoriaCarteiraID = UUID()
         let paiID = UUID()
+        let categoriaCriadoEm = Date(timeIntervalSince1970: 1_600_000_004)
+        let categoriaAtualizadoEm = Date(timeIntervalSince1970: 1_650_000_005)
+        let categoriaRemovidoEm = Date(timeIntervalSince1970: 1_680_000_006)
+        let categoriaDispositivoID = UUID()
         let categoria = Categoria(
             id: categoriaID,
             carteiraID: categoriaCarteiraID,
@@ -116,7 +135,11 @@ struct MapeamentoTests {
             icone: "cart.fill",
             cor: "#34C759",
             paiID: paiID,
-            tipo: .receita
+            tipo: .receita,
+            criadoEm: categoriaCriadoEm,
+            atualizadoEm: categoriaAtualizadoEm,
+            removidoEm: categoriaRemovidoEm,
+            dispositivoID: categoriaDispositivoID
         )
         let categoriaVolta = CategoriaRegistro(dominio: categoria).paraDominio()
         #expect(categoriaVolta.id == categoriaID)
@@ -126,5 +149,9 @@ struct MapeamentoTests {
         #expect(categoriaVolta.cor == "#34C759")
         #expect(categoriaVolta.paiID == paiID)
         #expect(categoriaVolta.tipo == .receita)
+        #expect(categoriaVolta.criadoEm == categoriaCriadoEm)
+        #expect(categoriaVolta.atualizadoEm == categoriaAtualizadoEm)
+        #expect(categoriaVolta.removidoEm == categoriaRemovidoEm)
+        #expect(categoriaVolta.dispositivoID == categoriaDispositivoID)
     }
 }

@@ -4,7 +4,10 @@ import SwiftUI
 
 struct RaizView: View {
     @Environment(\.modelContext) private var contexto
-    @State private var mostrandoLancamento = false
+    // Dono do LancamentoModelo é este @State, não a closure do sheet: uma
+    // reavaliação de body enquanto a sheet está aberta não pode mais
+    // recriar o modelo e descartar valor/data/categoria já digitados.
+    @State private var lancamento: LancamentoModelo?
     @State private var inicio: InicioModelo?
     @State private var carteira: Carteira?
     @State private var categorias: [Categoria] = []
@@ -60,23 +63,20 @@ struct RaizView: View {
             }
         }
         .task { await preparar() }
-        .sheet(isPresented: $mostrandoLancamento, onDismiss: { inicio?.recarregar() }, content: {
-            if let carteira {
-                LancamentoView(
-                    modelo: LancamentoModelo(
-                        repositorio: RepositorioSwiftData(contexto: contexto),
-                        carteira: carteira,
-                        categorias: categorias,
-                        autorID: IdentidadeLocal.donoID
-                    )
-                )
-            }
+        .sheet(item: $lancamento, onDismiss: { inicio?.recarregar() }, content: { modelo in
+            LancamentoView(modelo: modelo)
         })
     }
 
     private var botaoCentral: some View {
         Button {
-            mostrandoLancamento = true
+            guard let carteira else { return }
+            lancamento = LancamentoModelo(
+                repositorio: RepositorioSwiftData(contexto: contexto),
+                carteira: carteira,
+                categorias: categorias,
+                autorID: IdentidadeLocal.donoID
+            )
         } label: {
             Image(systemName: "plus")
                 .font(.title2.weight(.semibold))

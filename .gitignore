@@ -3,5 +3,6 @@
 .build/
 .swiftpm/
 App/Casal.xcodeproj/
+App/Info.plist
 DerivedData/
 *.xcuserstate

@@ -77,25 +77,26 @@ final class CartoesModelo {
 
     /// Monta o resumo de um cartão a partir do horizonte já calculado.
     ///
-    /// A fatura atual e a próxima precisam existir de verdade (não só como
-    /// número calculado a partir das transações) para que o limite
-    /// disponível descarte corretamente uma fatura já paga. Faturas nascem
-    /// sob demanda: olhar a tela de Cartões é o momento natural de
-    /// materializá-las para os dois meses que ela mostra.
+    /// Não escreve nada: a fatura atual e a próxima entram no cálculo do
+    /// limite mesmo quando ainda não foram persistidas, usando uma versão
+    /// transitória (`faturaOuTransiente`) que nunca é salva. Uma fatura já
+    /// persistida — paga ou parcial — sempre vence a transitória, porque só
+    /// ela sabe o `valorPago` de verdade.
     private func resumo(
         de cartao: Cartao,
         horizonte: [(competencia: Competencia, total: Money)],
         competenciaAtual: Competencia,
         transacoes: [Transacao]
     ) -> ResumoCartao {
-        _ = try? repositorioFaturas.faturaOuCriar(
-            cartao: cartao, competencia: competenciaAtual, calendario: calendario
-        )
-        _ = try? repositorioFaturas.faturaOuCriar(
-            cartao: cartao, competencia: competenciaAtual.avancando(meses: 1), calendario: calendario
-        )
+        let persistidas = (try? repositorioFaturas.listarFaturas(cartaoID: cartao.id)) ?? []
+        let competenciaProxima = competenciaAtual.avancando(meses: 1)
 
-        let faturas = (try? repositorioFaturas.listarFaturas(cartaoID: cartao.id)) ?? []
+        var faturas = persistidas
+        for competencia in [competenciaAtual, competenciaProxima]
+        where !persistidas.contains(where: { $0.competencia == competencia }) {
+            faturas.append(faturaOuTransiente(cartao: cartao, competencia: competencia))
+        }
+
         var totais: [UUID: Money] = [:]
         for fatura in faturas {
             totais[fatura.id] = repositorioFaturas.totalDaFatura(
@@ -120,6 +121,25 @@ final class CartoesModelo {
             ),
             venceEm: CalendarioFatura.vencimento(
                 competencia: competenciaAtual, cartao: cartao, calendario: calendario
+            )
+        )
+    }
+
+    /// Fatura de uma competência que ainda não foi persistida: mesmos campos
+    /// e mesmos padrões (`status: .aberta`, `valorPago: .zero`) que
+    /// `RepositorioFaturas.faturaOuCriar` grava na primeira compra da
+    /// competência (`RepositorioFaturas.swift`) — só que esta nunca é salva.
+    /// Ler a tela de Cartões não é "uma compra precisando da competência", e
+    /// por isso não é o momento de gravar a fatura de verdade.
+    private func faturaOuTransiente(cartao: Cartao, competencia: Competencia) -> Fatura {
+        Fatura(
+            cartaoID: cartao.id,
+            competencia: competencia,
+            fechaEm: CalendarioFatura.fechamento(
+                competencia: competencia, cartao: cartao, calendario: calendario
+            ),
+            venceEm: CalendarioFatura.vencimento(
+                competencia: competencia, cartao: cartao, calendario: calendario
             )
         )
     }

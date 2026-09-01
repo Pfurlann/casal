@@ -138,4 +138,28 @@ struct CartoesModeloTests {
         modelo.recarregar(referencia: data(2026, 9, 15))
         #expect(modelo.cartoes.isEmpty)
     }
+
+    @Test("recarregar é somente leitura: nenhuma fatura é persistida no processo")
+    func recarregarNaoPersisteNada() throws {
+        let (modelo, contexto) = try modelo()
+        let repoCartoes = RepositorioCartoesSwiftData(contexto: contexto)
+        let repoTransacoes = RepositorioSwiftData(contexto: contexto)
+
+        let meuCartao = cartao("Nosso")
+        try repoCartoes.salvarCartao(meuCartao)
+        try repoTransacoes.salvar(Transacao(
+            carteiraID: meuCartao.carteiraID, tipo: .despesa, valor: Money(centavos: 50_000),
+            data: data(2026, 9, 10), cartaoID: meuCartao.id, criadoPor: UUID(), hashDedup: "x"
+        ))
+
+        let antes = try contexto.fetch(FetchDescriptor<FaturaRegistro>()).count
+        modelo.recarregar(referencia: data(2026, 9, 15))
+        let depois = try contexto.fetch(FetchDescriptor<FaturaRegistro>()).count
+
+        #expect(antes == 0)
+        #expect(depois == 0)
+        // O resumo continua correto mesmo sem nenhuma fatura persistida: o
+        // motor usa uma fatura transitória para a competência atual.
+        #expect(modelo.resumoPorCartao[meuCartao.id]?.faturaAtual == Money(centavos: 50_000))
+    }
 }

@@ -2,7 +2,13 @@ import { Providers } from "@/components/Providers";
 import { ProvedorAviso } from "@/components/ui/Aviso";
 import { Navegacao } from "@/components/ui/Navegacao";
 
-export default function LayoutApp({ children }: { children: React.ReactNode }) {
+export default function LayoutApp({
+  children,
+  folha,
+}: {
+  children: React.ReactNode;
+  folha: React.ReactNode;
+}) {
   return (
     <Providers>
       <ProvedorAviso>
@@ -12,6 +18,7 @@ export default function LayoutApp({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </div>
+        {folha}
       </ProvedorAviso>
     </Providers>
   );

@@ -5,7 +5,7 @@ import { Lancar } from "./Lancar";
 import { ProvedorAviso } from "../ui/Aviso";
 
 const empurrar = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: empurrar }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: empurrar, back: vi.fn() }) }));
 
 const lancar = vi.hoisted(() => ({ fn: vi.fn() }));
 const loja = vi.hoisted(() => ({ valor: {} as Record<string, unknown> }));

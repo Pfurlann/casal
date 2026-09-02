@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Lancar } from "./Lancar";
 import { ProvedorAviso } from "../ui/Aviso";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }));
 
 const loja = vi.hoisted(() => ({ valor: {} as Record<string, unknown> }));
 vi.mock("@/lib/store", async (original) => {

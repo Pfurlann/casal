@@ -1,0 +1,77 @@
+"use client";
+
+import { useEffect, useRef, type ReactNode } from "react";
+
+const FOCAVEIS =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Sobreposição que prende o foco enquanto está aberta e devolve ao
+ * elemento de origem ao fechar — requisito 6 da seção 12 da spec.
+ */
+export function Folha({
+  aoFechar,
+  children,
+}: {
+  aoFechar: () => void;
+  children: ReactNode;
+}) {
+  const caixa = useRef<HTMLDivElement>(null);
+  const origem = useRef<Element | null>(null);
+
+  useEffect(() => {
+    origem.current = document.activeElement;
+    const primeiro = caixa.current?.querySelector<HTMLElement>(FOCAVEIS);
+    primeiro?.focus();
+    return () => {
+      if (origem.current instanceof HTMLElement) origem.current.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    function aoTeclar(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        aoFechar();
+        return;
+      }
+      if (e.key !== "Tab" || !caixa.current) return;
+
+      const focaveis = [...caixa.current.querySelectorAll<HTMLElement>(FOCAVEIS)];
+      if (focaveis.length === 0) return;
+      const primeiro = focaveis[0];
+      const ultimo = focaveis[focaveis.length - 1];
+      const atual = document.activeElement;
+
+      if (e.shiftKey && (atual === primeiro || !caixa.current.contains(atual))) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && atual === ultimo) {
+        e.preventDefault();
+        primeiro.focus();
+      }
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [aoFechar]);
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
+      <div
+        data-testid="folha-fundo"
+        aria-hidden
+        onClick={aoFechar}
+        className="absolute inset-0 bg-grafite/40"
+      />
+      <div
+        ref={caixa}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Novo gasto"
+        className="relative flex max-h-[92dvh] w-full max-w-[430px] flex-col overflow-y-auto rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px]"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}

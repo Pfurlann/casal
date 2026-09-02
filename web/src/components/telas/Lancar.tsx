@@ -31,7 +31,10 @@ export function Lancar() {
   const [salvando, setSalvando] = useState(false);
 
   const pode = entrada.podeSalvar && !salvando;
-  const voltar = () => router.push("/mes");
+  const voltar = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/mes");
+  };
 
   async function salvar() {
     if (!pode) return;

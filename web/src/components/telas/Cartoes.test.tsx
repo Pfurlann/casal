@@ -55,4 +55,60 @@ describe("Cartoes", () => {
     expect(container.innerHTML).not.toContain("gradient");
     expect(container.innerHTML).not.toContain("••••");
   });
+
+  it("mostra a próxima fatura e as parcelas futuras na curva", () => {
+    const atual = new Date(2026, 8, 28, 12).toISOString();
+    const proxima = new Date(2026, 9, 28, 12).toISOString();
+    const futura = new Date(2026, 10, 28, 12).toISOString();
+    loja.valor = {
+      cartoes: [CARTAO],
+      faturas: [],
+      transacoes: [
+        {
+          id: "1",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 3334,
+          data: atual,
+          descricao: "Sofá",
+          cartaoID: "k1",
+          hashDedup: "",
+          grupoParcela: "g",
+          parcelaN: 1,
+          parcelaTotal: 3,
+        },
+        {
+          id: "2",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 3333,
+          data: proxima,
+          descricao: "Sofá",
+          cartaoID: "k1",
+          hashDedup: "",
+          grupoParcela: "g",
+          parcelaN: 2,
+          parcelaTotal: 3,
+        },
+        {
+          id: "3",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 3333,
+          data: futura,
+          descricao: "Sofá",
+          cartaoID: "k1",
+          hashDedup: "",
+          grupoParcela: "g",
+          parcelaN: 3,
+          parcelaTotal: 3,
+        },
+      ],
+    };
+    render(<Cartoes />);
+    expect(screen.getByText(/próx\. R\$ 33,33/)).toBeInTheDocument();
+    expect(screen.getByText("set")).toBeInTheDocument();
+    expect(screen.getByText("out")).toBeInTheDocument();
+    expect(screen.getByText("nov")).toBeInTheDocument();
+  });
 });

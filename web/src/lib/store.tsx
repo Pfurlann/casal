@@ -17,8 +17,8 @@ import {
   competenciaDe,
   fechamento,
   horizonte,
-  planejarParcelas,
   saldoDevedor,
+  transacoesDoLancamento,
   totalDaFatura,
   uuid,
   vencimento,
@@ -190,6 +190,7 @@ type Loja = Estado & {
     descricao: string;
     data: Date;
     cartaoID?: string;
+    contaID?: string;
     parcelas: number;
   }) => Promise<void>;
   pagarFatura: (p: {
@@ -452,44 +453,20 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     descricao,
     data,
     cartaoID,
+    contaID,
     parcelas,
   }) => {
     const cartao = estado.cartoes.find((c) => c.id === cartaoID);
-    const novas: Transacao[] = [];
-    if (cartao && parcelas > 1) {
-      const grupo = uuid();
-      const planejadas = planejarParcelas(valor, parcelas, data, cartao);
-      for (const p of planejadas) {
-        novas.push({
-          id: uuid(),
-          carteiraID: estado.carteira.id,
-          tipo: "despesa",
-          valor: p.valor,
-          data: new Date(`${p.data}T12:00:00`).toISOString(),
-          categoriaID,
-          descricao,
-          cartaoID: cartao.id,
-          hashDedup: `${valor}|${descricao}|p${p.numero}de${p.total}`,
-          grupoParcela: grupo,
-          parcelaN: p.numero,
-          parcelaTotal: p.total,
-        });
-      }
-    } else {
-      novas.push({
-        id: uuid(),
-        carteiraID: estado.carteira.id,
-        tipo: "despesa",
-        valor,
-        data: data.toISOString(),
-        categoriaID,
-        descricao,
-        cartaoID,
-        hashDedup: `${valor}|${descricao}|${data.toISOString()}`,
-        parcelaN: 1,
-        parcelaTotal: 1,
-      });
-    }
+    const novas = transacoesDoLancamento({
+      valor,
+      categoriaID,
+      descricao,
+      data,
+      cartao,
+      contaID: cartao ? undefined : contaID,
+      parcelas: cartao ? parcelas : 1,
+      carteiraID: estado.carteira.id,
+    });
     await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
     if (sb) {
       await sb.from("transactions").insert(
@@ -501,6 +478,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           data: t.data,
           category_id: t.categoriaID ?? null,
           descricao: t.descricao,
+          account_id: t.contaID ?? null,
           card_id: t.cartaoID ?? null,
           hash_dedup: t.hashDedup,
           grupo_parcela: t.grupoParcela ?? null,

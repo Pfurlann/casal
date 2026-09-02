@@ -208,6 +208,58 @@ export function planejarParcelas(total: Centavos, vezes: number, compraEm: Date,
   });
 }
 
+/**
+ * Materializa o lançamento: à vista vira uma transação; com cartão e
+ * `parcelas > 1` vira N despesas do mesmo `grupoParcela`, uma por competência.
+ * Cartão não leva `contaID` — a compra mora na fatura. Sem cartão, `parcelas`
+ * é ignorado: parcela sem fatura não existe.
+ */
+export function transacoesDoLancamento(p: {
+  valor: Centavos;
+  categoriaID?: string;
+  descricao: string;
+  data: Date;
+  cartao?: Cartao;
+  contaID?: string;
+  parcelas: number;
+  carteiraID: string;
+}): Transacao[] {
+  const cartao = p.cartao;
+  if (cartao && p.parcelas > 1) {
+    const grupo = uuid();
+    return planejarParcelas(p.valor, p.parcelas, p.data, cartao).map((parcela) => ({
+      id: uuid(),
+      carteiraID: p.carteiraID,
+      tipo: "despesa" as const,
+      valor: parcela.valor,
+      data: new Date(`${parcela.data}T12:00:00`).toISOString(),
+      categoriaID: p.categoriaID,
+      descricao: p.descricao,
+      cartaoID: cartao.id,
+      hashDedup: `${p.valor}|${p.descricao}|p${parcela.numero}de${parcela.total}`,
+      grupoParcela: grupo,
+      parcelaN: parcela.numero,
+      parcelaTotal: parcela.total,
+    }));
+  }
+  return [
+    {
+      id: uuid(),
+      carteiraID: p.carteiraID,
+      tipo: "despesa",
+      valor: p.valor,
+      data: p.data.toISOString(),
+      categoriaID: p.categoriaID,
+      descricao: p.descricao,
+      contaID: cartao ? undefined : p.contaID,
+      cartaoID: cartao?.id,
+      hashDedup: `${p.valor}|${p.descricao}|${p.data.toISOString()}`,
+      parcelaN: 1,
+      parcelaTotal: 1,
+    },
+  ];
+}
+
 export function horizonte(
   quantidade: number,
   desde: Competencia,

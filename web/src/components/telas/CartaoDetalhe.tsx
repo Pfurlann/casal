@@ -102,16 +102,22 @@ export function CartaoDetalhe({ id }: { id: string }) {
               </Link>
             )}
             <div className="mt-8">
-              {lancamentos.map((t) => (
-                <LinhaLista
-                  key={t.id}
-                  titulo={t.descricao || "Sem descrição"}
-                  subtitulo={
-                    t.parcelaTotal > 1 ? `parcela ${t.parcelaN} de ${t.parcelaTotal}` : undefined
-                  }
-                  valor={t.valor}
-                />
-              ))}
+              {lancamentos.length === 0 ? (
+                <p className="py-8 text-center text-[14px] text-cinza">
+                  Nenhum lançamento nesta fatura
+                </p>
+              ) : (
+                lancamentos.map((t) => (
+                  <LinhaLista
+                    key={t.id}
+                    titulo={t.descricao || "Sem descrição"}
+                    subtitulo={
+                      t.parcelaTotal > 1 ? `parcela ${t.parcelaN} de ${t.parcelaTotal}` : undefined
+                    }
+                    valor={t.valor}
+                  />
+                ))
+              )}
             </div>
           </>
         ) : (

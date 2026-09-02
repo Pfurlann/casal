@@ -14,9 +14,36 @@ vi.mock("@/lib/store", async (original) => {
   return { ...real, useLoja: () => loja.valor };
 });
 
-function montar() {
+const CARTAO = {
+  id: "k1",
+  carteiraID: "c1",
+  apelido: "Roxinho",
+  banco: "Nubank",
+  ultimos4: "4417",
+  bandeira: "mastercard",
+  cor: "grafite",
+  limite: 500000,
+  diaFechamento: 28,
+  diaVencimento: 5,
+  arquivado: false,
+};
+
+const CONTA = {
+  id: "a1",
+  carteiraID: "c1",
+  nome: "Corrente",
+  tipo: "corrente" as const,
+  saldoInicial: 0,
+  arquivada: false,
+};
+
+function montar(opts?: { cartoes?: typeof CARTAO[]; contas?: typeof CONTA[] }) {
   empurrar.mockClear();
-  loja.valor = { cartoes: [], lancar: lancar.fn };
+  loja.valor = {
+    cartoes: opts?.cartoes ?? [],
+    contas: opts?.contas ?? [CONTA],
+    lancar: lancar.fn,
+  };
   return render(
     <ProvedorAviso>
       <Lancar />
@@ -38,7 +65,7 @@ describe("Lancar", () => {
     expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
   });
 
-  it("grava o lançamento com a categoria escolhida", async () => {
+  it("grava o lançamento na conta padrão com a categoria escolhida", async () => {
     lancar.fn.mockClear();
     montar();
     await userEvent.keyboard("1000");
@@ -48,6 +75,8 @@ describe("Lancar", () => {
       expect.objectContaining({
         valor: 1000,
         categoriaID: "00000000-0000-0000-0000-000000000002",
+        contaID: CONTA.id,
+        cartaoID: undefined,
         parcelas: 1,
       }),
     );
@@ -67,5 +96,68 @@ describe("Lancar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText(/Não deu para salvar/)).toBeInTheDocument();
     expect(empurrar).not.toHaveBeenCalled();
+  });
+
+  it("sem contas nem cartões, pede cadastro e não deixa salvar", async () => {
+    montar({ contas: [], cartoes: [] });
+    await userEvent.keyboard("1000");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    expect(screen.getByRole("link", { name: "Cadastrar conta" })).toHaveAttribute(
+      "href",
+      "/mais/contas/novo",
+    );
+    expect(screen.queryByLabelText("Forma de pagamento")).toBeNull();
+  });
+
+  it("sem contas, ainda deixa escolher um cartão", async () => {
+    montar({ contas: [], cartoes: [CARTAO] });
+    await userEvent.keyboard("1000");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    expect(screen.getByRole("link", { name: "Cadastrar conta" })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
+    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
+  });
+
+  it("abre mais opções no lugar do teclado, com conta, cartão e parcelas", async () => {
+    montar({ cartoes: [CARTAO] });
+    await userEvent.keyboard("10000");
+    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    expect(screen.getByRole("heading", { name: "mais opções" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
+    expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Parcelas")).toBeNull();
+
+    await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
+    expect(screen.getByLabelText("Parcelas")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "24x" })).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "3");
+    expect(screen.getByText(/3x de R\$ 33,34, primeira parcela maior se houver sobra/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "novo gasto" })).toBeInTheDocument();
+  });
+
+  it("grava o lançamento no cartão com o número de parcelas, sem conta", async () => {
+    lancar.fn.mockClear();
+    montar({ cartoes: [CARTAO] });
+    await userEvent.keyboard("300000");
+    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
+    await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "12");
+    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valor: 300000,
+        cartaoID: CARTAO.id,
+        contaID: undefined,
+        parcelas: 12,
+      }),
+    );
   });
 });

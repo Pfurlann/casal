@@ -13,7 +13,11 @@ vi.mock("@/lib/store", async (original) => {
 });
 
 function montar() {
-  loja.valor = { cartoes: [], lancar: vi.fn() };
+  loja.valor = {
+    cartoes: [],
+    contas: [{ id: "a1", nome: "Corrente", tipo: "corrente" }],
+    lancar: vi.fn(),
+  };
   return render(
     <ProvedorAviso>
       <Lancar />

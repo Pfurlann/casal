@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CATEGORIAS } from "@/lib/domain";
-import { EntradaValor } from "@/lib/money";
+import { CATEGORIAS, ROTULO_TIPO_CONTA } from "@/lib/domain";
+import { dividir, EntradaValor, formatarBRL } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Campo } from "../ui/Campo";
@@ -11,13 +12,14 @@ import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { Teclado } from "../ui/Teclado";
+import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
 import { IconeCategoria } from "../Icones";
 
 const DESPESAS = CATEGORIAS.filter((c) => c.tipo === "despesa");
 
 export function Lancar() {
-  const { cartoes, lancar } = useLoja();
+  const { cartoes, contas, lancar } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
 
@@ -25,16 +27,37 @@ export function Lancar() {
   const [, tick] = useState(0);
   const [categoriaID, setCategoriaID] = useState(DESPESAS[0].id);
   const [descricao, setDescricao] = useState("");
+  const [contaID, setContaID] = useState(contas[0]?.id ?? "");
   const [cartaoID, setCartaoID] = useState("");
   const [parcelas, setParcelas] = useState(1);
   const [mais, setMais] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  const pode = entrada.podeSalvar && !salvando;
+  const temOrigem = Boolean(cartaoID || contaID);
+  const pode = entrada.podeSalvar && temOrigem && !salvando;
   const voltar = () => {
     if (window.history.length > 1) router.back();
     else router.push("/mes");
   };
+  const primeiraParcela = parcelas > 1 ? (dividir(entrada.centavos, parcelas)[0] ?? 0) : 0;
+  const pagoCom = cartaoID ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
+
+  function escolherOrigem(valor: string) {
+    if (valor.startsWith("cartao:")) {
+      setCartaoID(valor.slice("cartao:".length));
+      setContaID("");
+      return;
+    }
+    if (valor.startsWith("conta:")) {
+      setContaID(valor.slice("conta:".length));
+      setCartaoID("");
+      setParcelas(1);
+      return;
+    }
+    setContaID("");
+    setCartaoID("");
+    setParcelas(1);
+  }
 
   async function salvar() {
     if (!pode) return;
@@ -46,6 +69,7 @@ export function Lancar() {
         descricao,
         data: new Date(),
         cartaoID: cartaoID || undefined,
+        contaID: cartaoID ? undefined : contaID || undefined,
         parcelas: cartaoID ? parcelas : 1,
       });
       voltar();
@@ -58,7 +82,7 @@ export function Lancar() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Cabecalho titulo="novo gasto" voltarPara="/mes" />
+      <Cabecalho titulo={mais ? "mais opções" : "novo gasto"} voltarPara="/mes" />
       <div
         className="px-4 pt-6 text-center"
         role="status"
@@ -80,28 +104,53 @@ export function Lancar() {
         ))}
       </div>
 
-      {mais && (
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4">
+      {mais ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))]">
           <Campo label="Onde foi o gasto" value={descricao} onChange={setDescricao} />
-          <div className="mt-4">
-            <Rotulo>pago com</Rotulo>
-            <select
-              value={cartaoID}
-              aria-label="Forma de pagamento"
-              onChange={(e) => {
-                setCartaoID(e.target.value);
-                if (!e.target.value) setParcelas(1);
-              }}
-              className="mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite"
-            >
-              <option value="">Dinheiro, Pix ou débito</option>
-              {cartoes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.banco} · final {c.ultimos4}
-                </option>
-              ))}
-            </select>
-          </div>
+          {contas.length === 0 && (
+            <div className="mt-4">
+              <p className="text-[14px] text-cinza">
+                Cadastre uma conta para atrelar o gasto a corrente, poupança ou dinheiro.
+              </p>
+              <Link
+                href="/mais/contas/novo"
+                className="mt-2 flex min-h-[44px] items-center text-[14px] font-semibold text-grafite"
+              >
+                Cadastrar conta
+              </Link>
+            </div>
+          )}
+          {(contas.length > 0 || cartoes.length > 0) && (
+            <div className="mt-4">
+              <Rotulo>pago com</Rotulo>
+              <select
+                value={pagoCom}
+                aria-label="Forma de pagamento"
+                onChange={(e) => escolherOrigem(e.target.value)}
+                className="mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite"
+              >
+                {!pagoCom && <option value="">Escolha de onde sai</option>}
+                {contas.length > 0 && (
+                  <optgroup label="Contas">
+                    {contas.map((c) => (
+                      <option key={c.id} value={`conta:${c.id}`}>
+                        {c.nome} · {ROTULO_TIPO_CONTA[c.tipo]}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {cartoes.length > 0 && (
+                  <optgroup label="Cartões">
+                    {cartoes.map((c) => (
+                      <option key={c.id} value={`cartao:${c.id}`}>
+                        {c.banco} · final {c.ultimos4}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+          )}
           {cartaoID && (
             <div className="mt-4">
               <Rotulo>parcelar em</Rotulo>
@@ -118,28 +167,39 @@ export function Lancar() {
                   </option>
                 ))}
               </select>
+              {parcelas > 1 && (
+                <p className="mt-2 text-[12px] text-cinza">
+                  {parcelas}x de {formatarBRL(primeiraParcela)}, primeira parcela maior se
+                  houver sobra
+                </p>
+              )}
             </div>
           )}
+          <div className="mt-6">
+            <Botao variante="primario" onClick={() => setMais(false)}>
+              Pronto
+            </Botao>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-auto">
+          <Teclado
+            aoDigitar={(d) => {
+              entrada.digitar(d);
+              tick((n) => n + 1);
+            }}
+            aoApagar={() => {
+              entrada.apagar();
+              tick((n) => n + 1);
+            }}
+            aoSalvar={salvar}
+            aoFechar={voltar}
+            aoMaisOpcoes={() => setMais(true)}
+            podeSalvar={pode}
+            mostraSalvar
+          />
         </div>
       )}
-
-      <div className="mt-auto">
-        <Teclado
-          aoDigitar={(d) => {
-            entrada.digitar(d);
-            tick((n) => n + 1);
-          }}
-          aoApagar={() => {
-            entrada.apagar();
-            tick((n) => n + 1);
-          }}
-          aoSalvar={salvar}
-          aoFechar={voltar}
-          aoMaisOpcoes={() => setMais((v) => !v)}
-          podeSalvar={pode}
-          mostraSalvar
-        />
-      </div>
     </div>
   );
 }

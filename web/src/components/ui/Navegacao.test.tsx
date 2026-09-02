@@ -45,3 +45,17 @@ describe("Navegacao", () => {
     ).toHaveAttribute("href", "/lancar");
   });
 });
+
+describe("Navegacao — trilho de desktop", () => {
+  it("traz a assinatura da marca, que não existe nas abas", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    expect(screen.getByRole("img", { name: "casal" })).toBeInTheDocument();
+  });
+
+  it("mantém um único conjunto de destinos, sem duplicar para leitor de tela", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    expect(screen.getAllByRole("link", { name: "mês" })).toHaveLength(1);
+  });
+});

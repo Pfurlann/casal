@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { COR_AR, COR_GRAFITE } from "@/design/tema-chrome";
+import { SCRIPT_BOOTSTRAP_TEMA } from "@/lib/tema-bootstrap";
 import { ProvedorTema } from "@/lib/tema";
 import "./globals.css";
 
@@ -36,7 +37,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-tema="claro">
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <link
@@ -55,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("casal-tema");if(t==="claro"||t==="escuro")document.documentElement.setAttribute("data-tema",t)}catch(e){}`,
+            __html: SCRIPT_BOOTSTRAP_TEMA,
           }}
         />
       </head>

@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -18,10 +19,16 @@ const VALIDOS: Tema[] = ["sistema", "claro", "escuro"];
 function guardado(): Tema {
   try {
     const v = localStorage.getItem(CHAVE);
-    return VALIDOS.includes(v as Tema) ? (v as Tema) : "sistema";
+    return VALIDOS.includes(v as Tema) ? (v as Tema) : "claro";
   } catch {
-    return "sistema";
+    return "claro";
   }
+}
+
+function marcarAuth(ativo: boolean) {
+  const raiz = document.documentElement;
+  if (ativo) raiz.setAttribute("data-auth", "");
+  else raiz.removeAttribute("data-auth");
 }
 
 function coresChrome(tema: Tema): { clara: string; escura: string } {
@@ -51,7 +58,19 @@ function aplicar(tema: Tema) {
   const raiz = document.documentElement;
   if (tema === "sistema") raiz.removeAttribute("data-tema");
   else raiz.setAttribute("data-tema", tema);
-  aplicarChrome(tema);
+  aplicarChrome(raiz.hasAttribute("data-auth") ? "claro" : tema);
+}
+
+export function ForcarTemaClaro({ children }: { children: ReactNode }) {
+  useLayoutEffect(() => {
+    marcarAuth(true);
+    aplicarChrome("claro");
+    return () => {
+      marcarAuth(false);
+      aplicar(guardado());
+    };
+  }, []);
+  return <>{children}</>;
 }
 
 const Ctx = createContext<{ tema: Tema; escolher: (t: Tema) => void } | null>(null);
@@ -64,7 +83,7 @@ export function useTema() {
 
 export function ProvedorTema({ children }: { children: ReactNode }) {
   const [tema, setTema] = useState<Tema>(() =>
-    typeof window === "undefined" ? "sistema" : guardado(),
+    typeof window === "undefined" ? "claro" : guardado(),
   );
 
   useEffect(() => {

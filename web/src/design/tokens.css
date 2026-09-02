@@ -27,7 +27,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-tema="claro"]) {
+  :root:not([data-tema="claro"]):not([data-auth]) {
     --ar: #0e0e0c;
     --grafite: #fbfaf7;
     --cinza: #9a9a90;
@@ -38,7 +38,7 @@
   }
 }
 
-:root[data-tema="escuro"] {
+:root[data-tema="escuro"]:not([data-auth]) {
   --ar: #0e0e0c;
   --grafite: #fbfaf7;
   --cinza: #9a9a90;

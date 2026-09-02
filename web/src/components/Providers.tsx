@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { LojaProvider } from "@/lib/store";
+import { ForcarTemaClaro } from "@/lib/tema";
 
 function ComSessao({ children }: { children: ReactNode }) {
   const { pronto, precisaLogin } = useAuth();
@@ -14,11 +15,12 @@ function ComSessao({ children }: { children: ReactNode }) {
   }, [pronto, precisaLogin, router]);
 
   if (!pronto || precisaLogin) {
-    return (
-      <div className="flex h-full items-center justify-center text-[12px] text-cinza">
+    const splash = (
+      <div className="flex h-full items-center justify-center bg-ar text-[12px] text-cinza">
         Carregando…
       </div>
     );
+    return pronto && precisaLogin ? <ForcarTemaClaro>{splash}</ForcarTemaClaro> : splash;
   }
   return <LojaProvider>{children}</LojaProvider>;
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Entrar } from "./Entrar";
@@ -12,6 +12,12 @@ vi.mock("@/lib/auth", async (original) => {
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 describe("Entrar", () => {
+  beforeEach(() => {
+    document.documentElement.removeAttribute("data-auth");
+    document.documentElement.removeAttribute("data-tema");
+    localStorage.clear();
+  });
+
   it("mostra a assinatura da marca", () => {
     render(<Entrar />);
     expect(screen.getByRole("img", { name: "casal" })).toBeInTheDocument();
@@ -57,5 +63,15 @@ describe("Entrar", () => {
     await userEvent.type(screen.getByLabelText("Senha"), "123456");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await screen.findByText("E-mail ou senha incorretos.")).toBeInTheDocument();
+  });
+
+  it("força o tema claro mesmo com escuro persistido", () => {
+    localStorage.setItem("casal-tema", "escuro");
+    document.documentElement.setAttribute("data-tema", "escuro");
+    const { unmount } = render(<Entrar />);
+    expect(document.documentElement.hasAttribute("data-auth")).toBe(true);
+    expect(screen.getByRole("button", { name: "Não tem conta? Criar" })).toBeInTheDocument();
+    unmount();
+    expect(document.documentElement.hasAttribute("data-auth")).toBe(false);
   });
 });

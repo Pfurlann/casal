@@ -96,7 +96,12 @@ export function CartaoForm({ id }: { id?: string }) {
           </select>
         </div>
 
-        <div className="mt-5 flex items-center justify-between">
+        <div
+          className="mt-5 flex items-center justify-between"
+          role="status"
+          aria-live="polite"
+          aria-label="Limite do cartão"
+        >
           <Rotulo>limite total</Rotulo>
           <Numero centavos={entrada.centavos} tamanho="corpo" />
         </div>

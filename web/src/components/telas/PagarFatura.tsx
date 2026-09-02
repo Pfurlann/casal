@@ -70,7 +70,12 @@ export function PagarFatura({
         <div className="mt-2">
           <Numero centavos={saldo} tamanho="secao" />
         </div>
-        <div className="mt-8 text-center">
+        <div
+          className="mt-8 text-center"
+          role="status"
+          aria-live="polite"
+          aria-label="Valor do pagamento"
+        >
           <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
         </div>
 

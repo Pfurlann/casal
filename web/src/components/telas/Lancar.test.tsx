@@ -65,7 +65,7 @@ describe("Lancar", () => {
     montar();
     await userEvent.keyboard("1000");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/Não deu para salvar/);
+    expect(await screen.findByText(/Não deu para salvar/)).toBeInTheDocument();
     expect(empurrar).not.toHaveBeenCalled();
   });
 });

@@ -56,7 +56,12 @@ export function Lancar() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Cabecalho titulo="novo gasto" voltarPara="/mes" />
-      <div className="px-4 pt-6 text-center">
+      <div
+        className="px-4 pt-6 text-center"
+        role="status"
+        aria-live="polite"
+        aria-label="Valor do gasto"
+      >
         <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
       </div>
       <div className="mt-5 flex flex-wrap justify-center gap-2 px-4">

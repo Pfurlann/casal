@@ -13,10 +13,12 @@ export function Folha({
   aoFechar,
   children,
   rotulo = "Novo gasto",
+  trava = false,
 }: {
   aoFechar: () => void;
   children: ReactNode;
   rotulo?: string;
+  trava?: boolean;
 }) {
   const caixa = useRef<HTMLDivElement>(null);
   const origem = useRef<Element | null>(null);
@@ -70,7 +72,9 @@ export function Folha({
         role="dialog"
         aria-modal="true"
         aria-label={rotulo}
-        className="relative flex max-h-[92dvh] w-full max-w-[430px] flex-col overflow-y-auto rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px]"
+        className={`relative flex max-h-[92dvh] w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] ${
+          trava ? "min-h-0 overflow-hidden" : "overflow-y-auto"
+        }`}
       >
         {children}
       </div>

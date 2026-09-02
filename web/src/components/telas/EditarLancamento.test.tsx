@@ -82,11 +82,27 @@ describe("EditarLancamento", () => {
     });
   });
 
+  it("mostra Apagar no cabeçalho sem abrir o teclado", () => {
+    montar();
+    expect(screen.getByRole("button", { name: "Apagar lançamento" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Apagar último dígito" })).toBeNull();
+  });
+
+  it("abre o teclado só depois de tocar no valor", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Editar valor" }));
+    expect(screen.getByRole("button", { name: "Apagar último dígito" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apagar lançamento" })).toBeInTheDocument();
+  });
+
   it("em grupo, não oferece teclado e avisa que o valor não muda uma a uma", () => {
     montar(PARCELA);
     expect(screen.getByText(/valor das parcelas não muda/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar valor" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Apagar último dígito" })).toBeNull();
     expect(screen.getByText(/Nubank · final 1234/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apagar lançamento" })).toBeInTheDocument();
   });
 
   it("salva só descrição e categoria da parcela tocada", async () => {

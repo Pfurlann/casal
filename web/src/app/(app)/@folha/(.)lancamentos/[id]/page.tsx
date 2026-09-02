@@ -8,7 +8,7 @@ export default function FolhaEditarLancamento() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   return (
-    <Folha aoFechar={() => router.back()} rotulo="Editar lançamento">
+    <Folha aoFechar={() => router.back()} rotulo="Editar lançamento" trava>
       <EditarLancamento id={id} />
     </Folha>
   );

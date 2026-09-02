@@ -79,6 +79,9 @@ describe("EditarLancamento", () => {
       descricao: "Padaria",
       categoriaID: "00000000-0000-0000-0000-000000000002",
       valor: 21490,
+      carteiraID: "c1",
+      contaID: undefined,
+      cartaoID: undefined,
     });
   });
 
@@ -113,6 +116,9 @@ describe("EditarLancamento", () => {
       descricao: "Sofá",
       categoriaID: "00000000-0000-0000-0000-000000000001",
       valor: undefined,
+      carteiraID: "c1",
+      contaID: undefined,
+      cartaoID: "k1",
     });
   });
 
@@ -136,5 +142,40 @@ describe("EditarLancamento", () => {
     editar.fn.mockRejectedValueOnce(new Error("rede"));
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText(/Não deu para salvar/)).toBeInTheDocument();
+  });
+
+  it("transfere o lançamento para outra carteira com origem nova", async () => {
+    editar.fn.mockClear();
+    loja.valor = {
+      transacoes: [AVISTA],
+      cartoes: [],
+      contas: [{ id: "a1", carteiraID: "c1", nome: "Corrente", tipo: "corrente" }],
+      carteiras: [
+        { id: "c1", nome: "Nosso", rotulo: "compartilhada" },
+        { id: "c2", nome: "Meu", rotulo: "pessoal" },
+      ],
+      contasTodas: [
+        { id: "a1", carteiraID: "c1", nome: "Corrente", tipo: "corrente" },
+        { id: "a2", carteiraID: "c2", nome: "Poupança", tipo: "poupanca" },
+      ],
+      cartoesTodos: [],
+      editar: editar.fn,
+      apagar: apagar.fn,
+    };
+    render(
+      <ProvedorAviso>
+        <EditarLancamento id={AVISTA.id} />
+      </ProvedorAviso>,
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Carteira"), "c2");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(editar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "t1",
+        carteiraID: "c2",
+        contaID: "a2",
+        cartaoID: undefined,
+      }),
+    );
   });
 });

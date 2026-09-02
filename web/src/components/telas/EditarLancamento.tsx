@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CATEGORIAS } from "@/lib/domain";
+import { CATEGORIAS, ROTULO_TIPO_CONTA } from "@/lib/domain";
 import { EntradaValor } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import { ehGrupoParcela } from "@/lib/transacoes";
@@ -17,11 +17,15 @@ import { useAviso } from "../ui/Aviso";
 import { IconeCategoria } from "../Icones";
 
 const DESPESAS = CATEGORIAS.filter((c) => c.tipo === "despesa");
+const SELECT =
+  "mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 
 export function EditarLancamento({ id }: { id: string }) {
   const loja = useLoja();
-  const { transacoes, cartoes, editar, apagar } = loja;
-  const contas = loja.contas ?? [];
+  const { transacoes, editar, apagar } = loja;
+  const contasTodas = loja.contasTodas ?? loja.contas ?? [];
+  const cartoesTodos = loja.cartoesTodos ?? loja.cartoes ?? [];
+  const carteiras = loja.carteiras ?? [];
   const { avisar } = useAviso();
   const router = useRouter();
   const tx = transacoes.find((t) => t.id === id);
@@ -30,6 +34,9 @@ export function EditarLancamento({ id }: { id: string }) {
   const [, tick] = useState(0);
   const [categoriaID, setCategoriaID] = useState(tx?.categoriaID ?? DESPESAS[0].id);
   const [descricao, setDescricao] = useState(tx?.descricao ?? "");
+  const [carteiraID, setCarteiraID] = useState(tx?.carteiraID ?? "");
+  const [contaID, setContaID] = useState(tx?.contaID ?? "");
+  const [cartaoID, setCartaoID] = useState(tx?.cartaoID ?? "");
   const [salvando, setSalvando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [teclado, setTeclado] = useState(false);
@@ -50,14 +57,59 @@ export function EditarLancamento({ id }: { id: string }) {
 
   const grupo = ehGrupoParcela(tx);
   const valorLivre = tx.parcelaTotal === 1;
-  const cartao = cartoes.find((c) => c.id === tx.cartaoID);
-  const conta = contas.find((c) => c.id === tx.contaID);
-  const origem = cartao
+  const contasDest = contasTodas.filter((c) => c.carteiraID === carteiraID || c.id === contaID);
+  const cartoesDest = cartoesTodos.filter((c) => c.carteiraID === carteiraID || c.id === cartaoID);
+  const pagoCom = cartaoID ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
+  const cartao = cartoesDest.find((c) => c.id === cartaoID) ?? cartoesTodos.find((c) => c.id === tx.cartaoID);
+  const conta = contasDest.find((c) => c.id === contaID) ?? contasTodas.find((c) => c.id === tx.contaID);
+  const origemTexto = cartao
     ? `${cartao.banco} · final ${cartao.ultimos4}`
     : conta
       ? conta.nome
       : "Dinheiro, Pix ou débito";
-  const pode = (!valorLivre || entrada.podeSalvar) && !salvando;
+  const mudouCarteira = carteiraID !== tx.carteiraID;
+  const temOrigem = Boolean(cartaoID || contaID);
+  const destSemOrigem = mudouCarteira && contasDest.length === 0 && cartoesDest.length === 0;
+  const pode = (!valorLivre || entrada.podeSalvar) && !salvando && (!mudouCarteira || temOrigem) && !destSemOrigem;
+  const mudouOrigem =
+    mudouCarteira || cartaoID !== (tx.cartaoID ?? "") || contaID !== (tx.contaID ?? "");
+
+  function escolherCarteira(idNovo: string) {
+    setCarteiraID(idNovo);
+    const contas = contasTodas.filter((c) => c.carteiraID === idNovo);
+    const cartoes = cartoesTodos.filter((c) => c.carteiraID === idNovo);
+    const origemVale =
+      (cartaoID && cartoes.some((c) => c.id === cartaoID)) ||
+      (contaID && contas.some((c) => c.id === contaID));
+    if (origemVale) return;
+    if (contas[0]) {
+      setContaID(contas[0].id);
+      setCartaoID("");
+      return;
+    }
+    if (cartoes[0]) {
+      setCartaoID(cartoes[0].id);
+      setContaID("");
+      return;
+    }
+    setContaID("");
+    setCartaoID("");
+  }
+
+  function escolherOrigem(valor: string) {
+    if (valor.startsWith("cartao:")) {
+      setCartaoID(valor.slice("cartao:".length));
+      setContaID("");
+      return;
+    }
+    if (valor.startsWith("conta:")) {
+      setContaID(valor.slice("conta:".length));
+      setCartaoID("");
+      return;
+    }
+    setContaID("");
+    setCartaoID("");
+  }
 
   const salvar = async () => {
     if (!pode) return;
@@ -68,6 +120,9 @@ export function EditarLancamento({ id }: { id: string }) {
         descricao,
         categoriaID,
         valor: valorLivre ? entrada.centavos : undefined,
+        carteiraID,
+        contaID: cartaoID ? undefined : contaID || undefined,
+        cartaoID: cartaoID || undefined,
       });
       voltar();
     } catch {
@@ -162,9 +217,66 @@ export function EditarLancamento({ id }: { id: string }) {
           </div>
         </div>
 
+        {carteiras.length > 0 && (
+          <div className="mt-4">
+            <Rotulo>carteira</Rotulo>
+            <select
+              value={carteiraID}
+              aria-label="Carteira"
+              onChange={(e) => escolherCarteira(e.target.value)}
+              className={SELECT}
+            >
+              {carteiras.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+            {grupo && mudouOrigem && (
+              <p className="mt-2 text-[12px] text-cinza">
+                O parcelamento inteiro vai junto para esta carteira.
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 pb-2">
           <Rotulo>pago com</Rotulo>
-          <p className="mt-1 text-[14px] text-grafite">{origem}</p>
+          {contasDest.length > 0 || cartoesDest.length > 0 ? (
+            <select
+              value={pagoCom}
+              aria-label="Forma de pagamento"
+              onChange={(e) => escolherOrigem(e.target.value)}
+              className={SELECT}
+            >
+              {!pagoCom && <option value="">Dinheiro, Pix ou débito</option>}
+              {contasDest.length > 0 && (
+                <optgroup label="Contas">
+                  {contasDest.map((c) => (
+                    <option key={c.id} value={`conta:${c.id}`}>
+                      {c.nome} · {ROTULO_TIPO_CONTA[c.tipo]}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {cartoesDest.length > 0 && (
+                <optgroup label="Cartões">
+                  {cartoesDest.map((c) => (
+                    <option key={c.id} value={`cartao:${c.id}`}>
+                      {c.banco} · final {c.ultimos4}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          ) : (
+            <p className="mt-1 text-[14px] text-grafite">{origemTexto}</p>
+          )}
+          {destSemOrigem && (
+            <p className="mt-2 text-[12px] text-cinza">
+              Cadastre uma conta ou cartão nesta carteira para transferir o lançamento.
+            </p>
+          )}
         </div>
       </div>
 

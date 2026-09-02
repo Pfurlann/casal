@@ -5,6 +5,9 @@ export type EdicaoLancamento = {
   descricao: string;
   categoriaID?: string;
   valor?: number;
+  carteiraID?: string;
+  contaID?: string;
+  cartaoID?: string;
 };
 
 export type ApagarLancamento = {
@@ -12,18 +15,48 @@ export type ApagarLancamento = {
   grupo?: boolean;
 };
 
+function mudaCarteiraOuOrigem(alvo: Transacao, p: EdicaoLancamento): boolean {
+  if (p.carteiraID && p.carteiraID !== alvo.carteiraID) return true;
+  if (p.cartaoID && p.cartaoID !== (alvo.cartaoID ?? "")) return true;
+  if (p.contaID && p.contaID !== (alvo.contaID ?? "")) return true;
+  if (p.cartaoID && alvo.contaID && !p.contaID) return true;
+  if (p.contaID && alvo.cartaoID && !p.cartaoID) return true;
+  return false;
+}
+
+/** Carteira e origem novas valem para o grupo inteiro. Descrição e valor, só na linha tocada. */
+export function idsParaEditar(transacoes: Transacao[], p: EdicaoLancamento): string[] {
+  const alvo = transacoes.find((t) => t.id === p.id);
+  if (!alvo) return [];
+  if (mudaCarteiraOuOrigem(alvo, p) && alvo.grupoParcela) {
+    return transacoes.filter((t) => t.grupoParcela === alvo.grupoParcela).map((t) => t.id);
+  }
+  return [alvo.id];
+}
+
 /** Valor só muda em lançamento à vista. Parcelas editam descrição e categoria. */
 export function aplicarEdicao(transacoes: Transacao[], p: EdicaoLancamento): Transacao[] {
+  const ids = new Set(idsParaEditar(transacoes, p));
   return transacoes.map((t) => {
-    if (t.id !== p.id) return t;
+    if (!ids.has(t.id)) return t;
+    const tocada = t.id === p.id;
     const valor =
-      t.parcelaTotal === 1 && p.valor != null && p.valor > 0 ? p.valor : t.valor;
-    return {
+      tocada && t.parcelaTotal === 1 && p.valor != null && p.valor > 0 ? p.valor : t.valor;
+    const proxima: Transacao = {
       ...t,
-      descricao: p.descricao,
-      categoriaID: p.categoriaID,
+      descricao: tocada ? p.descricao : t.descricao,
+      categoriaID: tocada ? p.categoriaID : t.categoriaID,
       valor,
     };
+    if (p.carteiraID) proxima.carteiraID = p.carteiraID;
+    if (p.cartaoID) {
+      proxima.cartaoID = p.cartaoID;
+      proxima.contaID = undefined;
+    } else if (p.contaID) {
+      proxima.contaID = p.contaID;
+      proxima.cartaoID = undefined;
+    }
+    return proxima;
   });
 }
 

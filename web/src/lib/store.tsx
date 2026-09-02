@@ -31,7 +31,7 @@ import {
   type VisibilidadeCarteira,
 } from "./domain";
 import { clienteSupabase } from "./supabase";
-import { aplicarApagar, aplicarEdicao, idsParaApagar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
+import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
 
 export type MembroCarteira = {
   userId: string;
@@ -50,7 +50,9 @@ export type Estado = {
   carteira: Carteira;
   carteiras: CarteiraItem[];
   contas: Conta[];
+  contasTodas: Conta[];
   cartoes: Cartao[];
+  cartoesTodos: Cartao[];
   faturas: Fatura[];
   transacoes: Transacao[];
   membros: MembroCarteira[];
@@ -91,6 +93,58 @@ function mapearCarteira(w: {
   };
 }
 
+function mapearConta(a: {
+  id: string;
+  wallet_id: string;
+  nome: string;
+  tipo: string;
+  saldo_inicial_centavos: number;
+  arquivada?: boolean | null;
+}): Conta {
+  return {
+    id: a.id,
+    carteiraID: a.wallet_id,
+    nome: a.nome,
+    tipo: a.tipo as Conta["tipo"],
+    saldoInicial: a.saldo_inicial_centavos,
+    arquivada: Boolean(a.arquivada),
+  };
+}
+
+function mapearCartao(c: {
+  id: string;
+  wallet_id: string;
+  apelido: string;
+  banco: string;
+  ultimos4: string;
+  bandeira: string;
+  cor: string;
+  limite_centavos: number;
+  dia_fechamento: number;
+  dia_vencimento: number;
+  arquivado?: boolean | null;
+}): Cartao {
+  return {
+    id: c.id,
+    carteiraID: c.wallet_id,
+    apelido: c.apelido,
+    banco: c.banco,
+    ultimos4: c.ultimos4,
+    bandeira: c.bandeira as Cartao["bandeira"],
+    cor: c.cor,
+    limite: c.limite_centavos,
+    diaFechamento: c.dia_fechamento,
+    diaVencimento: c.dia_vencimento,
+    arquivado: Boolean(c.arquivado),
+  };
+}
+
+function mesclarPorId<T extends { id: string }>(lista: T[], item: T): T[] {
+  return lista.some((x) => x.id === item.id)
+    ? lista.map((x) => (x.id === item.id ? item : x))
+    : [...lista, item];
+}
+
 function eDonoDa(
   carteiras: CarteiraItem[],
   membros: MembroCarteira[],
@@ -108,7 +162,9 @@ const VAZIO: Estado = {
   carteira: carteiraPadrao(),
   carteiras: [],
   contas: [],
+  contasTodas: [],
   cartoes: [],
+  cartoesTodos: [],
   faturas: [],
   transacoes: [],
   membros: [],
@@ -119,20 +175,23 @@ function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
   const visibilidade: VisibilidadeCarteira = rotulo === "pessoal" ? "fechada" : "aberta";
   const nome = rotulo === "pessoal" ? "Meu" : "Nosso";
   const carteira = carteiraPadrao({ id: uuid(), nome, rotulo, visibilidade });
+  const contas: Conta[] = [
+    {
+      id: uuid(),
+      carteiraID: carteira.id,
+      nome: "Corrente",
+      tipo: "corrente",
+      saldoInicial: 0,
+      arquivada: false,
+    },
+  ];
   return {
     carteira,
     carteiras: [{ ...carteira, membrosN: 1, souDono: true }],
-    contas: [
-      {
-        id: uuid(),
-        carteiraID: carteira.id,
-        nome: "Corrente",
-        tipo: "corrente",
-        saldoInicial: 0,
-        arquivada: false,
-      },
-    ],
+    contas,
+    contasTodas: contas,
     cartoes: [],
+    cartoesTodos: [],
     faturas: [],
     transacoes: [],
     membros: [],
@@ -255,6 +314,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       const bruto = localStorage.getItem(localKey);
       if (bruto) {
         const parsed = JSON.parse(bruto) as Estado;
+        const contasTodas = parsed.contasTodas ?? parsed.contas ?? [];
+        const cartoesTodos = parsed.cartoesTodos ?? parsed.cartoes ?? [];
         setEstado({
           ...VAZIO,
           ...parsed,
@@ -265,6 +326,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
             souDono: c.souDono !== false,
           })),
           carteira: carteiraPadrao(parsed.carteira),
+          contasTodas,
+          cartoesTodos,
+          contas: parsed.contas ?? contasTodas.filter((c) => c.carteiraID === parsed.carteira?.id && !c.arquivada),
+          cartoes: parsed.cartoes ?? cartoesTodos.filter((c) => c.carteiraID === parsed.carteira?.id && !c.arquivado),
         });
       } else {
         const inicial = bootstrap();
@@ -349,21 +414,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       .order("created_at", { ascending: false })
       .limit(1);
 
-    const cartoes = (cards.data ?? [])
-      .filter((c) => c.wallet_id === walletId && !c.arquivado)
-      .map((c) => ({
-        id: c.id as string,
-        carteiraID: c.wallet_id as string,
-        apelido: c.apelido as string,
-        banco: c.banco as string,
-        ultimos4: c.ultimos4 as string,
-        bandeira: c.bandeira as Cartao["bandeira"],
-        cor: c.cor as string,
-        limite: c.limite_centavos as number,
-        diaFechamento: c.dia_fechamento as number,
-        diaVencimento: c.dia_vencimento as number,
-        arquivado: Boolean(c.arquivado),
-      }));
+    const contasTodas = (accounts.data ?? [])
+      .filter((a) => !a.arquivada)
+      .map((a) => mapearConta(a as Parameters<typeof mapearConta>[0]));
+    const cartoesTodos = (cards.data ?? [])
+      .filter((c) => !c.arquivado)
+      .map((c) => mapearCartao(c as Parameters<typeof mapearCartao>[0]));
+    const cartoes = cartoesTodos.filter((c) => c.carteiraID === walletId);
     const idsCartoes = new Set(cartoes.map((c) => c.id));
 
     const proximo: Estado = {
@@ -375,16 +432,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         visibilidade: linhaCarteira.visibilidade,
       },
       carteiras,
-      contas: (accounts.data ?? [])
-        .filter((a) => a.wallet_id === walletId && !a.arquivada)
-        .map((a) => ({
-          id: a.id as string,
-          carteiraID: a.wallet_id as string,
-          nome: a.nome as string,
-          tipo: a.tipo as Conta["tipo"],
-          saldoInicial: a.saldo_inicial_centavos as number,
-          arquivada: Boolean(a.arquivada),
-        })),
+      contasTodas,
+      contas: contasTodas.filter((a) => a.carteiraID === walletId),
+      cartoesTodos,
       cartoes,
       faturas: (invoices.data ?? [])
         .filter((f) => idsCartoes.has(f.card_id as string))
@@ -436,11 +486,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   };
 
   const salvarCartao = async (c: Cartao) => {
-    const existe = estado.cartoes.some((x) => x.id === c.id);
-    const cartoes = existe
-      ? estado.cartoes.map((x) => (x.id === c.id ? c : x))
-      : [...estado.cartoes, c];
-    await commit({ ...estado, cartoes });
+    const cartoesTodos = mesclarPorId(estado.cartoesTodos ?? estado.cartoes, c).filter((x) => !x.arquivado);
+    const cartoes = cartoesTodos.filter((x) => x.carteiraID === estado.carteira.id);
+    await commit({ ...estado, cartoesTodos, cartoes });
     if (sb) {
       await sb.from("cards").upsert({
         id: c.id,
@@ -460,11 +508,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   };
 
   const salvarConta = async (c: Conta) => {
-    const existe = estado.contas.some((x) => x.id === c.id);
-    const contas = existe
-      ? estado.contas.map((x) => (x.id === c.id ? c : x))
-      : [...estado.contas, c];
-    await commit({ ...estado, contas: contas.filter((x) => !x.arquivada) });
+    const contasTodas = mesclarPorId(estado.contasTodas ?? estado.contas, c).filter((x) => !x.arquivada);
+    const contas = contasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    await commit({ ...estado, contasTodas, contas });
     if (sb) {
       await sb.from("accounts").upsert({
         id: c.id,
@@ -521,17 +567,29 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   };
 
   const editar: Loja["editar"] = async (p) => {
-    const transacoes = aplicarEdicao(estado.transacoes, p);
-    await commit({ ...estado, transacoes });
+    const ids = idsParaEditar(estado.transacoes, p);
+    const todas = aplicarEdicao(estado.transacoes, p);
+    await commit({
+      ...estado,
+      transacoes: todas.filter((t) => t.carteiraID === estado.carteira.id),
+    });
     if (sb) {
-      const t = transacoes.find((x) => x.id === p.id);
-      if (!t) return;
-      await sb.from("transactions").update({
-        descricao: t.descricao,
-        category_id: t.categoriaID ?? null,
-        valor_centavos: t.valor,
-        updated_at: new Date().toISOString(),
-      }).eq("id", t.id);
+      const agora = new Date().toISOString();
+      await Promise.all(
+        ids.map((id) => {
+          const t = todas.find((x) => x.id === id);
+          if (!t) return Promise.resolve();
+          return sb.from("transactions").update({
+            descricao: t.descricao,
+            category_id: t.categoriaID ?? null,
+            valor_centavos: t.valor,
+            wallet_id: t.carteiraID,
+            account_id: t.contaID ?? null,
+            card_id: t.cartaoID ?? null,
+            updated_at: agora,
+          }).eq("id", t.id);
+        }),
+      );
     }
   };
 
@@ -643,12 +701,22 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     const contaId = uuid();
     if (!sb) {
       const nova = carteiraPadrao({ id, nome: p.nome.trim(), cor: p.cor, rotulo: p.rotulo, visibilidade });
+      const novaConta: Conta = {
+        id: contaId,
+        carteiraID: id,
+        nome: "Corrente",
+        tipo: "corrente",
+        saldoInicial: 0,
+        arquivada: false,
+      };
       lembrarCarteira(id);
       await commit({
         carteira: nova,
         carteiras: [...estado.carteiras.filter((c) => c.id !== id), { ...nova, membrosN: 1, souDono: true }],
-        contas: [{ id: contaId, carteiraID: id, nome: "Corrente", tipo: "corrente", saldoInicial: 0, arquivada: false }],
+        contas: [novaConta],
+        contasTodas: [...(estado.contasTodas ?? estado.contas).filter((c) => c.carteiraID !== id), novaConta],
         cartoes: [],
+        cartoesTodos: estado.cartoesTodos ?? estado.cartoes,
         faturas: [],
         transacoes: [],
         membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
@@ -731,21 +799,22 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           rotulo: "pessoal",
           visibilidade: visibilidadeDe("pessoal"),
         });
+        const novaConta: Conta = {
+          id: contaId,
+          carteiraID: novaId,
+          nome: "Corrente",
+          tipo: "corrente",
+          saldoInicial: 0,
+          arquivada: false,
+        };
         lembrarCarteira(novaId);
         await commit({
           carteira: nova,
           carteiras: [{ ...nova, membrosN: 1, souDono: true }],
-          contas: [
-            {
-              id: contaId,
-              carteiraID: novaId,
-              nome: "Corrente",
-              tipo: "corrente",
-              saldoInicial: 0,
-              arquivada: false,
-            },
-          ],
+          contas: [novaConta],
+          contasTodas: [novaConta],
           cartoes: [],
+          cartoesTodos: [],
           faturas: [],
           transacoes: [],
           membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
@@ -755,6 +824,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       }
       const proxima = estado.carteira.id === id ? restantes[0] : null;
       if (proxima) lembrarCarteira(proxima.id);
+      const contasTodas = (estado.contasTodas ?? estado.contas).filter((c) => c.carteiraID !== id);
+      const cartoesTodos = (estado.cartoesTodos ?? estado.cartoes).filter((c) => c.carteiraID !== id);
       await commit({
         ...estado,
         carteira: proxima
@@ -767,8 +838,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
             }
           : estado.carteira,
         carteiras: restantes,
-        contas: proxima ? [] : estado.contas,
-        cartoes: proxima ? [] : estado.cartoes,
+        contasTodas,
+        cartoesTodos,
+        contas: proxima ? contasTodas.filter((c) => c.carteiraID === proxima.id) : estado.contas,
+        cartoes: proxima ? cartoesTodos.filter((c) => c.carteiraID === proxima.id) : estado.cartoes,
         faturas: proxima ? [] : estado.faturas,
         transacoes: proxima ? [] : estado.transacoes,
         membros: proxima

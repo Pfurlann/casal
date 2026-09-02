@@ -40,6 +40,7 @@ const CONTA = {
 function montar(opts?: { cartoes?: typeof CARTAO[]; contas?: typeof CONTA[] }) {
   empurrar.mockClear();
   loja.valor = {
+    carteira: { id: "c1", nome: "Nosso" },
     cartoes: opts?.cartoes ?? [],
     contas: opts?.contas ?? [CONTA],
     lancar: lancar.fn,
@@ -52,6 +53,11 @@ function montar(opts?: { cartoes?: typeof CARTAO[]; contas?: typeof CONTA[] }) {
 }
 
 describe("Lancar", () => {
+  it("mostra a carteira atual em que o gasto entra", () => {
+    montar();
+    expect(screen.getByText("em Nosso")).toBeInTheDocument();
+  });
+
   it("começa em zero e não deixa salvar", () => {
     montar();
     expect(screen.getByText(/R\$ 0/)).toBeInTheDocument();

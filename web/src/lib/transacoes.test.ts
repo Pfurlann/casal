@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Transacao } from "./domain";
-import { aplicarApagar, aplicarEdicao, ehGrupoParcela, idsParaApagar } from "./transacoes";
+import { aplicarApagar, aplicarEdicao, ehGrupoParcela, idsParaApagar, idsParaEditar } from "./transacoes";
 
 function tx(parcial: Partial<Transacao> & Pick<Transacao, "id">): Transacao {
   return {
@@ -49,6 +49,32 @@ describe("aplicarEdicao", () => {
     expect(editada.valor).toBe(3333);
     expect(editada.descricao).toBe("Sofá");
     expect(editada.categoriaID).toBe("cat-2");
+  });
+
+  it("transfere o grupo inteiro para outra carteira e cartão", () => {
+    const grupo = [
+      tx({ id: "1", grupoParcela: "g", parcelaN: 1, parcelaTotal: 2, cartaoID: "k1" }),
+      tx({ id: "2", grupoParcela: "g", parcelaN: 2, parcelaTotal: 2, cartaoID: "k1" }),
+    ];
+    const edicao = {
+      id: "1",
+      descricao: "Sofá",
+      carteiraID: "c2",
+      cartaoID: "k2",
+    };
+    expect(idsParaEditar(grupo, edicao)).toEqual(["1", "2"]);
+    const saida = aplicarEdicao(grupo, edicao);
+    expect(saida.every((t) => t.carteiraID === "c2" && t.cartaoID === "k2" && !t.contaID)).toBe(true);
+    expect(saida[0].descricao).toBe("Sofá");
+    expect(saida[1].descricao).toBe("Padaria");
+  });
+
+  it("não mexe no resto do grupo se só muda a descrição", () => {
+    const grupo = [
+      tx({ id: "1", grupoParcela: "g", parcelaN: 1, parcelaTotal: 2, cartaoID: "k1" }),
+      tx({ id: "2", grupoParcela: "g", parcelaN: 2, parcelaTotal: 2, cartaoID: "k1" }),
+    ];
+    expect(idsParaEditar(grupo, { id: "1", descricao: "X", carteiraID: "c1", cartaoID: "k1" })).toEqual(["1"]);
   });
 });
 

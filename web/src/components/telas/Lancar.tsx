@@ -19,7 +19,7 @@ import { IconeCategoria } from "../Icones";
 const DESPESAS = CATEGORIAS.filter((c) => c.tipo === "despesa");
 
 export function Lancar() {
-  const { cartoes, contas, lancar } = useLoja();
+  const { cartoes, contas, lancar, carteira } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
 
@@ -83,6 +83,9 @@ export function Lancar() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Cabecalho titulo={mais ? "mais opções" : "novo gasto"} voltarPara="/mes" />
+      {carteira?.nome && (
+        <p className="px-4 pt-1 text-center text-[12px] text-cinza">em {carteira.nome}</p>
+      )}
       <div
         className="px-4 pt-6 text-center"
         role="status"

@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+:root {
+  --casal: #7c5cff;
+  --tab-h: 49px;
+  --fab-size: 52px;
+  --fab-lift: 20px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tab-pad: calc(var(--tab-h) + var(--fab-lift) + var(--fab-size) + var(--safe-bottom));
+}
+
+html,
+body {
+  height: 100%;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  background: #111;
+  color: #111;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Preenche o visual viewport no Safari/Brave (chrome dinâmico).
+   position:fixed + inset:0 é mais confiável que 100vh nesses browsers. */
+.casal-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  height: 100%;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 100dvh;
+  background: #111;
+}
+
+.casal-phone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.casal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--tab-pad);
+}
+
+/* absolute (não fixed): no Safari o viewport visual muda e o fixed flutua no meio da tela. */
+.casal-tabbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+  min-height: calc(var(--tab-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: #fff;
+}
+
+.casal-fab {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + var(--tab-h) + var(--fab-lift));
+  z-index: 30;
+  display: flex;
+  width: var(--fab-size);
+  height: var(--fab-size);
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: #7c5cff;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(124, 92, 255, 0.45);
+  transform: translateX(-50%);
+}

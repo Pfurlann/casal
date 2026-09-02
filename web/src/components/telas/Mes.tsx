@@ -73,8 +73,13 @@ export function Mes() {
                 return (
                   <LinhaLista
                     key={t.id}
+                    href={`/lancamentos/${t.id}`}
                     titulo={t.descricao || cat?.nome || "Sem descrição"}
-                    subtitulo={cat?.nome ?? "Sem categoria"}
+                    subtitulo={
+                      t.parcelaTotal > 1
+                        ? `${cat?.nome ?? "Sem categoria"} · ${t.parcelaN}/${t.parcelaTotal}`
+                        : (cat?.nome ?? "Sem categoria")
+                    }
                     valor={t.valor}
                   />
                 );

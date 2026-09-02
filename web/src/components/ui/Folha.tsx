@@ -12,9 +12,11 @@ const FOCAVEIS =
 export function Folha({
   aoFechar,
   children,
+  rotulo = "Novo gasto",
 }: {
   aoFechar: () => void;
   children: ReactNode;
+  rotulo?: string;
 }) {
   const caixa = useRef<HTMLDivElement>(null);
   const origem = useRef<Element | null>(null);
@@ -67,7 +69,7 @@ export function Folha({
         ref={caixa}
         role="dialog"
         aria-modal="true"
-        aria-label="Novo gasto"
+        aria-label={rotulo}
         className="relative flex max-h-[92dvh] w-full max-w-[430px] flex-col overflow-y-auto rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px]"
       >
         {children}

@@ -10,9 +10,9 @@ vi.mock("@/lib/store", async (original) => {
 
 const CARTEIRA = { id: "c1", nome: "Nosso", cor: "grafite", rotulo: "compartilhada", visibilidade: "aberta" };
 
-function despesa(valor: number, descricao: string, categoriaID: string) {
+function despesa(valor: number, descricao: string, categoriaID: string, id = crypto.randomUUID()) {
   return {
-    id: crypto.randomUUID(),
+    id,
     carteiraID: "c1",
     tipo: "despesa",
     valor,
@@ -51,10 +51,14 @@ describe("Mes", () => {
       carteira: CARTEIRA,
       cartoes: [],
       faturas: [],
-      transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001")],
+      transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1")],
     };
     render(<Mes />);
     expect(screen.getAllByText("Mercado").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("link", { name: /Mercado/ })).toHaveAttribute(
+      "href",
+      "/lancamentos/tx-1",
+    );
   });
 
   it("mostra o estado vazio quando não houve gasto", () => {

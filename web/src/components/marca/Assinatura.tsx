@@ -1,4 +1,4 @@
-import { Marca } from "./Marca.tsx";
+import { Marca } from "./marca-viva";
 
 /**
  * Assinatura da marca.

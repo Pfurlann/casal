@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import {
-  CATEGORIAS,
   CORES_CARTAO,
   ROTULO_CARTEIRA,
   ROTULO_TIPO_CONTA,
@@ -15,34 +14,24 @@ import { EntradaValor, formatarBRL } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import {
   IconeBanco,
-  IconeCategoria,
   IconeChevron,
   IconeMeta,
   IconePessoas,
   IconeVoltar,
 } from "./Icones";
-import { Teclado } from "./Teclado";
+import { Teclado } from "./ui/Teclado";
 
 export type Aba = "inicio" | "cartoes" | "metas" | "mais";
 type Tela =
   | { nome: "app" }
-  | { nome: "lancamento" }
   | { nome: "contas" }
   | { nome: "conta-form"; id?: string; depois?: Tela }
   | { nome: "carteiras" }
   | { nome: "carteira-form" };
 
-export function CasalApp({
-  aba,
-  iniciar,
-}: {
-  aba: Aba;
-  iniciar?: "lancamento";
-}) {
+export function CasalApp({ aba }: { aba: Aba }) {
   const loja = useLoja();
-  const [tela, setTela] = useState<Tela>(
-    iniciar === "lancamento" ? { nome: "lancamento" } : { nome: "app" },
-  );
+  const [tela, setTela] = useState<Tela>({ nome: "app" });
 
   if (!loja.pronto) {
     return (
@@ -54,7 +43,6 @@ export function CasalApp({
 
   return (
     <>
-      {tela.nome === "lancamento" && <Lancamento onClose={fechar} />}
       {tela.nome === "contas" && (
         <Contas
           onClose={fechar}
@@ -115,91 +103,6 @@ function BotaoVoltar({ onClick }: { onClick: () => void }) {
       <IconeVoltar size={20} />
       Voltar
     </button>
-  );
-}
-
-function Lancamento({ onClose }: { onClose: () => void }) {
-  const { cartoes, lancar } = useLoja();
-  const [entrada] = useState(() => new EntradaValor());
-  const [, tick] = useState(0);
-  const [categoriaID, setCategoriaID] = useState(CATEGORIAS[0].id);
-  const [descricao, setDescricao] = useState("");
-  const [cartaoID, setCartaoID] = useState<string>("");
-  const [parcelas, setParcelas] = useState(1);
-  const [mais, setMais] = useState(false);
-  const despesas = CATEGORIAS.filter((c) => c.tipo === "despesa");
-
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <Cabecalho titulo="Lançamento" esquerda={<BotaoVoltar onClick={onClose} />} />
-      <div className="px-4">
-        <div className="text-center text-[40px] font-bold tabular-nums tracking-tight">{formatarBRL(entrada.centavos)}</div>
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          {despesas.slice(0, 6).map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCategoriaID(c.id)}
-              className="flex min-h-11 items-center justify-center gap-1 rounded-full px-2 py-2 text-[12px] font-medium leading-tight"
-              style={{
-                background: categoriaID === c.id ? "#7C5CFF" : "#f2f2f7",
-                color: categoriaID === c.id ? "white" : "#111",
-              }}
-            >
-              <IconeCategoria nome={c.icone} size={14} />
-              {c.nome}
-            </button>
-          ))}
-        </div>
-      </div>
-      {mais && (
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <Campo label="Onde foi o gasto" value={descricao} onChange={setDescricao} />
-          <label className="mt-3 block text-[13px] text-black/40">Pago com</label>
-          <select value={cartaoID} onChange={(e) => { setCartaoID(e.target.value); if (!e.target.value) setParcelas(1); }} className="w-full rounded-xl bg-[#f2f2f7] px-3 py-3">
-            <option value="">Dinheiro, Pix ou débito</option>
-            {cartoes.map((c) => (
-              <option key={c.id} value={c.id}>{c.banco} ••{c.ultimos4}</option>
-            ))}
-          </select>
-          {cartaoID && (
-            <>
-              <label className="mt-3 block text-[13px] text-black/40">Parcelar em</label>
-              <select value={parcelas} onChange={(e) => setParcelas(Number(e.target.value))} className="w-full rounded-xl bg-[#f2f2f7] px-3 py-3">
-                <option value={1}>À vista</option>
-                {Array.from({ length: 23 }, (_, i) => i + 2).map((n) => (
-                  <option key={n} value={n}>{n}x</option>
-                ))}
-              </select>
-            </>
-          )}
-        </div>
-      )}
-      <div className="mt-auto">
-        <Teclado
-          mostraSalvar
-          podeSalvar={entrada.podeSalvar}
-          aoMaisOpcoes={() => setMais((v) => !v)}
-          aoDigitar={(d) => { entrada.digitar(d); tick((n) => n + 1); }}
-          aoApagar={() => { entrada.apagar(); tick((n) => n + 1); }}
-          aoSalvar={async () => {
-            if (!entrada.podeSalvar) return;
-            await lancar({
-              valor: entrada.centavos,
-              categoriaID,
-              descricao,
-              data: new Date(),
-              cartaoID: cartaoID || undefined,
-              parcelas: cartaoID ? parcelas : 1,
-            });
-            onClose();
-          }}
-        />
-        <button type="button" onClick={() => setMais((v) => !v)} className="w-full py-2 text-[13px]" style={{ color: "#7C5CFF" }}>
-          {mais ? "Ocultar opções" : "Mais opções · cartão e parcelas"}
-        </button>
-      </div>
-    </div>
   );
 }
 

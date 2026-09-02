@@ -1,7 +1,5 @@
-"use client";
-
-import { CasalApp } from "@/components/CasalApp";
+import { Lancar } from "@/components/telas/Lancar";
 
 export default function PaginaLancar() {
-  return <CasalApp aba="inicio" iniciar="lancamento" />;
+  return <Lancar />;
 }

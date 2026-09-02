@@ -196,7 +196,9 @@ O tema segue `prefers-color-scheme` por padrão, com escolha explícita persisti
 
 ### Proibições
 
-Sem gradiente, em nenhuma superfície. Sem sombra decorativa — sombra existe só para elevar sobreposição (modal, folha) e é `0 8px 24px rgba(14,14,12,0.14)`, uma única definição. Sem cor por categoria em área grande: categoria se distingue por rótulo e ícone, não por bloco colorido.
+Sem gradiente, em nenhuma superfície. Sem cor por categoria em área grande: categoria se distingue por rótulo e ícone, não por bloco colorido.
+
+Sem sombra decorativa. Sombra existe só para elevar sobreposição — modal, folha — e vive num único token, `--elevacao`, que nenhum componente contorna escrevendo sombra própria. O token tem um valor por tema, porque o mesmo valor não serve nos dois: `0 8px 24px rgba(14,14,12,0.14)` no claro, e `0 8px 24px rgba(0,0,0,0.5)` no escuro. Sombra quase preta sobre fundo quase preto é invisível, e uma sobreposição sem elevação perceptível deixa de se distinguir do conteúdo atrás dela. A regra é um token, não um literal.
 
 ## 9. Tipografia
 

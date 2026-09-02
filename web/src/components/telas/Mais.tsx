@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth";
 import { useLoja } from "@/lib/store";
 import { Cabecalho } from "../ui/Cabecalho";
+import { EscolhaTema } from "../ui/EscolhaTema";
 import { LinhaLista } from "../ui/LinhaLista";
 import { Rotulo } from "../ui/Rotulo";
 import { Botao } from "../ui/Botao";
@@ -25,6 +26,9 @@ export function Mais() {
             </div>
           </div>
         )}
+        <div className="mt-8">
+          <EscolhaTema />
+        </div>
         <div className="mt-8">
           <LinhaLista
             titulo="Carteiras"

@@ -32,7 +32,9 @@ Requisitos válidos em toda tarefa. Valores copiados da spec, sem arredondar.
 
 **Raios:** 0 (trilha, divisor) · 4 (amostra) · 9 (tecla, botão, campo) · 22 (ícone de aplicativo) · `999px` (etiqueta de categoria).
 
-**Proibido:** gradiente em qualquer superfície; sombra decorativa (a única sombra permitida é `0 8px 24px rgba(14,14,12,0.14)` para elevar sobreposição); cor por categoria em área grande; raio de 16px em card.
+**Proibido:** gradiente em qualquer superfície; sombra decorativa; cor por categoria em área grande; raio de 16px em card.
+
+**Sombra:** só para elevar sobreposição, e sempre pelo token `--elevacao` — nenhum componente escreve sombra própria. O token tem um valor por tema: `0 8px 24px rgba(14,14,12,0.14)` no claro, `0 8px 24px rgba(0,0,0,0.5)` no escuro. Sombra quase preta sobre fundo quase preto é invisível, e sobreposição sem elevação perceptível deixa de se distinguir do conteúdo atrás.
 
 **Alvo de toque mínimo:** 44×44px, inclusive teclas e abas.
 
@@ -43,6 +45,8 @@ Requisitos válidos em toda tarefa. Valores copiados da spec, sem arredondar.
 **Nome:** `casal`, caixa baixa em uso de marca. O `$` não aparece em lugar nenhum.
 
 **Fora deste plano:** os oito defeitos não visuais da seção 18 da spec (testes do motor de fatura, fila de escrita remota, `hashDedup`, data da parcela, id de fatura, privacidade no banco, service worker). Não corrigir aqui, nem de passagem.
+
+**Contagem de testes não é requisito.** Onde um passo diz `Expected: PASS, N testes`, o `N` é indicativo e foi contado à mão pelo autor do plano — que já errou duas vezes. O requisito é: o conjunto de testes escrito no passo anterior passa inteiro, com saída limpa. Divergência entre o `N` e o número real de casos não é defeito e não vira achado de revisão. O que **é** defeito: um caso do conjunto escrito no plano que não existe no arquivo entregue.
 
 ---
 
@@ -233,7 +237,9 @@ describe("EntradaValor", () => {
     e.digitar(1);
     e.digitar(4);
     e.digitar(9);
-    expect(e.centavos).toBe(21490);
+    expect(e.centavos).toBe(2149);
+    // Quatro dígitos num teclado de centavos são R$ 21,49, não R$ 214,90.
+    expect(formatarBRL(e.centavos)).toBe("R$ 21,49");
   });
 
   it("apaga o último dígito", () => {
@@ -390,7 +396,7 @@ export function contraste(a: string, b: string): number {
 - [ ] **Step 4: Rodar e verificar que passa**
 
 Run: `cd web && npm test -- contraste`
-Expected: PASS, 11 testes. O último confirma de propósito que `--ambar` reprova em texto.
+Expected: PASS, 10 testes (3 do cálculo, 3 do tema claro, 3 do escuro, 1 do âmbar reprovado). O último confirma de propósito que `--ambar` reprova em texto.
 
 - [ ] **Step 5: Criar os tokens**
 
@@ -499,7 +505,7 @@ Fonte por CDN está fora: adiciona origem externa e uma corrida de rede no camin
 
 **Files:**
 - Create: `web/src/design/fontes.css`
-- Create: `web/public/fontes/` (seis arquivos `woff2`)
+- Create: `web/public/fontes/` (dez arquivos `woff2` — cinco faces × subconjuntos `latin` e `latin-ext`)
 - Modify: `web/src/app/globals.css`
 - Modify: `web/src/app/layout.tsx`
 
@@ -507,7 +513,9 @@ Fonte por CDN está fora: adiciona origem externa e uma corrida de rede no camin
 - Consumes: tokens da tarefa 2 (`--font-texto`, `--font-numero`).
 - Produces: famílias `Inter Tight` (400/500/600) e `IBM Plex Mono` (400/500) disponíveis por CSS, sem requisição a terceiro.
 
-- [ ] **Step 1: Baixar os arquivos, subconjunto latino**
+- [ ] **Step 1: Baixar os arquivos**
+
+Cinco faces, cada uma nos subconjuntos `latin` e `latin-ext`, com `unicode-range` declarado. O `latin-ext` custa espaço no repositório e nenhum byte em execução: diacrítico português vive no Latin-1 Supplement, dentro da faixa `latin`, então o navegador só busca o `latin-ext` se aparecer um glifo que exija — nome de estabelecimento estrangeiro, por exemplo.
 
 ```bash
 cd web && mkdir -p public/fontes
@@ -580,12 +588,14 @@ E na regra `html, body`, trocar a declaração `font-family` inteira — hoje é
 
 - [ ] **Step 4: Pré-carregar os dois pesos acima da dobra**
 
+Os dois pesos são **Inter Tight 600** e **IBM Plex Mono 500**, não os 400 nem os 500 do texto. É o que a dobra do estado-alvo usa: `Cabecalho` e `Rotulo` são 600, e todo número é mono 500. Inter Tight 400 é corpo de lista, que aparece abaixo. Enquanto as telas não estiverem migradas, o preload do mono fica sem uso e o navegador registra aviso de "preload não utilizado" — transitório, resolve na tarefa 12.
+
 Em `web/src/app/layout.tsx`, dentro do `<head>` que já existe, ao lado da meta `apple-mobile-web-app-capable`:
 
 ```tsx
 <link
   rel="preload"
-  href="/fontes/inter-tight-latin-500-normal.woff2"
+  href="/fontes/inter-tight-latin-600-normal.woff2"
   as="font"
   type="font/woff2"
   crossOrigin="anonymous"
@@ -810,7 +820,7 @@ export function caminhoMarca(
 - [ ] **Step 4: Rodar e verificar que passa**
 
 Run: `cd web && npm test -- marca`
-Expected: PASS, 16 testes.
+Expected: PASS, 14 testes.
 
 - [ ] **Step 5: Implementar o componente**
 
@@ -887,7 +897,7 @@ A palavra em cima, a linha embaixo, cedendo. A linha não é símbolo ao lado do
 - Consumes: `Marca` e `caminhoMarca` da tarefa 4; tokens da tarefa 2.
 - Produces: `<Assinatura variante="base" | "horizontal" largura={n} />`. `largura` em pixels é a largura da palavra composta; toda medida deriva dela, conforme a spec: caixa da linha `0.20 × L`, traço `L / 29`, espaço entre palavra e linha `0.13 × L`.
 
-- [ ] **Step 1: Escrever o teste**
+- [x] **Step 1: Escrever o teste**
 
 `web/src/components/marca/Assinatura.test.tsx`:
 
@@ -910,9 +920,24 @@ describe("Assinatura", () => {
   });
 
   it("deriva o traço da largura, na proporção da spec", () => {
-    const { container } = render(<Assinatura variante="base" largura={290} />);
-    const traco = container.querySelector("path")?.getAttribute("stroke-width");
-    expect(Number(traco)).toBeCloseTo(10, 1);
+    // A spec define o traço em pixels: L / 29. O atributo stroke-width está em
+    // unidade de viewBox, que tem 132 de largura, então converta antes de medir.
+    const largura = 290;
+    const { container } = render(<Assinatura variante="base" largura={largura} />);
+    const emViewBox = Number(container.querySelector("path")?.getAttribute("stroke-width"));
+    const emPixels = emViewBox * (largura / 132);
+    expect(emPixels).toBeCloseTo(largura / 29, 1);
+  });
+
+  it("mantém a proporção do traço em qualquer largura", () => {
+    for (const largura of [112, 132, 290]) {
+      const { container, unmount } = render(
+        <Assinatura variante="base" largura={largura} />,
+      );
+      const emViewBox = Number(container.querySelector("path")?.getAttribute("stroke-width"));
+      expect(emViewBox * (largura / 132)).toBeCloseTo(largura / 29, 1);
+      unmount();
+    }
   });
 
   it("na variante horizontal usa o símbolo, não a linha larga", () => {
@@ -924,12 +949,12 @@ describe("Assinatura", () => {
 });
 ```
 
-- [ ] **Step 2: Rodar e verificar que falha**
+- [x] **Step 2: Rodar e verificar que falha**
 
 Run: `cd web && npm test -- Assinatura`
 Expected: FAIL — `Failed to resolve import "./Assinatura"`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 `web/src/components/marca/Assinatura.tsx`:
 
@@ -959,7 +984,11 @@ export function Assinatura({
         className="inline-flex items-center text-grafite"
         style={{ gap: alturaSimbolo * 0.35 }}
       >
-        <Marca tamanho={alturaSimbolo} titulo="" />
+        {/* O nome acessível é o da assinatura inteira; o símbolo interno
+            sai da árvore de acessibilidade para não anunciar imagem sem nome. */}
+        <span aria-hidden>
+          <Marca tamanho={alturaSimbolo} titulo="" />
+        </span>
         <span
           aria-hidden
           className="font-texto font-medium lowercase leading-none"
@@ -1015,20 +1044,20 @@ export function Assinatura({
 
 O `strokeWidth` converte a espessura em pixels para a unidade do `viewBox`, que é fixo em 132 de largura. Para `largura = 290` isso dá `(290/29 × 132) / 290 = 4,55` no `viewBox`, o que o teste do passo 1 confere em pixels.
 
-- [ ] **Step 4: Rodar e verificar que passa**
+- [x] **Step 4: Rodar e verificar que passa**
 
 Run: `cd web && npm test -- Assinatura`
 Expected: PASS, 4 testes.
 
-- [ ] **Step 5: Ajustar o teste do traço se a conversão divergir**
+- [x] **Step 5: Conferir a constante do traço**
 
-Se o passo 4 falhar apenas na terceira asserção, imprima o valor:
+O `stroke-width` em unidade de `viewBox` é `132 / 29 = 4,552`, **constante para qualquer largura** — é o que faz o traço renderizado crescer junto com a palavra. Confirme:
 
 Run: `cd web && npm test -- Assinatura --reporter=verbose`
 
-O valor correto em unidade de `viewBox` é `132 / 29 = 4,552`, constante para qualquer largura. Se o teste esperava pixels e o atributo está em unidade de `viewBox`, corrija a asserção para `expect(Number(traco)).toBeCloseTo(4.55, 1)` — a proporção da spec continua respeitada, o que muda é a unidade lida.
+Se o valor em `viewBox` variar com a largura, a conversão está errada: o traço em pixels deixaria de ser `L / 29` e a assinatura perderia a proporção em alguma escala.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/marca/Assinatura.tsx \

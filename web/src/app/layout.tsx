@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ProvedorTema } from "@/lib/tema";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -51,8 +52,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("casal-tema");if(t==="claro"||t==="escuro")document.documentElement.setAttribute("data-tema",t)}catch(e){}`,
+          }}
+        />
       </head>
-      <body>{children}</body>
+      <body>
+        <ProvedorTema>{children}</ProvedorTema>
+      </body>
     </html>
   );
 }

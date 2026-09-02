@@ -1,7 +1,5 @@
-"use client";
-
-import { CasalApp } from "@/components/CasalApp";
+import { Mes } from "@/components/telas/Mes";
 
 export default function PaginaMes() {
-  return <CasalApp aba="inicio" />;
+  return <Mes />;
 }

@@ -33,7 +33,6 @@ import {
   IconeChevron,
   IconeMeta,
   IconePessoas,
-  IconeVazio,
   IconeVoltar,
 } from "./Icones";
 import { Teclado } from "./Teclado";
@@ -125,7 +124,6 @@ export function CasalApp({
       )}
       {tela.nome === "app" && (
         <>
-          {aba === "inicio" && <Inicio />}
           {aba === "cartoes" && (
             <Cartoes
               onNovo={() => setTela({ nome: "cartao-form" })}
@@ -171,74 +169,6 @@ function BotaoVoltar({ onClick }: { onClick: () => void }) {
       <IconeVoltar size={20} />
       Voltar
     </button>
-  );
-}
-
-function Inicio() {
-  const { transacoes, cartoes, faturas, carteira } = useLoja();
-  const agora = new Date();
-  const inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
-  const fim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
-  const doMes = transacoes.filter((t) => {
-    const d = new Date(t.data);
-    return t.tipo === "despesa" && d >= inicio && d < fim;
-  });
-  const gasto = doMes.reduce((s, t) => s + t.valor, 0);
-  const comprometido = cartoes.reduce((s, cartao) => {
-    const f = faturaAtualOuRascunho(cartao, faturas, agora);
-    return s + saldoDevedor(f, totalDaFatura(f, transacoes, cartao));
-  }, 0);
-
-  return (
-    <div className="px-4">
-      <h1 className="pt-[max(12px,env(safe-area-inset-top))] text-[34px] font-bold tracking-tight">{carteira.nome}</h1>
-      <p className="text-[13px] text-black/40">{ROTULO_CARTEIRA[carteira.rotulo]} · este mês</p>
-      <div
-        className="mt-4 rounded-2xl p-4 text-white"
-        style={{ background: "linear-gradient(135deg,#7C5CFF,#5b3fd6)" }}
-      >
-        <div className="text-[12px] font-semibold opacity-85">Gasto neste mês</div>
-        <div className="mt-1 text-[34px] font-bold tabular-nums">{formatarBRL(gasto)}</div>
-        <div className="text-[12px] opacity-80">{doMes.length} lançamentos</div>
-      </div>
-      {comprometido > 0 && (
-        <p className="mt-3 text-[12px] text-black/45">Comprometido em faturas: {formatarBRL(comprometido)}</p>
-      )}
-      {doMes.length === 0 ? (
-          <div className="mt-16 flex flex-col items-center text-center text-black/45">
-          <div className="text-[#7C5CFF]"><IconeVazio /></div>
-          <div className="mt-2 font-semibold text-black/70">Nenhum gasto este mês</div>
-          <div className="text-[12px]">Toque no + para registrar o primeiro.</div>
-        </div>
-      ) : (
-        <div className="mt-6">
-          <div className="text-[11px] font-bold tracking-wide text-black/40">LANÇAMENTOS</div>
-          <ul className="mt-2">
-            {doMes
-              .slice()
-              .reverse()
-              .map((t) => {
-                const cat = CATEGORIAS.find((c) => c.id === t.categoriaID);
-                return (
-                  <li key={t.id} className="flex items-center gap-2.5 py-2.5">
-                    <span
-                      className="flex h-7 w-7 items-center justify-center rounded-lg"
-                      style={{ background: `${cat?.cor ?? "#8E8E93"}22`, color: cat?.cor ?? "#8E8E93" }}
-                    >
-                      <IconeCategoria nome={cat?.icone} size={15} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[15px] font-semibold">{t.descricao || "Sem descrição"}</div>
-                      <div className="text-[11px] text-black/40">{cat?.nome ?? "Sem categoria"}</div>
-                    </div>
-                    <div className="text-[15px] font-semibold tabular-nums">{formatarBRL(t.valor)}</div>
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
-      )}
-    </div>
   );
 }
 

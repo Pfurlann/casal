@@ -38,6 +38,13 @@ describe("Curva", () => {
     expect(container.innerHTML).not.toContain("gradient");
   });
 
+  it("distingue mês sem fatura com barra em névoa", () => {
+    const { container } = render(<Curva pontos={PONTOS} />);
+    const barras = [...container.querySelectorAll("[data-barra]")];
+    expect(barras[0].className).toContain("bg-grafite");
+    expect(barras[2].className).toContain("bg-nevoa");
+  });
+
   it("aguenta todos os meses zerados sem dividir por zero", () => {
     const { container } = render(
       <Curva pontos={[{ rotulo: "set", total: 0 }, { rotulo: "out", total: 0 }]} />,

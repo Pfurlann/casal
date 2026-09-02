@@ -1,5 +1,6 @@
 "use client";
 
+import { COR_AR, COR_GRAFITE } from "@/design/tema-chrome";
 import {
   createContext,
   useCallback,
@@ -23,10 +24,34 @@ function guardado(): Tema {
   }
 }
 
+function coresChrome(tema: Tema): { clara: string; escura: string } {
+  switch (tema) {
+    case "claro":
+      return { clara: COR_AR, escura: COR_AR };
+    case "escuro":
+      return { clara: COR_GRAFITE, escura: COR_GRAFITE };
+    case "sistema":
+      return { clara: COR_AR, escura: COR_GRAFITE };
+    default: {
+      const _esgotado: never = tema;
+      return _esgotado;
+    }
+  }
+}
+
+function aplicarChrome(tema: Tema) {
+  const { clara, escura } = coresChrome(tema);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    const media = meta.getAttribute("media") ?? "";
+    meta.setAttribute("content", media.includes("dark") ? escura : clara);
+  });
+}
+
 function aplicar(tema: Tema) {
   const raiz = document.documentElement;
   if (tema === "sistema") raiz.removeAttribute("data-tema");
   else raiz.setAttribute("data-tema", tema);
+  aplicarChrome(tema);
 }
 
 const Ctx = createContext<{ tema: Tema; escolher: (t: Tema) => void } | null>(null);

@@ -15,9 +15,14 @@ export function EscolhaTema() {
   return (
     <div>
       <Rotulo>tema</Rotulo>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex w-full gap-2">
         {OPCOES.map((o) => (
-          <Etiqueta key={o.valor} ativa={tema === o.valor} aoClicar={() => escolher(o.valor)}>
+          <Etiqueta
+            key={o.valor}
+            ativa={tema === o.valor}
+            aoClicar={() => escolher(o.valor)}
+            className="min-w-0 flex-1"
+          >
             {o.nome}
           </Etiqueta>
         ))}

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { COR_AR, COR_GRAFITE } from "@/design/tema-chrome";
 import { ProvedorTema, useTema } from "./tema";
 
 function Gatilho() {
@@ -23,9 +24,21 @@ function montar() {
   );
 }
 
+function meta(media: string, content: string) {
+  const el = document.createElement("meta");
+  el.setAttribute("name", "theme-color");
+  el.setAttribute("media", media);
+  el.setAttribute("content", content);
+  document.head.appendChild(el);
+  return el;
+}
+
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-tema");
+  document.head.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove());
+  meta("(prefers-color-scheme: light)", COR_AR);
+  meta("(prefers-color-scheme: dark)", COR_GRAFITE);
 });
 
 describe("tema", () => {
@@ -66,5 +79,23 @@ describe("tema", () => {
     localStorage.setItem("casal-tema", "arco-íris");
     montar();
     expect(screen.getByTestId("atual")).toHaveTextContent("sistema");
+  });
+
+  it("força o chrome claro ao escolher claro", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "claro" }));
+    const cores = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) =>
+      m.getAttribute("content"),
+    );
+    expect(cores).toEqual([COR_AR, COR_AR]);
+  });
+
+  it("força o chrome escuro ao escolher escuro", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "escuro" }));
+    const cores = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) =>
+      m.getAttribute("content"),
+    );
+    expect(cores).toEqual([COR_GRAFITE, COR_GRAFITE]);
   });
 });

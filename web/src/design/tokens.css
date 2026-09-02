@@ -1,0 +1,68 @@
+:root {
+  --ar: #fbfaf7;
+  --grafite: #0e0e0c;
+  --cinza: #6e6e66;
+  --nevoa: #e7e4dc;
+  --ambar: #c98a2e;
+  --ambar-texto: #8a5a0f;
+
+  --elevacao: 0 8px 24px rgba(14, 14, 12, 0.14);
+
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 20px;
+  --e-6: 24px;
+  --e-7: 32px;
+  --e-8: 48px;
+
+  --r-amostra: 4px;
+  --r-controle: 9px;
+  --r-icone: 22px;
+  --r-etiqueta: 999px;
+
+  --alvo: 44px;
+  --traco-icone: 1.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --ar: #0e0e0c;
+    --grafite: #fbfaf7;
+    --cinza: #9a9a90;
+    --nevoa: #26261f;
+    --ambar: #c98a2e;
+    --ambar-texto: #e0a94a;
+    --elevacao: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-tema="escuro"] {
+  --ar: #0e0e0c;
+  --grafite: #fbfaf7;
+  --cinza: #9a9a90;
+  --nevoa: #26261f;
+  --ambar: #c98a2e;
+  --ambar-texto: #e0a94a;
+  --elevacao: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+@theme inline {
+  --color-ar: var(--ar);
+  --color-grafite: var(--grafite);
+  --color-cinza: var(--cinza);
+  --color-nevoa: var(--nevoa);
+  --color-ambar: var(--ambar);
+  --color-ambar-texto: var(--ambar-texto);
+
+  --font-texto: "Inter Tight", system-ui, sans-serif;
+  --font-numero: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-amostra: var(--r-amostra);
+  --radius-controle: var(--r-controle);
+  --radius-icone: var(--r-icone);
+  --radius-etiqueta: var(--r-etiqueta);
+
+  --shadow-elevacao: var(--elevacao);
+}

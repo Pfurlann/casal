@@ -1,7 +1,7 @@
 @import "tailwindcss";
+@import "../design/tokens.css";
 
 :root {
-  --casal: #7c5cff;
   --tab-h: 49px;
   --fab-size: 52px;
   --fab-lift: 20px;

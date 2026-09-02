@@ -38,7 +38,7 @@ import {
 } from "./Icones";
 import { Teclado } from "./Teclado";
 
-type Aba = "inicio" | "cartoes" | "metas" | "mais";
+export type Aba = "inicio" | "cartoes" | "metas" | "mais";
 type Tela =
   | { nome: "app" }
   | { nome: "lancamento" }
@@ -50,23 +50,28 @@ type Tela =
   | { nome: "carteiras" }
   | { nome: "carteira-form" };
 
-export function CasalApp() {
+export function CasalApp({
+  aba,
+  iniciar,
+}: {
+  aba: Aba;
+  iniciar?: "lancamento";
+}) {
   const loja = useLoja();
-  const [aba, setAba] = useState<Aba>("inicio");
-  const [tela, setTela] = useState<Tela>({ nome: "app" });
+  const [tela, setTela] = useState<Tela>(
+    iniciar === "lancamento" ? { nome: "lancamento" } : { nome: "app" },
+  );
 
   if (!loja.pronto) {
     return (
-      <Phone>
-        <div className="flex h-full items-center justify-center text-sm text-black/40">Carregando…</div>
-      </Phone>
+      <div className="flex h-full items-center justify-center text-sm text-black/40">Carregando…</div>
     );
   }
 
   const fechar = () => setTela({ nome: "app" });
 
   return (
-    <Phone>
+    <>
       {tela.nome === "lancamento" && <Lancamento onClose={fechar} />}
       {tela.nome === "cartao-form" && (
         <CartaoForm id={tela.id} onClose={() => setTela(tela.depois ?? { nome: "app" })} />
@@ -119,111 +124,26 @@ export function CasalApp() {
         <CarteiraForm onClose={() => setTela({ nome: "carteiras" })} />
       )}
       {tela.nome === "app" && (
-        <div className="flex h-full min-h-0 flex-col">
-          <div className="casal-scroll">
-            {aba === "inicio" && <Inicio />}
-            {aba === "cartoes" && (
-              <Cartoes
-                onNovo={() => setTela({ nome: "cartao-form" })}
-                onAbrir={(id) => setTela({ nome: "cartao-detalhe", id })}
-              />
-            )}
-            {aba === "metas" && (
-              <Placeholder titulo="Metas" detalhe="Em breve você vai poder definir tetos de gasto e acompanhar objetivos por aqui." />
-            )}
-            {aba === "mais" && (
-              <Mais
-                onContas={() => setTela({ nome: "contas" })}
-                onCarteiras={() => setTela({ nome: "carteiras" })}
-              />
-            )}
-          </div>
-          <nav className="casal-tabbar">
-            <Tab icone="inicio" label="Início" ativa={aba === "inicio"} onClick={() => setAba("inicio")} />
-            <Tab icone="cartoes" label="Cartões" ativa={aba === "cartoes"} onClick={() => setAba("cartoes")} />
-            <Tab icone="metas" label="Metas" ativa={aba === "metas"} onClick={() => setAba("metas")} />
-            <Tab icone="mais" label="Mais" ativa={aba === "mais"} onClick={() => setAba("mais")} />
-          </nav>
-          <button
-            type="button"
-            onClick={() => setTela({ nome: "lancamento" })}
-            className="casal-fab"
-            aria-label="Novo lançamento"
-          >
-            +
-          </button>
-        </div>
+        <>
+          {aba === "inicio" && <Inicio />}
+          {aba === "cartoes" && (
+            <Cartoes
+              onNovo={() => setTela({ nome: "cartao-form" })}
+              onAbrir={(id) => setTela({ nome: "cartao-detalhe", id })}
+            />
+          )}
+          {aba === "metas" && (
+            <Placeholder titulo="Metas" detalhe="Em breve você vai poder definir tetos de gasto e acompanhar objetivos por aqui." />
+          )}
+          {aba === "mais" && (
+            <Mais
+              onContas={() => setTela({ nome: "contas" })}
+              onCarteiras={() => setTela({ nome: "carteiras" })}
+            />
+          )}
+        </>
       )}
-    </Phone>
-  );
-}
-
-function Phone({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="casal-shell">
-      <div className="casal-phone">
-        <div className="flex h-full min-h-0 flex-1 flex-col">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-type AbaIcone = "inicio" | "cartoes" | "metas" | "mais";
-
-function TabIcon({ nome }: { nome: AbaIcone }) {
-  const comum = {
-    viewBox: "0 0 24 24",
-    width: 22,
-    height: 22,
-    "aria-hidden": true,
-  } as const;
-  switch (nome) {
-    case "inicio":
-      return (
-        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="12" r="8.2" />
-          <circle cx="12" cy="12" r="3.6" />
-        </svg>
-      );
-    case "cartoes":
-      return (
-        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <rect x="2.5" y="5.5" width="19" height="13" rx="2.2" />
-          <path d="M2.5 10h19" />
-          <path d="M6 15.2h4" strokeLinecap="round" />
-        </svg>
-      );
-    case "metas":
-      return (
-        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="12" r="8.2" />
-          <circle cx="12" cy="12" r="4.6" />
-          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-        </svg>
-      );
-    case "mais":
-      return (
-        <svg {...comum} fill="currentColor">
-          <circle cx="5.5" cy="12" r="1.7" />
-          <circle cx="12" cy="12" r="1.7" />
-          <circle cx="18.5" cy="12" r="1.7" />
-        </svg>
-      );
-    default: {
-      const _nunca: never = nome;
-      return _nunca;
-    }
-  }
-}
-
-function Tab({ icone, label, ativa, onClick }: { icone: AbaIcone; label: string; ativa: boolean; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="flex h-[49px] w-full min-w-0 flex-col items-center justify-center gap-0.5 text-[10px]">
-      <span className={`rounded-lg px-2.5 py-0.5 ${ativa ? "bg-black/8 text-[#7C5CFF]" : "text-black/45"}`}>
-        <TabIcon nome={icone} />
-      </span>
-      <span className={`max-w-full truncate ${ativa ? "font-semibold text-black" : "text-black/45"}`}>{label}</span>
-    </button>
+    </>
   );
 }
 

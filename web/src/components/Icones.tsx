@@ -192,3 +192,46 @@ export function IconeCategoria({ nome, size = 16 }: { nome?: string; size?: numb
   const desenhar = categorias[nome ?? ""] ?? categorias.outros;
   return <>{desenhar(size)}</>;
 }
+
+export type NomeAba = "inicio" | "cartoes" | "metas" | "mais";
+
+export function IconeAba({ nome }: { nome: NomeAba }) {
+  const comum = { viewBox: "0 0 24 24", width: 22, height: 22, "aria-hidden": true } as const;
+  switch (nome) {
+    case "inicio":
+      return (
+        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">
+          <circle cx="12" cy="12" r="8.2" />
+          <circle cx="12" cy="12" r="3.6" />
+        </svg>
+      );
+    case "cartoes":
+      return (
+        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">
+          <rect x="2.5" y="5.5" width="19" height="13" rx="2.2" />
+          <path d="M2.5 10h19" />
+          <path d="M6 15.2h4" strokeLinecap="round" />
+        </svg>
+      );
+    case "metas":
+      return (
+        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">
+          <circle cx="12" cy="12" r="8.2" />
+          <circle cx="12" cy="12" r="4.6" />
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "mais":
+      return (
+        <svg {...comum} fill="currentColor">
+          <circle cx="5.5" cy="12" r="1.7" />
+          <circle cx="12" cy="12" r="1.7" />
+          <circle cx="18.5" cy="12" r="1.7" />
+        </svg>
+      );
+    default: {
+      const _nunca: never = nome;
+      return _nunca;
+    }
+  }
+}

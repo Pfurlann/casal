@@ -1,29 +1,22 @@
 "use client";
 
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { LojaProvider } from "@/lib/store";
-import { Login } from "./Login";
-import { useEffect, type ReactNode } from "react";
-
-function TelaCarregando({ texto }: { texto: string }) {
-  return (
-    <div className="casal-shell">
-      <div className="casal-phone">
-        <div className="flex h-full items-center justify-center text-sm text-black/40">{texto}</div>
-      </div>
-    </div>
-  );
-}
 
 function ComSessao({ children }: { children: ReactNode }) {
   const { pronto, precisaLogin } = useAuth();
-  if (!pronto) return <TelaCarregando texto="Carregando…" />;
-  if (precisaLogin) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (pronto && precisaLogin) router.replace("/entrar");
+  }, [pronto, precisaLogin, router]);
+
+  if (!pronto || precisaLogin) {
     return (
-      <div className="casal-shell">
-        <div className="casal-phone">
-          <Login />
-        </div>
+      <div className="flex h-full items-center justify-center text-[12px] text-cinza">
+        Carregando…
       </div>
     );
   }

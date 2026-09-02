@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { CasalApp } from "@/components/CasalApp";
-
-export default function Home() {
-  return <CasalApp />;
+export default function Raiz() {
+  redirect("/mes");
 }

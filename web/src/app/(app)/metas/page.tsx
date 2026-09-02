@@ -1,7 +1,5 @@
-"use client";
-
-import { CasalApp } from "@/components/CasalApp";
+import { Metas } from "@/components/telas/Metas";
 
 export default function PaginaMetas() {
-  return <CasalApp aba="metas" />;
+  return <Metas />;
 }

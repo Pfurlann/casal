@@ -1,7 +1,5 @@
-"use client";
-
-import { CasalApp } from "@/components/CasalApp";
+import { Mais } from "@/components/telas/Mais";
 
 export default function PaginaMais() {
-  return <CasalApp aba="mais" />;
+  return <Mais />;
 }

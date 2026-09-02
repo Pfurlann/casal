@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <link
           rel="preload"
-          href="/fontes/inter-tight-latin-500-normal.woff2"
+          href="/fontes/inter-tight-latin-600-normal.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"

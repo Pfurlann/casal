@@ -1,32 +1,17 @@
 {
-  "name": "ca$al",
-  "short_name": "ca$al",
-  "description": "Finanças do casal — gastos, cartões e contas.",
+  "name": "casal",
+  "short_name": "casal",
+  "description": "Gastos, cartões e contas do casal.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#7C5CFF",
-  "theme_color": "#7C5CFF",
+  "background_color": "#FBFAF7",
+  "theme_color": "#FBFAF7",
   "lang": "pt-BR",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

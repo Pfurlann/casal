@@ -3,17 +3,18 @@ import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ca$al",
-  description: "Finanças do casal — gastos, cartões e contas.",
-  applicationName: "ca$al",
+  title: "casal",
+  description: "Gastos, cartões e contas do casal.",
+  applicationName: "casal",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "ca$al",
+    statusBarStyle: "default",
+    title: "casal",
   },
   formatDetection: { telephone: false },
   icons: {
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -23,11 +24,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#7C5CFF",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FBFAF7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E0E0C" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
 };
 

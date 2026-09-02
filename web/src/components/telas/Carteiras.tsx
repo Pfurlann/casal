@@ -87,16 +87,39 @@ export function Carteiras() {
       />
       <div className="px-4 pt-6">
         <div>
-          {carteiras.map((c) => (
-            <LinhaLista
-              key={c.id}
-              titulo={c.id === carteira.id ? `${c.nome} · atual` : c.nome}
-              subtitulo={`${ROTULO_CARTEIRA[c.rotulo]}${
-                c.membrosN > 1 ? ` · ${c.membrosN} pessoas` : " · só você"
-              }`}
-              aoClicar={() => void selecionarCarteira(c.id)}
-            />
-          ))}
+          {carteiras.map((c) => {
+            const donoDesta =
+              c.souDono === true || (c.souDono !== false && c.id === carteira.id && souDono);
+            return (
+              <div key={c.id} className="flex items-stretch border-b border-nevoa">
+                <button
+                  type="button"
+                  onClick={() => void selecionarCarteira(c.id)}
+                  className="flex min-h-[44px] min-w-0 flex-1 items-center py-3 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] text-grafite">
+                      {c.id === carteira.id ? `${c.nome} · atual` : c.nome}
+                    </span>
+                    <span className="block truncate text-[12px] text-cinza">
+                      {`${ROTULO_CARTEIRA[c.rotulo]}${
+                        c.membrosN > 1 ? ` · ${c.membrosN} pessoas` : " · só você"
+                      }`}
+                    </span>
+                  </span>
+                </button>
+                {donoDesta && (
+                  <Link
+                    href={`/mais/carteiras/${c.id}`}
+                    aria-label={`Editar ${c.nome}`}
+                    className="flex min-h-[44px] shrink-0 items-center px-2 text-[12px] text-cinza"
+                  >
+                    editar
+                  </Link>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="mt-8">

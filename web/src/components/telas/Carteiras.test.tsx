@@ -86,4 +86,21 @@ describe("Carteiras", () => {
     await userEvent.click(screen.getByRole("button", { name: /Entrar na carteira/ }));
     expect(await screen.findByRole("status")).toHaveTextContent(/Código inválido/);
   });
+
+  it("oferece editar para o dono", () => {
+    montar();
+    expect(screen.getByRole("link", { name: "Editar Nosso" })).toHaveAttribute(
+      "href",
+      "/mais/carteiras/w1",
+    );
+  });
+
+  it("esconde editar e apagar do membro", () => {
+    montar({
+      membros: [{ userId: "u1", email: "eu@casa.br", papel: "membro" }],
+      carteiras: [{ ...CONJUNTA, membrosN: 2, souDono: false }],
+    });
+    expect(screen.queryByRole("link", { name: /Editar/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Apagar/ })).toBeNull();
+  });
 });

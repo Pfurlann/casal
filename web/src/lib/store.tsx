@@ -31,6 +31,7 @@ import {
   type VisibilidadeCarteira,
 } from "./domain";
 import { clienteSupabase } from "./supabase";
+import { aplicarApagar, aplicarEdicao, idsParaApagar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
 
 export type MembroCarteira = {
   userId: string;
@@ -43,7 +44,7 @@ export type ConviteAtivo = {
   expiraEm: string;
 };
 
-export type CarteiraItem = Carteira & { membrosN: number };
+export type CarteiraItem = Carteira & { membrosN: number; souDono: boolean };
 
 export type Estado = {
   carteira: Carteira;
@@ -66,13 +67,17 @@ function carteiraPadrao(parcial?: Partial<Carteira>): Carteira {
   };
 }
 
+function visibilidadeDe(rotulo: RotuloCarteira): VisibilidadeCarteira {
+  return rotulo === "pessoal" ? "fechada" : "aberta";
+}
+
 function mapearCarteira(w: {
   id: string;
   nome: string;
   cor?: string | null;
   rotulo?: string | null;
   visibilidade?: string | null;
-}, membrosN = 1): CarteiraItem {
+}, membrosN = 1, souDono = true): CarteiraItem {
   const rotulo = (w.rotulo === "pessoal" || w.rotulo === "pj" ? w.rotulo : "compartilhada") as RotuloCarteira;
   const visibilidade = (w.visibilidade === "resumo" || w.visibilidade === "fechada" ? w.visibilidade : "aberta") as VisibilidadeCarteira;
   return {
@@ -82,7 +87,21 @@ function mapearCarteira(w: {
     rotulo,
     visibilidade,
     membrosN,
+    souDono,
   };
+}
+
+function eDonoDa(
+  carteiras: CarteiraItem[],
+  membros: MembroCarteira[],
+  userId: string | undefined,
+  walletId: string,
+): boolean {
+  const item = carteiras.find((c) => c.id === walletId);
+  if (item && typeof item.souDono === "boolean") return item.souDono;
+  if (!userId) return true;
+  if (membros.length === 0) return true;
+  return membros.some((m) => m.userId === userId && m.papel === "dono");
 }
 
 const VAZIO: Estado = {
@@ -102,7 +121,7 @@ function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
   const carteira = carteiraPadrao({ id: uuid(), nome, rotulo, visibilidade });
   return {
     carteira,
-    carteiras: [{ ...carteira, membrosN: 1 }],
+    carteiras: [{ ...carteira, membrosN: 1, souDono: true }],
     contas: [
       {
         id: uuid(),
@@ -193,6 +212,8 @@ type Loja = Estado & {
     contaID?: string;
     parcelas: number;
   }) => Promise<void>;
+  editar: (p: EdicaoLancamento) => Promise<void>;
+  apagar: (p: ApagarLancamento) => Promise<void>;
   pagarFatura: (p: {
     cartao: Cartao;
     fatura: Fatura;
@@ -203,6 +224,8 @@ type Loja = Estado & {
   aceitarConvite: (codigo: string) => Promise<string | null>;
   criarCarteira: (p: { nome: string; rotulo: RotuloCarteira; cor: string }) => Promise<string | null>;
   selecionarCarteira: (id: string) => Promise<void>;
+  salvarCarteira: (p: { id: string; nome: string; rotulo: RotuloCarteira; cor: string }) => Promise<string | null>;
+  apagarCarteira: (id: string) => Promise<string | null>;
 };
 
 const Ctx = createContext<Loja | null>(null);
@@ -237,7 +260,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           ...parsed,
           membros: parsed.membros ?? [],
           convite: parsed.convite ?? null,
-          carteiras: parsed.carteiras ?? (parsed.carteira ? [{ ...carteiraPadrao(parsed.carteira), membrosN: 1 }] : []),
+          carteiras: (parsed.carteiras ?? (parsed.carteira ? [{ ...carteiraPadrao(parsed.carteira), membrosN: 1, souDono: true }] : [])).map((c) => ({
+            ...c,
+            souDono: c.souDono !== false,
+          })),
           carteira: carteiraPadrao(parsed.carteira),
         });
       } else {
@@ -303,8 +329,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       email?: string | null;
       papel: string;
     }[];
-    const carteiras: CarteiraItem[] = (wallets.data as { id: string; nome: string; cor?: string | null; rotulo?: string | null; visibilidade?: string | null }[]).map((w) =>
-      mapearCarteira(w, linhasMembros.filter((m) => m.wallet_id === w.id).length),
+    const carteiras: CarteiraItem[] = (wallets.data as { id: string; nome: string; cor?: string | null; rotulo?: string | null; visibilidade?: string | null; dono_id?: string | null }[]).map((w) =>
+      mapearCarteira(
+        w,
+        linhasMembros.filter((m) => m.wallet_id === w.id).length,
+        w.dono_id === usuario?.id
+          || linhasMembros.some((m) => m.wallet_id === w.id && m.user_id === usuario?.id && m.papel === "dono"),
+      ),
     );
     const walletId = escolherWalletId(carteiras, linhasMembros, usuario?.id);
     const linhaCarteira = carteiras.find((w) => w.id === walletId) ?? carteiras[0];
@@ -489,6 +520,34 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const editar: Loja["editar"] = async (p) => {
+    const transacoes = aplicarEdicao(estado.transacoes, p);
+    await commit({ ...estado, transacoes });
+    if (sb) {
+      const t = transacoes.find((x) => x.id === p.id);
+      if (!t) return;
+      await sb.from("transactions").update({
+        descricao: t.descricao,
+        category_id: t.categoriaID ?? null,
+        valor_centavos: t.valor,
+        updated_at: new Date().toISOString(),
+      }).eq("id", t.id);
+    }
+  };
+
+  const apagar: Loja["apagar"] = async (p) => {
+    const ids = idsParaApagar(estado.transacoes, p);
+    const transacoes = aplicarApagar(estado.transacoes, p);
+    await commit({ ...estado, transacoes });
+    if (sb && ids.length > 0) {
+      const agora = new Date().toISOString();
+      await sb.from("transactions").update({
+        deleted_at: agora,
+        updated_at: agora,
+      }).in("id", ids);
+    }
+  };
+
   const pagarFatura: Loja["pagarFatura"] = async ({ cartao, fatura, valor, contaID }) => {
     let persistida = estado.faturas.find(
       (f) => f.cartaoID === cartao.id && f.ano === fatura.ano && f.mes === fatura.mes,
@@ -573,16 +632,21 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     await recarregar();
   };
 
+  const lembrarCarteira = (id: string) => {
+    if (usuario?.id) localStorage.setItem(chaveCarteira(usuario.id), id);
+    else localStorage.setItem(chaveCarteira(), id);
+  };
+
   const criarCarteira = async (p: { nome: string; rotulo: RotuloCarteira; cor: string }): Promise<string | null> => {
-    const visibilidade: VisibilidadeCarteira = p.rotulo === "pessoal" ? "fechada" : "aberta";
+    const visibilidade = visibilidadeDe(p.rotulo);
     const id = uuid();
     const contaId = uuid();
     if (!sb) {
       const nova = carteiraPadrao({ id, nome: p.nome.trim(), cor: p.cor, rotulo: p.rotulo, visibilidade });
-      localStorage.setItem(chaveCarteira(usuario?.id), id);
+      lembrarCarteira(id);
       await commit({
         carteira: nova,
-        carteiras: [...estado.carteiras.filter((c) => c.id !== id), { ...nova, membrosN: 1 }],
+        carteiras: [...estado.carteiras.filter((c) => c.id !== id), { ...nova, membrosN: 1, souDono: true }],
         contas: [{ id: contaId, carteiraID: id, nome: "Corrente", tipo: "corrente", saldoInicial: 0, arquivada: false }],
         cartoes: [],
         faturas: [],
@@ -607,7 +671,132 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       tipo: "corrente",
       saldo_inicial_centavos: 0,
     });
-    if (usuario?.id) localStorage.setItem(chaveCarteira(usuario.id), id);
+    lembrarCarteira(id);
+    await recarregar();
+    return null;
+  };
+
+  const salvarCarteira = async (p: {
+    id: string;
+    nome: string;
+    rotulo: RotuloCarteira;
+    cor: string;
+  }): Promise<string | null> => {
+    if (!eDonoDa(estado.carteiras, estado.membros, usuario?.id, p.id)) {
+      return "Só quem criou a carteira pode editar.";
+    }
+    const nome = p.nome.trim();
+    const visibilidade = visibilidadeDe(p.rotulo);
+    if (!sb) {
+      const atual = estado.carteiras.find((c) => c.id === p.id);
+      const atualizada = carteiraPadrao({
+        id: p.id,
+        nome,
+        cor: p.cor,
+        rotulo: p.rotulo,
+        visibilidade,
+      });
+      await commit({
+        ...estado,
+        carteira: estado.carteira.id === p.id ? atualizada : estado.carteira,
+        carteiras: estado.carteiras.map((c) =>
+          c.id === p.id ? { ...c, ...atualizada, souDono: atual?.souDono !== false } : c,
+        ),
+      });
+      return null;
+    }
+    const { error } = await sb
+      .from("wallets")
+      .update({ nome, cor: p.cor, rotulo: p.rotulo, visibilidade })
+      .eq("id", p.id);
+    if (error) return error.message;
+    await recarregar();
+    return null;
+  };
+
+  const apagarCarteira = async (id: string): Promise<string | null> => {
+    if (!eDonoDa(estado.carteiras, estado.membros, usuario?.id, id)) {
+      return "Só quem criou a carteira pode apagar.";
+    }
+    const restantes = estado.carteiras.filter((c) => c.id !== id);
+    const ultima = restantes.length === 0;
+
+    if (!sb) {
+      if (ultima) {
+        const novaId = uuid();
+        const contaId = uuid();
+        const nova = carteiraPadrao({
+          id: novaId,
+          nome: "Meu",
+          rotulo: "pessoal",
+          visibilidade: visibilidadeDe("pessoal"),
+        });
+        lembrarCarteira(novaId);
+        await commit({
+          carteira: nova,
+          carteiras: [{ ...nova, membrosN: 1, souDono: true }],
+          contas: [
+            {
+              id: contaId,
+              carteiraID: novaId,
+              nome: "Corrente",
+              tipo: "corrente",
+              saldoInicial: 0,
+              arquivada: false,
+            },
+          ],
+          cartoes: [],
+          faturas: [],
+          transacoes: [],
+          membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
+          convite: null,
+        });
+        return null;
+      }
+      const proxima = estado.carteira.id === id ? restantes[0] : null;
+      if (proxima) lembrarCarteira(proxima.id);
+      await commit({
+        ...estado,
+        carteira: proxima
+          ? {
+              id: proxima.id,
+              nome: proxima.nome,
+              cor: proxima.cor,
+              rotulo: proxima.rotulo,
+              visibilidade: proxima.visibilidade,
+            }
+          : estado.carteira,
+        carteiras: restantes,
+        contas: proxima ? [] : estado.contas,
+        cartoes: proxima ? [] : estado.cartoes,
+        faturas: proxima ? [] : estado.faturas,
+        transacoes: proxima ? [] : estado.transacoes,
+        membros: proxima
+          ? usuario
+            ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }]
+            : []
+          : estado.membros,
+        convite: proxima ? null : estado.convite,
+      });
+      return null;
+    }
+
+    if (ultima) {
+      const falha = await criarCarteira({
+        nome: "Meu",
+        rotulo: "pessoal",
+        cor: estado.carteira.cor,
+      });
+      if (falha) return falha;
+    } else if (estado.carteira.id === id && restantes[0]) {
+      lembrarCarteira(restantes[0].id);
+    }
+
+    const { error } = await sb
+      .from("wallets")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) return error.message;
     await recarregar();
     return null;
   };
@@ -620,11 +809,15 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     salvarCartao,
     salvarConta,
     lancar,
+    editar,
+    apagar,
     pagarFatura,
     criarConvite,
     aceitarConvite,
     criarCarteira,
     selecionarCarteira,
+    salvarCarteira,
+    apagarCarteira,
   };
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

@@ -14,30 +14,79 @@ import { Rotulo } from "../ui/Rotulo";
 
 const ROTULOS: RotuloCarteira[] = ["pessoal", "compartilhada"];
 
-export function CarteiraForm() {
-  const { criarCarteira } = useLoja();
+export function CarteiraForm({ id }: { id?: string }) {
+  const { criarCarteira, salvarCarteira, apagarCarteira, carteiras } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
+  const existente = id ? carteiras.find((c) => c.id === id) : undefined;
+  const editando = Boolean(id);
+  const podeEditar = !editando || existente?.souDono !== false;
 
-  const [nome, setNome] = useState("");
-  const [rotulo, setRotulo] = useState<RotuloCarteira>("pessoal");
-  const [cor, setCor] = useState(CORES_CARTAO[0]);
-  const [criando, setCriando] = useState(false);
+  const [nome, setNome] = useState(existente?.nome ?? "");
+  const [rotulo, setRotulo] = useState<RotuloCarteira>(
+    existente?.rotulo === "pj" ? "compartilhada" : (existente?.rotulo ?? "pessoal"),
+  );
+  const [cor, setCor] = useState(existente?.cor ?? CORES_CARTAO[0]);
+  const [salvando, setSalvando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
-  const pode = nome.trim().length > 0 && !criando;
+  const pode = nome.trim().length > 0 && !salvando && podeEditar;
+  const titulo = editando ? "editar carteira" : "nova carteira";
+
+  function voltar() {
+    router.push("/mais/carteiras");
+  }
 
   async function criar() {
     if (!pode) return;
-    setCriando(true);
+    setSalvando(true);
     const falha = await criarCarteira({ nome: nome.trim(), rotulo, cor });
-    setCriando(false);
+    setSalvando(false);
     if (falha) avisar("erro", falha);
-    else router.push("/mais/carteiras");
+    else voltar();
+  }
+
+  async function salvar() {
+    if (!pode || !existente) return;
+    setSalvando(true);
+    const falha = await salvarCarteira({ id: existente.id, nome: nome.trim(), rotulo, cor });
+    setSalvando(false);
+    if (falha) avisar("erro", falha);
+    else voltar();
+  }
+
+  async function apagar() {
+    if (!existente) return;
+    setSalvando(true);
+    const falha = await apagarCarteira(existente.id);
+    setSalvando(false);
+    if (falha) avisar("erro", falha);
+    else voltar();
+  }
+
+  if (editando && !existente) {
+    return (
+      <div>
+        <Cabecalho titulo="editar carteira" voltarPara="/mais/carteiras" />
+        <p className="px-4 pt-6 text-[14px] text-cinza">Carteira não encontrada.</p>
+      </div>
+    );
+  }
+
+  if (editando && !podeEditar) {
+    return (
+      <div>
+        <Cabecalho titulo="editar carteira" voltarPara="/mais/carteiras" />
+        <p className="px-4 pt-6 text-[14px] text-cinza">
+          Só quem criou a carteira pode editar ou apagar.
+        </p>
+      </div>
+    );
   }
 
   return (
     <div>
-      <Cabecalho titulo="nova carteira" voltarPara="/mais/carteiras" />
+      <Cabecalho titulo={titulo} voltarPara="/mais/carteiras" />
       <div className="px-4 pt-6">
         <Campo
           label="Nome"
@@ -80,10 +129,41 @@ export function CarteiraForm() {
         </div>
 
         <div className="mt-8">
-          <Botao variante="primario" onClick={criar} disabled={!pode}>
-            {criando ? "Criando…" : "Criar carteira"}
-          </Botao>
+          {editando ? (
+            <Botao variante="primario" onClick={salvar} disabled={!pode}>
+              {salvando && !confirmando ? "Salvando…" : "Salvar carteira"}
+            </Botao>
+          ) : (
+            <Botao variante="primario" onClick={criar} disabled={!pode}>
+              {salvando ? "Criando…" : "Criar carteira"}
+            </Botao>
+          )}
         </div>
+
+        {existente && (
+          confirmando ? (
+            <div className="mt-8">
+              <p className="text-[14px] font-semibold text-grafite">Apagar carteira?</p>
+              <p className="mt-2 text-[12px] text-cinza">
+                Lançamentos e cartões desta carteira saem da vista.
+              </p>
+              <div className="mt-4 flex flex-col gap-2">
+                <Botao variante="destrutivo" onClick={apagar} disabled={salvando}>
+                  {salvando ? "Apagando…" : "Apagar"}
+                </Botao>
+                <Botao variante="secundario" onClick={() => setConfirmando(false)} disabled={salvando}>
+                  Cancelar
+                </Botao>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-8">
+              <Botao variante="destrutivo" onClick={() => setConfirmando(true)} disabled={salvando}>
+                Apagar carteira
+              </Botao>
+            </div>
+          )
+        )}
       </div>
     </div>
   );

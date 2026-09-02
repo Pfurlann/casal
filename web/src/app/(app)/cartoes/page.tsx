@@ -1,7 +1,5 @@
-"use client";
-
-import { CasalApp } from "@/components/CasalApp";
+import { Cartoes } from "@/components/telas/Cartoes";
 
 export default function PaginaCartoes() {
-  return <CasalApp aba="cartoes" />;
+  return <Cartoes />;
 }

@@ -238,3 +238,15 @@ export function fimDoMes(d = new Date()): Date {
 export function uuid(): string {
   return crypto.randomUUID();
 }
+
+/** Lê o segmento AAAA-MM da rota de pagamento de fatura. */
+export function competenciaDaRota(s: string): Competencia {
+  const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(s);
+  if (!m) throw new Error(`competência inválida na rota: ${s}`);
+  return { ano: Number(m[1]), mes: Number(m[2]) };
+}
+
+/** Escreve a competência no formato usado na rota. */
+export function rotuloDaCompetencia(c: Competencia): string {
+  return `${c.ano}-${String(c.mes).padStart(2, "0")}`;
+}

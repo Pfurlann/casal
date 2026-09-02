@@ -36,6 +36,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR">
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <link
+          rel="preload"
+          href="/fontes/inter-tight-latin-500-normal.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fontes/ibm-plex-mono-latin-500-normal.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
       </head>
       <body>
         <Providers>{children}</Providers>

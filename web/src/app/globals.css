@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../design/tokens.css";
+@import "../design/fontes.css";
 
 :root {
   --tab-h: 49px;
@@ -19,8 +20,7 @@ body {
   overflow: hidden;
   background: #111;
   color: #111;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-texto);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }

@@ -36,7 +36,9 @@ describe("EntradaValor", () => {
     e.digitar(1);
     e.digitar(4);
     e.digitar(9);
-    expect(e.centavos).toBe(21490);
+    expect(e.centavos).toBe(2149);
+    // Quatro dígitos num teclado de centavos são R$ 21,49, não R$ 214,90.
+    expect(formatarBRL(e.centavos)).toBe("R$ 21,49");
   });
 
   it("apaga o último dígito", () => {

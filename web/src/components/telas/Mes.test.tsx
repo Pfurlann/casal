@@ -8,7 +8,7 @@ vi.mock("@/lib/store", async (original) => {
   return { ...real, useLoja: () => loja.valor };
 });
 
-const CARTEIRA = { id: "c1", nome: "Nosso", cor: "#000", rotulo: "compartilhada", visibilidade: "aberta" };
+const CARTEIRA = { id: "c1", nome: "Nosso", cor: "grafite", rotulo: "compartilhada", visibilidade: "aberta" };
 
 function despesa(valor: number, descricao: string, categoriaID: string) {
   return {

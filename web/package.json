@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verificar": "npm run cores && tsc --noEmit && next lint && vitest run",
+    "cores": "node scripts/sem-cor-literal.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",

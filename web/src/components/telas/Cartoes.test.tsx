@@ -15,7 +15,7 @@ const CARTAO = {
   banco: "Nubank",
   ultimos4: "1234",
   bandeira: "mastercard",
-  cor: "#000000",
+  cor: "grafite",
   limite: 500000,
   diaFechamento: 28,
   diaVencimento: 5,

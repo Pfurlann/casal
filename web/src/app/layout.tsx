@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { COR_AR, COR_GRAFITE } from "@/design/tema-chrome";
 import { ProvedorTema } from "@/lib/tema";
 import "./globals.css";
 
@@ -25,8 +26,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FBFAF7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E0E0C" },
+    { media: "(prefers-color-scheme: light)", color: COR_AR },
+    { media: "(prefers-color-scheme: dark)", color: COR_GRAFITE },
   ],
   width: "device-width",
   initialScale: 1,

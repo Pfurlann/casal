@@ -18,7 +18,7 @@ vi.mock("@/lib/auth", async (original) => {
 const CONJUNTA = {
   id: "w1",
   nome: "Nosso",
-  cor: "#000000",
+  cor: "grafite",
   rotulo: "compartilhada",
   visibilidade: "aberta",
 };

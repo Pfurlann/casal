@@ -69,6 +69,7 @@ function montar(opts?: {
   metas?: Record<string, unknown>[];
   transacoes?: Record<string, unknown>[];
   comoFolha?: boolean;
+  aoSair?: () => void;
 }) {
   empurrar.mockClear();
   substituir.mockClear();
@@ -89,7 +90,7 @@ function montar(opts?: {
   };
   return render(
     <ProvedorAviso>
-      <Lancar comoFolha={opts?.comoFolha} />
+      <Lancar comoFolha={opts?.comoFolha} aoSair={opts?.aoSair} />
     </ProvedorAviso>,
   );
 }
@@ -172,6 +173,15 @@ describe("Lancar", () => {
       substituir.mock.invocationCallOrder[0]!,
     );
     expect(empurrar).not.toHaveBeenCalled();
+  });
+
+  it("na folha, o voltar do cabeçalho usa aoSair compartilhado com o fundo", async () => {
+    const aoSair = vi.fn();
+    montar({ comoFolha: true, aoSair });
+    await userEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    expect(aoSair).toHaveBeenCalledOnce();
+    expect(voltarHist).not.toHaveBeenCalled();
+    expect(substituir).not.toHaveBeenCalled();
   });
 
   it("mostra forma de pagamento e data de hoje sem abrir mais opções", () => {

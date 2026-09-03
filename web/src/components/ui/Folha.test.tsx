@@ -62,7 +62,7 @@ describe("Folha", () => {
   it("fecha ao clicar fora", async () => {
     const aoFechar = vi.fn();
     render(<Cena aoFechar={aoFechar} />);
-    await userEvent.click(screen.getByTestId("folha-fundo"));
+    await userEvent.click(screen.getByRole("button", { name: "Fechar" }));
     expect(aoFechar).toHaveBeenCalledOnce();
   });
 
@@ -80,7 +80,7 @@ describe("Folha", () => {
     expect(folha.className).toContain("overflow-y-auto");
   });
 
-  it("quando trava, prende a altura para o conteúdo interno rolar", () => {
+  it("quando trava, deixa faixa tappable acima da safe-area", () => {
     render(
       <Folha aoFechar={() => {}} trava>
         <button type="button">dentro</button>
@@ -88,7 +88,8 @@ describe("Folha", () => {
     );
     const folha = screen.getByRole("dialog");
     expect(folha.className).toContain("overflow-hidden");
-    expect(folha.className).toContain("h-[92dvh]");
+    expect(folha.className).toContain("safe-area-inset-top");
+    expect(folha.className).toContain("h-[calc(100dvh-max(56px,env(safe-area-inset-top)+24px))]");
   });
 
   it("devolve o foco ao elemento de origem ao desmontar", () => {

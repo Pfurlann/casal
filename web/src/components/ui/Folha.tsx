@@ -60,22 +60,29 @@ export function Folha({
   }, [aoFechar]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
-      <div
+    <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-4">
+      {/*
+        Botão (não div) + faixa acima da safe-area: no iPhone/PWA o fundo a 92dvh
+        caía na status bar e o tap “fora” não registrava.
+      */}
+      <button
+        type="button"
         data-testid="folha-fundo"
-        aria-hidden
+        aria-label="Fechar"
         onClick={aoFechar}
-        className="absolute inset-0 bg-grafite/40"
+        className="absolute inset-0 z-0 cursor-default bg-grafite/40"
       />
       <div
         ref={caixa}
         role="dialog"
         aria-modal="true"
         aria-label={rotulo}
-        className={`relative flex w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] lg:max-w-[560px] ${
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`relative z-10 flex w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] lg:max-w-[560px] ${
           trava
-            ? "h-[92dvh] min-h-0 overflow-hidden sm:h-[min(840px,88dvh)]"
-            : "max-h-[92dvh] overflow-y-auto lg:max-h-[min(840px,88dvh)]"
+            ? "h-[calc(100dvh-max(56px,env(safe-area-inset-top)+24px))] min-h-0 overflow-hidden sm:h-[min(840px,88dvh)]"
+            : "max-h-[calc(100dvh-max(56px,env(safe-area-inset-top)+24px))] overflow-y-auto sm:max-h-[min(840px,88dvh)] lg:max-h-[min(840px,88dvh)]"
         }`}
       >
         {children}

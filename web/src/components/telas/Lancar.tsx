@@ -37,6 +37,7 @@ import { SeletorCategoria } from "../ui/SeletorCategoria";
 import { BolinhaCor } from "../ui/SeletorCor";
 import { Teclado } from "../ui/Teclado";
 import { useAviso } from "../ui/Aviso";
+import { fecharFolha } from "@/lib/folha-nav";
 
 function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
   return categoriasVisiveis(custom, tipo);
@@ -46,7 +47,14 @@ function classeSelect() {
   return "relative z-10 mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 }
 
-export function Lancar({ comoFolha = false }: { comoFolha?: boolean } = {}) {
+export function Lancar({
+  comoFolha = false,
+  aoSair,
+}: {
+  comoFolha?: boolean;
+  /** Fecha a folha interceptada com a mesma lógica do backdrop. */
+  aoSair?: () => void;
+} = {}) {
   const {
     cartoes,
     cartoesTodos,
@@ -94,8 +102,11 @@ export function Lancar({ comoFolha = false }: { comoFolha?: boolean } = {}) {
   const pode = entrada.podeSalvar && temOrigem && descricaoOk && !salvando;
   const titulo = ehReceita ? "nova receita" : "novo gasto";
   const voltar = () => {
-    if (window.history.length > 1) router.back();
-    else router.replace("/mes");
+    if (aoSair) {
+      aoSair();
+      return;
+    }
+    fecharFolha(router);
   };
 
   /** Soft `push` após salvar deixa @folha/(.)lancar montada no mobile/PWA. */

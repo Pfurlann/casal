@@ -18,11 +18,18 @@ import { SeletorCategoria } from "../ui/SeletorCategoria";
 import { Teclado } from "../ui/Teclado";
 import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
+import { fecharFolha } from "@/lib/folha-nav";
 
 const SELECT =
   "mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 
-export function EditarLancamento({ id }: { id: string }) {
+export function EditarLancamento({
+  id,
+  aoSair,
+}: {
+  id: string;
+  aoSair?: () => void;
+}) {
   const loja = useLoja();
   const { transacoes, editar, apagar } = loja;
   const contasTodas = loja.contasTodas ?? loja.contas ?? [];
@@ -54,14 +61,17 @@ export function EditarLancamento({ id }: { id: string }) {
   const [teclado, setTeclado] = useState(false);
 
   const voltar = () => {
-    if (window.history.length > 1) router.back();
-    else router.push("/mes");
+    if (aoSair) {
+      aoSair();
+      return;
+    }
+    fecharFolha(router);
   };
 
   if (!tx) {
     return (
       <div>
-        <Cabecalho titulo="editar lançamento" voltarPara="/mes" />
+        <Cabecalho titulo="editar lançamento" aoVoltar={voltar} />
         <p className="px-4 pt-8 text-[14px] text-cinza">Este lançamento não existe mais.</p>
       </div>
     );
@@ -181,7 +191,7 @@ export function EditarLancamento({ id }: { id: string }) {
       <div className="sticky top-0 z-10 bg-ar">
         <Cabecalho
           titulo="editar lançamento"
-          voltarPara="/mes"
+          aoVoltar={voltar}
           acao={
             confirmando ? undefined : (
               <button

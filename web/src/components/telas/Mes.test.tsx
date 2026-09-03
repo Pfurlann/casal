@@ -198,6 +198,29 @@ describe("Mes", () => {
     expect(lancar).not.toHaveBeenCalledWith("f-sal", expect.anything());
   });
 
+  it("alerta teto no limite ou estourado", () => {
+    loja.valor = {
+      carteira: CARTEIRA,
+      cartoes: [],
+      faturas: [],
+      transacoes: [despesa(45_000, "Mercado", "00000000-0000-0000-0000-000000000001")],
+      metas: [
+        {
+          id: "m1",
+          carteiraID: "c1",
+          tipo: "teto_categoria",
+          nome: "Mercado",
+          valorAlvo: 50_000,
+          categoriaID: "00000000-0000-0000-0000-000000000001",
+          periodo: "mensal",
+          ativa: true,
+        },
+      ],
+    };
+    render(<Mes />);
+    expect(screen.getByText("Sobram R$ 50,00 no teto de Mercado.")).toBeInTheDocument();
+  });
+
   it("não deixa cor literal no marcador", () => {
     loja.valor = {
       carteira: CARTEIRA,

@@ -3,6 +3,14 @@
 import { categoriaPorId } from "@/lib/categorias";
 import { competenciaDe } from "@/lib/domain";
 import { vencimentosDoMes } from "@/lib/despesas-fixas";
+import {
+  folgaDoPeriodo,
+  fraseTeto,
+  gastoDaCategoria,
+  metasAtivas,
+  nomeDaMeta,
+  progressoTeto,
+} from "@/lib/metas";
 import { carteiraMostraPagador, indicadorPagador } from "@/lib/pagador";
 import {
   faturaAtualOuRascunho,
@@ -32,6 +40,7 @@ export function Mes() {
     usuarioID,
     categorias,
     despesasFixas,
+    metas,
     lancarDespesaFixa,
   } = useLoja();
   const mostraPagador = carteiraMostraPagador(carteira) && (membros?.length ?? 0) > 1;
@@ -55,6 +64,15 @@ export function Mes() {
   const projetados = vencimentosDoMes(despesasFixas ?? [], transacoes, competencia).filter(
     (v) => !v.lancada,
   );
+  const tetos = metasAtivas(metas).filter((m) => m.tipo === "teto_categoria" && m.categoriaID);
+  const alertasTeto = tetos
+    .map((m) => {
+      const gasto = gastoDaCategoria(transacoes, m.categoriaID ?? "", competencia);
+      const p = progressoTeto(m.valorAlvo, gasto);
+      return { meta: m, progresso: p };
+    })
+    .filter((x) => x.progresso.faixa === "alerta" || x.progresso.faixa === "estouro");
+  const folga = folgaDoPeriodo(metas, transacoes, competencia);
 
   async function lancarFixo(id: string) {
     if (!lancarDespesaFixa) return;
@@ -67,7 +85,7 @@ export function Mes() {
 
   return (
     <div>
-      <Cabecalho titulo={`${MESES[agora.getMonth()]} · ${carteira.nome}`} marca />
+      <Cabecalho titulo={`${MESES[agora.getMonth()]} · ${carteira.nome}`} marca folga={folga} />
       <div className="px-4 pt-8">
         <Rotulo>gasto neste mês</Rotulo>
         <div className="mt-2">
@@ -93,6 +111,21 @@ export function Mes() {
           <div className="mt-1">
             <span className="text-[12px] text-cinza">comprometido em faturas </span>
             <Numero centavos={comprometido} tamanho="legenda" tom="atencao" />
+          </div>
+        )}
+        {alertasTeto.length > 0 && (
+          <div className="mt-5">
+            <Rotulo>tetos</Rotulo>
+            <div className="mt-2">
+              {alertasTeto.map(({ meta, progresso }) => {
+                const cat = categoriaPorId(meta.categoriaID, categorias);
+                return (
+                  <p key={meta.id} className="py-1 text-[12px] text-ambar-texto">
+                    {fraseTeto(progresso, cat?.nome ?? nomeDaMeta(meta, categorias))}
+                  </p>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

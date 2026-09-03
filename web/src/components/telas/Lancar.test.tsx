@@ -60,6 +60,8 @@ function montar(opts?: {
   usuarioID?: string;
   categorias?: typeof PET[];
   salvarCategoria?: (c: unknown) => Promise<void>;
+  metas?: Record<string, unknown>[];
+  transacoes?: Record<string, unknown>[];
 }) {
   empurrar.mockClear();
   loja.valor = {
@@ -70,6 +72,8 @@ function montar(opts?: {
     usuarioID: opts?.usuarioID,
     categorias: opts?.categorias ?? [],
     salvarCategoria: opts?.salvarCategoria ?? vi.fn().mockResolvedValue(undefined),
+    metas: opts?.metas ?? [],
+    transacoes: opts?.transacoes ?? [],
     lancar: lancar.fn,
   };
   return render(
@@ -161,11 +165,45 @@ describe("Lancar", () => {
     );
   });
 
-  it("não mostra linha de teto enquanto Metas não existe", async () => {
+  it("não mostra linha de teto sem meta para a categoria", async () => {
     montar();
     await userEvent.keyboard("1000");
     expect(screen.queryByText(/teto/i)).toBeNull();
     expect(screen.queryByText(/sobram/i)).toBeNull();
+  });
+
+  it("mostra o que sobra no teto da categoria escolhida", async () => {
+    montar({
+      metas: [
+        {
+          id: "m1",
+          carteiraID: "c1",
+          tipo: "teto_categoria",
+          nome: "Restaurante",
+          valorAlvo: 50_000,
+          categoriaID: "00000000-0000-0000-0000-000000000002",
+          periodo: "mensal",
+          ativa: true,
+        },
+      ],
+      transacoes: [
+        {
+          id: "t1",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 16_000,
+          data: new Date().toISOString(),
+          categoriaID: "00000000-0000-0000-0000-000000000002",
+          descricao: "almoço",
+          hashDedup: "",
+          parcelaN: 1,
+          parcelaTotal: 1,
+        },
+      ],
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Restaurante/ }));
+    await userEvent.keyboard("1000");
+    expect(screen.getByText("Sobram R$ 330,00 no teto de Restaurante.")).toBeInTheDocument();
   });
 
   it("avisa quando a gravação falha, em vez de fechar em silêncio", async () => {

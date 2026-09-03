@@ -108,6 +108,21 @@ export type DespesaFixa = {
   tipo: "despesa" | "receita";
 };
 
+/** Teto, economia ou objetivo. Período no v1 é só mensal. */
+export type TipoMeta = "teto_categoria" | "economia_mensal" | "objetivo";
+
+export type Meta = {
+  id: string;
+  carteiraID: string;
+  tipo: TipoMeta;
+  nome: string;
+  valorAlvo: Centavos;
+  categoriaID?: string;
+  periodo: "mensal";
+  dataAlvo?: string;
+  ativa: boolean;
+};
+
 export type Competencia = { ano: number; mes: number };
 
 export const WALLET_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";

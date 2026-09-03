@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { categoriasVisiveis } from "@/lib/categorias";
+import { categoriaPorId, categoriasVisiveis } from "@/lib/categorias";
 import {
   ROTULO_TIPO_CONTA,
+  competenciaDe,
   dataDeLocalISO,
   dataLocalISO,
   type Categoria,
   type TipoTransacao,
 } from "@/lib/domain";
+import { fraseTeto, gastoDaCategoria, progressoTeto, tetoDaCategoria } from "@/lib/metas";
 import { dividir, EntradaValor, formatarBRL } from "@/lib/money";
 import { carteiraMostraPagador } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
@@ -34,7 +36,17 @@ function classeSelect() {
 }
 
 export function Lancar() {
-  const { cartoes, contas, lancar, carteira, membros, usuarioID, categorias: categoriasCustom } = useLoja();
+  const {
+    cartoes,
+    contas,
+    lancar,
+    carteira,
+    membros,
+    usuarioID,
+    categorias: categoriasCustom,
+    metas,
+    transacoes,
+  } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
 
@@ -63,6 +75,17 @@ export function Lancar() {
     if (window.history.length > 1) router.back();
     else router.push("/mes");
   };
+  const teto = !ehReceita ? tetoDaCategoria(metas, categoriaID) : undefined;
+  const competencia = competenciaDe(dataDeLocalISO(dataISO));
+  const gastoTeto = teto?.categoriaID
+    ? gastoDaCategoria(transacoes ?? [], teto.categoriaID, competencia)
+    : 0;
+  const progresso = teto
+    ? progressoTeto(teto.valorAlvo, gastoTeto + entrada.centavos)
+    : undefined;
+  const nomeTeto = teto
+    ? (categoriaPorId(teto.categoriaID, categoriasCustom)?.nome ?? teto.nome)
+    : "";
   const primeiraParcela = parcelas > 1 ? (dividir(entrada.centavos, parcelas)[0] ?? 0) : 0;
   const pagoCom = origemCartao ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
   const mostraCartoes = !ehReceita && cartoes.length > 0;
@@ -249,6 +272,15 @@ export function Lancar() {
                 onChange={setCategoriaID}
               />
             </div>
+            {progresso && (
+              <p
+                className={`mt-3 px-4 text-center text-[12px] ${
+                  progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
+                }`}
+              >
+                {fraseTeto(progresso, nomeTeto)}
+              </p>
+            )}
             {mostraPagador && (
               <div className="mt-4 px-4">
                 <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>

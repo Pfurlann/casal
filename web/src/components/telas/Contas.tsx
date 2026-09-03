@@ -8,6 +8,7 @@ import { useLoja } from "@/lib/store";
 import { ROTULO_VISIBILIDADE_ORIGEM, visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { LinhaLista } from "../ui/LinhaLista";
+import { BolinhaCor } from "../ui/SeletorCor";
 import { Vazio } from "../ui/Vazio";
 
 export function Contas() {
@@ -53,6 +54,7 @@ export function Contas() {
               return (
                 <LinhaLista
                   key={c.id}
+                  icone={<BolinhaCor cor={c.cor} />}
                   titulo={c.nome}
                   subtitulo={
                     alocado > 0

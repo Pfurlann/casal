@@ -1,9 +1,10 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { categoriaPorId } from "@/lib/categorias";
-import { competenciaDe } from "@/lib/domain";
+import { competenciaDe, type Transacao } from "@/lib/domain";
 import { compromissosAPagar } from "@/lib/compromissos";
-import { vencimentosDoMes } from "@/lib/despesas-fixas";
+import { eLancamentoPago } from "@/lib/despesas-fixas";
 import {
   folgaDoPeriodo,
   fraseTeto,
@@ -12,6 +13,7 @@ import {
   nomeDaMeta,
   progressoTeto,
 } from "@/lib/metas";
+import { origemDaTransacao } from "@/lib/origem";
 import { carteiraMostraPagador, indicadorPagador } from "@/lib/pagador";
 import {
   faturaAtualOuRascunho,
@@ -20,21 +22,27 @@ import {
   useLoja,
 } from "@/lib/store";
 import { Cabecalho } from "../ui/Cabecalho";
+import { Etiqueta } from "../ui/Etiqueta";
+import { LinhaDeslizavel } from "../ui/LinhaDeslizavel";
 import { LinhaLista } from "../ui/LinhaLista";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { Trilha } from "../ui/Trilha";
 import { Vazio } from "../ui/Vazio";
+import { ModalPagar } from "./ModalPagar";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
+type FiltroMes = "todos" | "pagos" | "a_pagar";
+
 export function Mes() {
   const {
     transacoes,
     cartoes,
+    contas,
     faturas,
     carteira,
     membros,
@@ -43,13 +51,15 @@ export function Mes() {
     despesasFixas,
     metas,
     compromissos,
-    lancarDespesaFixa,
+    liquidarLancamento,
   } = useLoja();
   const mostraPagador = carteiraMostraPagador(carteira) && (membros?.length ?? 0) > 1;
   const agora = new Date();
   const inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
   const fim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
   const competencia = competenciaDe(agora);
+  const [filtro, setFiltro] = useState<FiltroMes>("todos");
+  const [pagando, setPagando] = useState<Transacao | null>(null);
 
   const doMes = transacoes.filter((t) => {
     const d = new Date(t.data);
@@ -63,31 +73,43 @@ export function Mes() {
     const f = faturaAtualOuRascunho(cartao, faturas, agora);
     return s + saldoDevedor(f, totalDaFatura(f, transacoes, cartao));
   }, 0);
-  const projetados = vencimentosDoMes(despesasFixas ?? [], transacoes, competencia).filter(
-    (v) => !v.lancada,
-  );
   const tetos = metasAtivas(metas).filter((m) => m.tipo === "teto_categoria" && m.categoriaID);
   const alertasTeto = tetos
     .map((m) => {
-      const gasto = gastoDaCategoria(transacoes, m.categoriaID ?? "", competencia);
-      const p = progressoTeto(m.valorAlvo, gasto);
+      const gastoCat = gastoDaCategoria(transacoes, m.categoriaID ?? "", competencia);
+      const p = progressoTeto(m.valorAlvo, gastoCat);
       return { meta: m, progresso: p };
     })
     .filter((x) => x.progresso.faixa === "alerta" || x.progresso.faixa === "estouro");
   const folga = folgaDoPeriodo(metas, transacoes, competencia);
-  const aPagar = compromissosAPagar(compromissos).filter((c) => {
+  const aPagarComp = compromissosAPagar(compromissos).filter((c) => {
     const [ano, mes] = c.venceEm.split("-").map(Number);
     return (ano ?? 0) < competencia.ano || ((ano ?? 0) === competencia.ano && (mes ?? 0) <= competencia.mes);
   });
 
-  async function lancarFixo(id: string) {
-    if (!lancarDespesaFixa) return;
-    try {
-      await lancarDespesaFixa(id, competencia);
-    } catch {
-      /* o aviso vive em Fixos; aqui o mês só tenta lançar */
-    }
-  }
+  const linhas = useMemo(() => {
+    return doMes
+      .slice()
+      .reverse()
+      .map((t) => {
+        const pago = eLancamentoPago(t, transacoes, despesasFixas ?? []);
+        return { t, pago };
+      })
+      .filter(({ pago }) => {
+        switch (filtro) {
+          case "todos":
+            return true;
+          case "pagos":
+            return pago;
+          case "a_pagar":
+            return !pago;
+          default: {
+            const _nunca: never = filtro;
+            return _nunca;
+          }
+        }
+      });
+  }, [doMes, transacoes, despesasFixas, filtro]);
 
   return (
     <div>
@@ -136,14 +158,14 @@ export function Mes() {
         )}
       </div>
 
-      {aPagar.length > 0 && (
+      {aPagarComp.length > 0 && (
         <div className="mt-8 px-4">
-          <Rotulo>a pagar</Rotulo>
+          <Rotulo>compromissos</Rotulo>
           <p className="mt-1 text-[12px] text-cinza">
-            Compromisso já lançado. Liquidar só escolhe a origem.
+            Já lançados. Na lista do mês, deslize para marcar pago.
           </p>
           <div className="mt-2">
-            {aPagar.map((c) => (
+            {aPagarComp.map((c) => (
               <LinhaLista
                 key={c.id}
                 titulo={c.nome}
@@ -157,79 +179,78 @@ export function Mes() {
         </div>
       )}
 
-      {projetados.length > 0 && (
-        <div className="mt-8 px-4">
-          <Rotulo>projetado</Rotulo>
-          <p className="mt-1 text-[12px] text-cinza">
-            Vence ou entra neste mês. Lançar não duplica a competência.
-          </p>
-          <div className="mt-2">
-            {projetados.map((v) => {
-              const cat = categoriaPorId(v.fixa.categoriaID, categorias);
-              const receitaFixa = v.fixa.tipo === "receita";
-              return (
-                <div
-                  key={v.fixa.id}
-                  className="flex min-h-[44px] items-center gap-3 border-b border-nevoa py-3"
-                >
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-[14px] text-grafite">{v.fixa.nome}</span>
-                    <span className="block truncate text-[12px] text-cinza">
-                      {receitaFixa ? "receita" : "gasto"} · dia {Number(v.venceEm.slice(-2))}
-                      {cat ? ` · ${cat.nome}` : ""}
-                    </span>
-                  </span>
-                  <Numero centavos={v.fixa.valor} tamanho="corpo" />
-                  <button
-                    type="button"
-                    onClick={() => void lancarFixo(v.fixa.id)}
-                    className="shrink-0 text-[14px] font-semibold text-grafite"
-                  >
-                    Lançar
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {doMes.length === 0 ? (
-        projetados.length === 0 && aPagar.length === 0 ? (
+        aPagarComp.length === 0 ? (
           <Vazio frase="Nenhum gasto este mês. Toque em + para registrar o primeiro." />
         ) : null
       ) : (
         <div className="mt-8 px-4">
-          <Rotulo>hoje</Rotulo>
+          <Rotulo>lançamentos</Rotulo>
+          <div className="mt-2 flex gap-2" role="group" aria-label="Filtro dos lançamentos">
+            <Etiqueta ativa={filtro === "todos"} aoClicar={() => setFiltro("todos")}>
+              Todos
+            </Etiqueta>
+            <Etiqueta ativa={filtro === "pagos"} aoClicar={() => setFiltro("pagos")}>
+              Pagos
+            </Etiqueta>
+            <Etiqueta ativa={filtro === "a_pagar"} aoClicar={() => setFiltro("a_pagar")}>
+              A pagar
+            </Etiqueta>
+          </div>
           <div className="mt-2">
-            {doMes
-              .slice()
-              .reverse()
-              .map((t) => {
+            {linhas.length === 0 ? (
+              <p className="py-4 text-[14px] text-cinza">
+                {filtro === "pagos" ? "Nenhum pago neste mês." : "Nada a pagar neste mês."}
+              </p>
+            ) : (
+              linhas.map(({ t, pago }) => {
                 const cat = categoriaPorId(t.categoriaID, categorias);
                 const quem =
                   mostraPagador ? indicadorPagador(t.pagadorID, membros ?? [], usuarioID) : null;
+                const origem = origemDaTransacao(t, contas, cartoes);
                 const papel = t.tipo === "receita" ? "receita" : (cat?.nome ?? "Sem categoria");
-                const base =
-                  t.parcelaTotal > 1
-                    ? `${papel} · ${t.parcelaN}/${t.parcelaTotal}`
-                    : t.tipo === "receita"
-                      ? `${papel}${cat ? ` · ${cat.nome}` : ""}`
-                      : t.status === "a_pagar"
-                      ? `${papel} · a pagar`
-                      : papel;
+                const partes = [
+                  papel,
+                  t.parcelaTotal > 1 ? `${t.parcelaN}/${t.parcelaTotal}` : null,
+                  origem?.nome,
+                  quem,
+                ].filter(Boolean);
                 return (
-                  <LinhaLista
+                  <LinhaDeslizavel
                     key={t.id}
-                    href={`/lancamentos/${t.id}`}
-                    titulo={t.descricao || cat?.nome || "Sem descrição"}
-                    subtitulo={quem ? `${base} · ${quem}` : base}
-                    valor={t.valor}
-                  />
+                    desabilitado={pago}
+                    acao={
+                      pago || !liquidarLancamento
+                        ? undefined
+                        : { rotulo: "Pago", aoClicar: () => setPagando(t) }
+                    }
+                  >
+                    <LinhaLista
+                      href={`/lancamentos/${t.id}`}
+                      titulo={t.descricao || cat?.nome || "Sem descrição"}
+                      subtitulo={partes.join(" · ")}
+                      valor={t.valor}
+                      cor={origem?.cor}
+                      pago={pago}
+                      semBorda
+                    />
+                  </LinhaDeslizavel>
                 );
-              })}
+              })
+            )}
           </div>
         </div>
+      )}
+
+      {pagando && liquidarLancamento && (
+        <ModalPagar
+          descricao={pagando.descricao}
+          valor={pagando.valor}
+          contaID={pagando.contaID}
+          cartaoID={pagando.cartaoID}
+          aoFechar={() => setPagando(null)}
+          aoConfirmar={(origem) => liquidarLancamento({ id: pagando.id, ...origem })}
+        />
       )}
     </div>
   );

@@ -150,6 +150,7 @@ describe("transacoesDoLancamento", () => {
     });
     expect(txs).toHaveLength(3);
     expect(txs.every((t) => t.pagadorID === "u2")).toBe(true);
+    expect(txs.every((t) => t.descricao === "Sofá")).toBe(true);
   });
 
   it("grava receita positiva na conta, sem cartão", () => {

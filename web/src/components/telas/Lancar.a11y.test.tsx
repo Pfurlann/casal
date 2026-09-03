@@ -37,6 +37,7 @@ describe("Lancar — acessibilidade", () => {
   it("chega ao salvar percorrendo com Tab, sem ponteiro", async () => {
     montar();
     await userEvent.keyboard("1000");
+    await userEvent.type(screen.getByLabelText("Onde foi o gasto"), "Padaria");
     const salvar = screen.getByRole("button", { name: "Salvar" });
     for (let i = 0; i < 80 && document.activeElement !== salvar; i++) {
       await userEvent.tab();
@@ -47,13 +48,14 @@ describe("Lancar — acessibilidade", () => {
   it("dá rótulo acessível a cada tecla, inclusive as de símbolo", () => {
     montar();
     expect(screen.getByRole("button", { name: "Apagar último dígito" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mais opções" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mais opções" })).toBeNull();
   });
 
-  it("mostra forma de pagamento e data sem abrir mais opções", () => {
+  it("mostra forma de pagamento, data e descrição sem abrir mais opções", () => {
     montar();
     expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
     expect(screen.getByLabelText("Data do lançamento")).toBeInTheDocument();
+    expect(screen.getByLabelText("Onde foi o gasto")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Tipo de lançamento" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();
   });

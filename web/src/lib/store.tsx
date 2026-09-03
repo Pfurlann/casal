@@ -38,12 +38,14 @@ import {
 } from "./domain";
 import { COR_CATEGORIA_CUSTOM } from "./categorias";
 import { liquidarCompromisso as aplicarLiquidacao, transacaoDoCompromisso } from "./compromissos";
-import { jaLancada, transacaoDaFixa } from "./despesas-fixas";
+import { gerarLancamentosFixos, liquidarLancamento as aplicarLiquidacaoLancamento } from "./despesas-fixas";
+import { COR_ORIGEM_PADRAO, corValida } from "./origem";
 import { aplicarGastoNaReserva } from "./metas";
 import { pagadorPadrao } from "./pagador";
 import { clienteSupabase } from "./supabase";
 import { colunasDoPrograma, programaDeColunas } from "./pontos";
 import { transacoesDoOfx, type LinhaImportacaoOfx } from "./ofx";
+import { cartaoDoLancamento, cartoesDaLoja, linhaDaTransacao } from "./persistir";
 import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
 import { cartoesAposApagar, eDonoDaOrigem, filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
 
@@ -124,6 +126,7 @@ function mapearConta(a: {
   arquivada?: boolean | null;
   dono_id?: string | null;
   visibilidade?: string | null;
+  cor?: string | null;
 }): Conta {
   return {
     id: a.id,
@@ -134,6 +137,7 @@ function mapearConta(a: {
     arquivada: Boolean(a.arquivada),
     donoID: a.dono_id ?? undefined,
     visibilidade: normalizarVisibilidadeOrigem(a.visibilidade),
+    cor: corValida(a.cor),
   };
 }
 
@@ -185,7 +189,13 @@ function mapearDespesaFixa(r: {
   account_id?: string | null;
   card_id?: string | null;
   tipo?: string | null;
+  parcelas?: number | null;
+  valores_parcelas?: number[] | null;
 }): DespesaFixa {
+  const parcelas = r.parcelas && r.parcelas > 1 ? r.parcelas : undefined;
+  const valores = Array.isArray(r.valores_parcelas)
+    ? r.valores_parcelas.filter((v) => Number.isInteger(v) && v > 0)
+    : undefined;
   return {
     id: r.id,
     carteiraID: r.wallet_id,
@@ -196,6 +206,8 @@ function mapearDespesaFixa(r: {
     contaID: r.account_id ?? undefined,
     cartaoID: r.card_id ?? undefined,
     tipo: r.tipo === "receita" ? "receita" : "despesa",
+    parcelas,
+    valoresParcelas: parcelas && valores && valores.length === parcelas ? valores : undefined,
   };
 }
 
@@ -268,28 +280,6 @@ function linhaDaMeta(m: Meta) {
     alocado_centavos: m.alocado ?? 0,
     deleted_at: null,
     updated_at: new Date().toISOString(),
-  };
-}
-
-function linhaDaTransacao(t: Transacao) {
-  return {
-    id: t.id,
-    wallet_id: t.carteiraID,
-    tipo: t.tipo,
-    valor_centavos: t.valor,
-    data: t.data,
-    category_id: t.categoriaID ?? null,
-    descricao: t.descricao,
-    account_id: t.contaID ?? null,
-    card_id: t.cartaoID ?? null,
-    invoice_id: t.faturaID ?? null,
-    pagador_id: t.pagadorID ?? null,
-    hash_dedup: t.hashDedup,
-    grupo_parcela: t.grupoParcela ?? null,
-    parcela_n: t.parcelaN,
-    parcela_total: t.parcelaTotal,
-    status: t.status ?? "liquidado",
-    goal_id: t.metaID ?? null,
   };
 }
 
@@ -366,6 +356,7 @@ function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
       saldoInicial: 0,
       arquivada: false,
       visibilidade: visibilidadePadraoDaCarteira(carteira),
+      cor: COR_ORIGEM_PADRAO,
     },
   ];
   return {
@@ -484,6 +475,12 @@ type Loja = Estado & {
   salvarDespesaFixa: (f: DespesaFixa) => Promise<void>;
   apagarDespesaFixa: (id: string) => Promise<void>;
   lancarDespesaFixa: (id: string, competencia?: Competencia) => Promise<void>;
+  liquidarLancamento: (p: {
+    id: string;
+    contaID?: string;
+    cartaoID?: string;
+    metaID?: string;
+  }) => Promise<void>;
   salvarCategoria: (c: Categoria) => Promise<void>;
   apagarCategoria: (id: string) => Promise<void>;
   salvarMeta: (m: Meta) => Promise<void>;
@@ -751,9 +748,23 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         ? { codigo: convites.data[0].codigo as string, expiraEm: convites.data[0].expira_em as string }
         : null,
     };
-    persistirLocal(proximo);
-    setEstado(proximo);
+    const geradas = gerarLancamentosFixos(
+      proximo.despesasFixas,
+      proximo.transacoes,
+      competenciaDe(new Date()),
+      proximo.cartoesTodos ?? proximo.cartoes,
+    ).map((t) => ({ ...t, pagadorID: usuario?.id }));
+    const final =
+      geradas.length === 0
+        ? proximo
+        : { ...proximo, transacoes: [...proximo.transacoes, ...geradas] };
+    persistirLocal(final);
+    setEstado(final);
     setPronto(true);
+    if (geradas.length > 0) {
+      const { error } = await sb.from("transactions").insert(geradas.map(linhaDaTransacao));
+      if (error && error.code !== "23505") console.error(error);
+    }
   }, [sb, localKey, persistirLocal, usuario]);
 
   useEffect(() => {
@@ -825,6 +836,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       ...c,
       donoID: c.donoID ?? usuario?.id,
       visibilidade: c.visibilidade ?? visibilidadePadraoDaCarteira(estado.carteira),
+      cor: corValida(c.cor),
     };
     const contasTodas = mesclarPorId(estado.contasTodas ?? estado.contas, gravada).filter((x) => !x.arquivada);
     const contas = filtrarOrigensDaCarteira(contasTodas, estado.carteira, usuario?.id);
@@ -839,15 +851,37 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         arquivada: gravada.arquivada,
         dono_id: gravada.donoID,
         visibilidade: gravada.visibilidade,
+        cor: corValida(gravada.cor),
         updated_at: new Date().toISOString(),
       });
     }
   };
 
+  const persistirNovasTransacoes = async (novas: Transacao[]) => {
+    if (novas.length === 0) return;
+    if (!sb) return;
+    const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
+    if (error && error.code !== "23505") throw error;
+  };
+
+  const mesclarFixosNoEstado = (base: Estado, pagadorID?: string): { estado: Estado; novas: Transacao[] } => {
+    const desde = competenciaDe(new Date());
+    const novas = gerarLancamentosFixos(
+      base.despesasFixas ?? [],
+      base.transacoes,
+      desde,
+      base.cartoesTodos ?? base.cartoes,
+    ).map((t) => ({ ...t, pagadorID: pagadorID ?? t.pagadorID }));
+    if (novas.length === 0) return { estado: base, novas };
+    return { estado: { ...base, transacoes: [...base.transacoes, ...novas] }, novas };
+  };
+
   const salvarDespesaFixa = async (f: DespesaFixa) => {
     const despesasFixasTodas = mesclarPorId(estado.despesasFixasTodas ?? estado.despesasFixas ?? [], f);
     const despesasFixas = despesasFixasTodas.filter((x) => x.carteiraID === estado.carteira.id);
-    await commit({ ...estado, despesasFixasTodas, despesasFixas });
+    const base = { ...estado, despesasFixasTodas, despesasFixas };
+    const { estado: proximo, novas } = mesclarFixosNoEstado(base, usuario?.id);
+    await commit(proximo);
     if (sb) {
       const { error } = await sb.from("fixed_expenses").upsert({
         id: f.id,
@@ -859,10 +893,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         account_id: f.cartaoID ? null : f.contaID ?? null,
         card_id: f.tipo === "receita" ? null : f.cartaoID ?? null,
         tipo: f.tipo === "receita" ? "receita" : "despesa",
+        parcelas: f.parcelas && f.parcelas > 1 ? f.parcelas : 1,
+        valores_parcelas: f.parcelas && f.parcelas > 1 ? (f.valoresParcelas ?? null) : null,
         deleted_at: null,
         updated_at: new Date().toISOString(),
       });
       if (error) throw error;
+      await persistirNovasTransacoes(novas);
     }
   };
 
@@ -940,30 +977,58 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const lancarDespesaFixa = async (id: string, competencia?: Competencia) => {
     const fixa = (estado.despesasFixas ?? []).find((f) => f.id === id);
     if (!fixa) throw new Error("despesa fixa não encontrada");
-    const c = competencia ?? competenciaDe(new Date());
-    if (jaLancada(estado.transacoes, fixa.id, c)) return;
-    const tx = { ...transacaoDaFixa(fixa, c), pagadorID: usuario?.id };
-    await commit({ ...estado, transacoes: [...estado.transacoes, tx] });
-    if (sb) {
-      const { error } = await sb.from("transactions").insert({
-        id: tx.id,
-        wallet_id: tx.carteiraID,
-        tipo: tx.tipo,
-        valor_centavos: tx.valor,
-        data: tx.data,
-        category_id: tx.categoriaID ?? null,
-        descricao: tx.descricao,
-        account_id: tx.contaID ?? null,
-        card_id: tx.cartaoID ?? null,
-        pagador_id: tx.pagadorID ?? null,
-        hash_dedup: tx.hashDedup,
-        parcela_n: tx.parcelaN,
-        parcela_total: tx.parcelaTotal,
+    const desde = competencia ?? competenciaDe(new Date());
+    const novas = gerarLancamentosFixos(
+      [fixa],
+      estado.transacoes,
+      desde,
+      estado.cartoesTodos ?? estado.cartoes,
+    ).map((t) => ({ ...t, pagadorID: usuario?.id }));
+    if (novas.length === 0) return;
+    await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
+    await persistirNovasTransacoes(novas);
+  };
+
+  const liquidarLancamento: Loja["liquidarLancamento"] = async ({
+    id,
+    contaID,
+    cartaoID,
+    metaID,
+  }) => {
+    const compromisso = (estado.compromissos ?? []).find((c) => c.transacaoID === id);
+    if (compromisso) {
+      await liquidarCompromisso({ id: compromisso.id, contaID, cartaoID, metaID });
+      return;
+    }
+    const alvo = estado.transacoes.find((t) => t.id === id);
+    if (!alvo) throw new Error("lançamento não encontrado");
+    const transacao = aplicarLiquidacaoLancamento(alvo, { contaID, cartaoID });
+    let metasTodas = estado.metasTodas ?? estado.metas ?? [];
+    if (contaID) {
+      metasTodas = aplicarGastoNaReserva(metasTodas, {
+        valor: transacao.valor,
+        contaID,
+        metaID,
       });
-      if (error) {
-        if (error.code === "23505") return;
-        throw error;
-      }
+    }
+    const metas = metasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    const transacoes = estado.transacoes.map((t) => (t.id === transacao.id ? transacao : t));
+    await commit({ ...estado, transacoes, metasTodas, metas });
+    if (sb) {
+      const agora = new Date().toISOString();
+      const { error } = await sb.from("transactions").update({
+        account_id: transacao.contaID ?? null,
+        card_id: transacao.cartaoID ?? null,
+        status: "liquidado",
+        goal_id: transacao.metaID ?? metaID ?? null,
+        updated_at: agora,
+      }).eq("id", transacao.id);
+      if (error) throw error;
+      const mudou = metasTodas.filter((m) => {
+        const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
+        return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
+      });
+      await persistirMetas(mudou);
     }
   };
 
@@ -984,9 +1049,14 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     tipo,
     metaID,
   }) => {
-    const cartao = tipo === "receita"
-      ? undefined
-      : (estado.cartoesTodos ?? estado.cartoes).find((c) => c.id === cartaoID);
+    const cartao = cartaoDoLancamento(
+      cartaoID,
+      tipo,
+      cartoesDaLoja(estado.cartoesTodos, estado.cartoes),
+    );
+    if (cartaoID && tipo !== "receita" && !cartao) {
+      throw new Error("Não achei esse cartão.");
+    }
     const novas = transacoesDoLancamento({
       valor,
       categoriaID,
@@ -1014,7 +1084,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     const metas = metasTodas.filter((x) => x.carteiraID === estado.carteira.id);
     await commit({ ...estado, transacoes: [...estado.transacoes, ...novas], metasTodas, metas });
     if (sb) {
-      await sb.from("transactions").insert(novas.map(linhaDaTransacao));
+      await persistirNovasTransacoes(novas);
       const mudou = metasTodas.filter((m) => {
         const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
         return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
@@ -1542,6 +1612,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     salvarCompromisso,
     apagarCompromisso,
     liquidarCompromisso,
+    liquidarLancamento,
     importarOfx,
   };
 

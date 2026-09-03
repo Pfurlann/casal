@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { dataDeLocalISO, dataLocalISO } from "@/lib/domain";
+import { dataDeLocalISO, dataLocalISO, transacoesDoLancamento } from "@/lib/domain";
 import { Lancar } from "./Lancar";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -87,6 +87,12 @@ function montar(opts?: {
   );
 }
 
+async function informarDescricao(texto = "Padaria") {
+  const campo =
+    screen.queryByLabelText("Onde foi o gasto") ?? screen.getByLabelText("De onde veio");
+  await userEvent.type(campo, texto);
+}
+
 describe("Lancar", () => {
   it("mostra a carteira atual em que o gasto entra", () => {
     montar();
@@ -103,7 +109,19 @@ describe("Lancar", () => {
     montar();
     await userEvent.keyboard("21490");
     expect(screen.getByText(/214/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await informarDescricao();
     expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
+  });
+
+  it("não habilita Salvar sem descrição, mesmo com valor e origem", async () => {
+    montar();
+    expect(screen.getByLabelText("Onde foi o gasto")).toBeInTheDocument();
+    await userEvent.keyboard("1000");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    expect(screen.getByText("Diz onde foi o gasto.")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Onde foi o gasto"), "   ");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
   });
 
   it("grava o lançamento na conta padrão com a categoria escolhida", async () => {
@@ -111,11 +129,13 @@ describe("Lancar", () => {
     montar();
     await userEvent.keyboard("1000");
     await userEvent.click(screen.getByRole("button", { name: /Restaurante/ }));
+    await informarDescricao("Almoço");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
       expect.objectContaining({
         valor: 1000,
         categoriaID: "00000000-0000-0000-0000-000000000002",
+        descricao: "Almoço",
         contaID: CONTA.id,
         cartaoID: undefined,
         parcelas: 1,
@@ -139,9 +159,10 @@ describe("Lancar", () => {
       target: { value: "2026-08-15" },
     });
     await userEvent.keyboard("1000");
+    await informarDescricao();
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
-      expect.objectContaining({ data: dataDeLocalISO("2026-08-15") }),
+      expect.objectContaining({ data: dataDeLocalISO("2026-08-15"), descricao: "Padaria" }),
     );
   });
 
@@ -155,11 +176,13 @@ describe("Lancar", () => {
     expect(screen.getByLabelText("Conta que recebe")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /final 4417/ })).toBeNull();
     await userEvent.keyboard("850000");
+    await informarDescricao("Salário");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
       expect.objectContaining({
         valor: 850000,
         tipo: "receita",
+        descricao: "Salário",
         categoriaID: "00000000-0000-0000-0000-000000000013",
         contaID: CONTA.id,
         cartaoID: undefined,
@@ -214,6 +237,7 @@ describe("Lancar", () => {
     lancar.fn.mockRejectedValueOnce(new Error("rede"));
     montar();
     await userEvent.keyboard("1000");
+    await informarDescricao();
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText(/Não deu para salvar/)).toBeInTheDocument();
     expect(empurrar).not.toHaveBeenCalled();
@@ -236,20 +260,20 @@ describe("Lancar", () => {
     expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
     expect(screen.getByRole("link", { name: "Cadastrar conta" })).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await informarDescricao("Farmácia");
     expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
   });
 
-  it("abre mais opções no lugar do teclado, só com a descrição", async () => {
+  it("pede a descrição na tela principal, sem enterrar em mais opções", async () => {
     montar({ cartoes: [CARTAO] });
-    await userEvent.keyboard("10000");
-    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
-    expect(screen.getByRole("heading", { name: "mais opções" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
     expect(screen.getByLabelText("Onde foi o gasto")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Forma de pagamento")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
-    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mais opções" })).toBeNull();
     expect(screen.getByRole("heading", { name: "novo gasto" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Receita" }));
+    expect(screen.getByLabelText("De onde veio")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Onde foi o gasto")).toBeNull();
   });
 
   it("escolhe cartão e parcelas na tela principal, sem abrir mais opções", async () => {
@@ -272,16 +296,45 @@ describe("Lancar", () => {
     await userEvent.keyboard("300000");
     await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
     await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "12");
+    await informarDescricao("Sofá");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
       expect.objectContaining({
         valor: 300000,
+        descricao: "Sofá",
         cartaoID: CARTAO.id,
         contaID: undefined,
         parcelas: 12,
         tipo: "despesa",
       }),
     );
+  });
+
+  it("no cartão 3x grava a mesma descrição para o grupo", async () => {
+    lancar.fn.mockClear();
+    montar({ cartoes: [CARTAO] });
+    await userEvent.keyboard("9000");
+    await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
+    await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "3");
+    await informarDescricao("Sofá");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    const payload = lancar.fn.mock.calls[0]?.[0] as {
+      valor: number;
+      descricao: string;
+      data: Date;
+      parcelas: number;
+    };
+    expect(payload).toMatchObject({ descricao: "Sofá", cartaoID: CARTAO.id, parcelas: 3 });
+    const txs = transacoesDoLancamento({
+      valor: payload.valor,
+      descricao: payload.descricao,
+      data: payload.data,
+      cartao: CARTAO,
+      parcelas: payload.parcelas,
+      carteiraID: "c1",
+    });
+    expect(txs).toHaveLength(3);
+    expect(txs.every((t) => t.descricao === "Sofá")).toBe(true);
   });
 
   it("na conjunta, quem pagou começa no usuário logado", async () => {
@@ -294,6 +347,7 @@ describe("Lancar", () => {
     expect(screen.getByLabelText("Quem pagou")).toHaveValue("u1");
     expect(screen.getByRole("option", { name: "Você" })).toBeInTheDocument();
     await userEvent.keyboard("1000");
+    await informarDescricao();
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(expect.objectContaining({ pagadorID: "u1" }));
   });
@@ -354,6 +408,7 @@ describe("Lancar", () => {
     });
     await userEvent.selectOptions(screen.getByLabelText("Quem pagou"), "u2");
     await userEvent.keyboard("1000");
+    await informarDescricao();
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(expect.objectContaining({ pagadorID: "u2" }));
   });
@@ -373,9 +428,10 @@ describe("Lancar", () => {
     expect(screen.getByRole("button", { name: /Pet/ })).toBeInTheDocument();
     await userEvent.keyboard("1000");
     await userEvent.click(screen.getByRole("button", { name: /Pet/ }));
+    await informarDescricao("Ração");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
-      expect.objectContaining({ categoriaID: "cat-pet", tipo: "despesa", valor: 1000 }),
+      expect.objectContaining({ categoriaID: "cat-pet", tipo: "despesa", valor: 1000, descricao: "Ração" }),
     );
   });
 
@@ -424,9 +480,10 @@ describe("Lancar", () => {
       `reserva:${CONTA.id}:v1`,
     );
     await userEvent.keyboard("1000");
+    await informarDescricao("Passagem");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
-      expect.objectContaining({ contaID: CONTA.id, metaID: "v1", valor: 1000 }),
+      expect.objectContaining({ contaID: CONTA.id, metaID: "v1", valor: 1000, descricao: "Passagem" }),
     );
   });
 

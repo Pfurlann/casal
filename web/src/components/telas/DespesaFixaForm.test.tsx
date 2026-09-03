@@ -148,6 +148,28 @@ describe("DespesaFixaForm", () => {
     expect(empurrar).toHaveBeenCalledWith("/mais/fixas");
   });
 
+  it("grava financiamento com valor por parcela", async () => {
+    const salvar = vi.fn().mockResolvedValue(undefined);
+    montar({ salvarDespesaFixa: salvar });
+    await userEvent.type(screen.getByLabelText("Nome"), "Carro");
+    await userEvent.click(screen.getByRole("button", { name: /Transporte/ }));
+    await userEvent.keyboard("120000");
+    await userEvent.click(screen.getByRole("button", { name: "Parcelar" }));
+    expect(screen.getByLabelText("Número de parcelas")).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Número de parcelas"), "3");
+    expect(screen.getByLabelText("Valores das parcelas")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Parcela 1 de 3" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Parcela 3 de 3" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(salvar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nome: "Carro",
+        parcelas: 3,
+        valoresParcelas: [120_000, 120_000, 120_000],
+      }),
+    );
+  });
+
   it("mostra o + para criar categoria além das sugeridas", () => {
     montar();
     expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();

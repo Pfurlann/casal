@@ -14,6 +14,7 @@ import { ROTULO_VISIBILIDADE_ORIGEM } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Curva } from "../ui/Curva";
 import { LinhaLista } from "../ui/LinhaLista";
+import { BolinhaCor } from "../ui/SeletorCor";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { Vazio } from "../ui/Vazio";
@@ -93,6 +94,7 @@ export function Cartoes() {
         {itens.map((t) => (
           <LinhaLista
             key={t.cartao.id}
+            icone={<BolinhaCor cor={t.cartao.cor} />}
             titulo={`${t.cartao.banco} · ${t.cartao.apelido}`}
             subtitulo={`${t.cartao.visibilidade ? `${ROTULO_VISIBILIDADE_ORIGEM[t.cartao.visibilidade]} · ` : ""}fecha ${t.fecha} · vence ${t.vence} · próx. ${formatarBRL(t.proxima)}`}
             valor={t.total}

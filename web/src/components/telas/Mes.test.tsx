@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Mes } from "./Mes";
-import { competenciaDe } from "@/lib/domain";
+import { CORES_CARTAO } from "@/lib/domain";
 import { hashDedupFixa } from "@/lib/despesas-fixas";
+import { ProvedorAviso } from "../ui/Aviso";
 
 const loja = vi.hoisted(() => ({ valor: {} as Record<string, unknown> }));
 vi.mock("@/lib/store", async (original) => {
@@ -12,37 +13,60 @@ vi.mock("@/lib/store", async (original) => {
 });
 
 const CARTEIRA = { id: "c1", nome: "Nosso", cor: "grafite", rotulo: "compartilhada", visibilidade: "aberta" };
+const CONTA = {
+  id: "a1",
+  carteiraID: "c1",
+  nome: "Corrente",
+  tipo: "corrente" as const,
+  saldoInicial: 0,
+  arquivada: false,
+  cor: CORES_CARTAO[0],
+};
 
 function despesa(valor: number, descricao: string, categoriaID: string, id = crypto.randomUUID()) {
   return {
     id,
     carteiraID: "c1",
-    tipo: "despesa",
+    tipo: "despesa" as const,
     valor,
     data: new Date().toISOString(),
     categoriaID,
     descricao,
+    contaID: "a1",
     hashDedup: "",
     parcelaN: 1,
     parcelaTotal: 1,
+    status: "liquidado" as const,
   };
+}
+
+function montar(extra: Record<string, unknown> = {}) {
+  loja.valor = {
+    carteira: CARTEIRA,
+    cartoes: [],
+    contas: [CONTA],
+    faturas: [],
+    transacoes: [],
+    ...extra,
+  };
+  return render(
+    <ProvedorAviso>
+      <Mes />
+    </ProvedorAviso>,
+  );
 }
 
 describe("Mes", () => {
   it("soma só as despesas do mês corrente", () => {
     const mesPassado = new Date();
     mesPassado.setMonth(mesPassado.getMonth() - 1);
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+    montar({
       transacoes: [
         despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001"),
         despesa(1800, "Padaria", "00000000-0000-0000-0000-000000000001"),
         { ...despesa(50000, "Antigo", "00000000-0000-0000-0000-000000000001"), data: mesPassado.toISOString() },
       ],
-    };
-    render(<Mes />);
+    });
     expect(
       screen.getByText((_, el) => el?.textContent === "R$ 232,90" && el.className.includes("text-[36px]")),
     ).toBeInTheDocument();
@@ -50,14 +74,11 @@ describe("Mes", () => {
   });
 
   it("lista os lançamentos do mês com a categoria", () => {
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+    montar({
       transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1")],
-    };
-    render(<Mes />);
-    expect(screen.getAllByText("Mercado").length).toBeGreaterThanOrEqual(2);
+    });
+    expect(screen.getByRole("link", { name: /Mercado/ })).toBeInTheDocument();
+    expect(screen.getByText(/Corrente/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Mercado/ })).toHaveAttribute(
       "href",
       "/lancamentos/tx-1",
@@ -65,27 +86,19 @@ describe("Mes", () => {
   });
 
   it("mostra o estado vazio quando não houve gasto", () => {
-    loja.valor = { carteira: CARTEIRA, cartoes: [], faturas: [], transacoes: [] };
-    render(<Mes />);
+    montar();
     expect(screen.getByText(/Nenhum gasto/)).toBeInTheDocument();
   });
 
   it("não usa gradiente em nenhuma superfície", () => {
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+    const { container } = montar({
       transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001")],
-    };
-    const { container } = render(<Mes />);
+    });
     expect(container.innerHTML).not.toContain("gradient");
   });
 
   it("na conjunta, marca quem pagou quando não é óbvio", () => {
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+    montar({
       membros: [
         { userId: "u1", email: "eu@casa.br", papel: "dono" },
         { userId: "u2", email: "ana@casa.br", papel: "membro" },
@@ -94,9 +107,8 @@ describe("Mes", () => {
       transacoes: [
         { ...despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1"), pagadorID: "u2" },
       ],
-    };
-    render(<Mes />);
-    expect(screen.getByText(/Mercado · AN/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Mercado · Corrente · AN/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Mercado/ })).toHaveAttribute(
       "href",
       "/lancamentos/tx-1",
@@ -104,105 +116,74 @@ describe("Mes", () => {
   });
 
   it("na pessoal, não mostra quem pagou", () => {
-    loja.valor = {
+    montar({
       carteira: { ...CARTEIRA, nome: "Meu", rotulo: "pessoal", visibilidade: "fechada" },
-      cartoes: [],
-      faturas: [],
       membros: [{ userId: "u1", email: "eu@casa.br", papel: "dono" }],
       usuarioID: "u1",
       transacoes: [
         { ...despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001"), pagadorID: "u1" },
       ],
-    };
-    render(<Mes />);
+    });
     expect(screen.queryByText(/você/)).toBeNull();
   });
 
-  it("mostra despesas fixas do mês ainda sem lançamento", () => {
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
-      transacoes: [],
-      despesasFixas: [
+  it("filtra pagos e a pagar", async () => {
+    montar({
+      transacoes: [
+        despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-pago"),
         {
-          id: "f1",
-          carteiraID: "c1",
-          nome: "Aluguel",
-          valor: 250_000,
-          categoriaID: "00000000-0000-0000-0000-000000000005",
-          diaVencimento: 10,
-          contaID: "a1",
-          tipo: "despesa",
+          ...despesa(250_000, "Aluguel", "00000000-0000-0000-0000-000000000005", "tx-apagar"),
+          status: "a_pagar",
+          hashDedup: hashDedupFixa("f1", { ano: new Date().getFullYear(), mes: new Date().getMonth() + 1 }),
         },
       ],
-      lancarDespesaFixa: vi.fn(),
-    };
-    render(<Mes />);
+    });
     expect(screen.getByText("Aluguel")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Lançar" })).toBeInTheDocument();
+    expect(screen.getByText("Mercado", { selector: "span" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Pagos" }));
+    expect(screen.queryByText("Aluguel")).toBeNull();
+    expect(screen.getByRole("link", { name: /Mercado/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "A pagar" }));
+    expect(screen.getByText("Aluguel")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Mercado/ })).toBeNull();
   });
 
-  it("mostra receita projetada à parte do gasto e não relança competência", async () => {
-    const lancar = vi.fn().mockResolvedValue(undefined);
-    const c = competenciaDe(new Date());
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+  it("swipe de a pagar abre modal e escolhe origem", async () => {
+    const liquidar = vi.fn().mockResolvedValue(undefined);
+    montar({
+      contas: [CONTA],
+      contasTodas: [CONTA],
+      liquidarLancamento: liquidar,
       transacoes: [
         {
-          id: "t-sal",
-          carteiraID: "c1",
-          tipo: "receita",
-          valor: 850_000,
-          data: new Date().toISOString(),
-          categoriaID: "00000000-0000-0000-0000-000000000013",
-          descricao: "Salário",
-          hashDedup: hashDedupFixa("f-sal", c),
-          parcelaN: 1,
-          parcelaTotal: 1,
+          ...despesa(250_000, "Aluguel", "00000000-0000-0000-0000-000000000005", "tx-apagar"),
+          status: "a_pagar",
+          contaID: undefined,
         },
       ],
-      despesasFixas: [
-        {
-          id: "f-sal",
-          carteiraID: "c1",
-          nome: "Salário",
-          valor: 850_000,
-          categoriaID: "00000000-0000-0000-0000-000000000013",
-          diaVencimento: 5,
-          contaID: "a1",
-          tipo: "receita",
-        },
-        {
-          id: "f-luz",
-          carteiraID: "c1",
-          nome: "Luz",
-          valor: 20_000,
-          categoriaID: "00000000-0000-0000-0000-000000000005",
-          diaVencimento: 10,
-          contaID: "a1",
-          tipo: "despesa",
-        },
-      ],
-      lancarDespesaFixa: lancar,
-    };
-    render(<Mes />);
-    expect(screen.getByText("receita neste mês")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Lançar" })).toBeTruthy();
-    expect(screen.getByText("Luz")).toBeInTheDocument();
-    expect(screen.getAllByText("Salário").length).toBeGreaterThanOrEqual(1);
-    await userEvent.click(screen.getByRole("button", { name: "Lançar" }));
-    expect(lancar).toHaveBeenCalledWith("f-luz", c);
-    expect(lancar).not.toHaveBeenCalledWith("f-sal", expect.anything());
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Pago" }));
+    expect(screen.getByRole("dialog", { name: "Marcar pago" })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), "conta:a1");
+    await userEvent.click(screen.getByRole("button", { name: /Marcar pago/ }));
+    expect(liquidar).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "tx-apagar", contaID: "a1" }),
+    );
+  });
+
+  it("sinaliza a cor da conta na linha", () => {
+    const { container } = montar({
+      transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001")],
+    });
+    const bola = container.querySelector("[data-cor-origem]") as HTMLElement;
+    expect(bola).toBeTruthy();
+    expect(bola.style.background).toBeTruthy();
+    expect(screen.getByText(/Corrente/)).toBeInTheDocument();
+    expect(screen.getByLabelText("pago")).toBeInTheDocument();
   });
 
   it("alerta teto no limite ou estourado", () => {
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+    montar({
       transacoes: [despesa(45_000, "Mercado", "00000000-0000-0000-0000-000000000001")],
       metas: [
         {
@@ -216,19 +197,15 @@ describe("Mes", () => {
           ativa: true,
         },
       ],
-    };
-    render(<Mes />);
+    });
     expect(screen.getByText("Sobram R$ 50,00 no teto de Mercado.")).toBeInTheDocument();
   });
 
-  it("não deixa cor literal no marcador", () => {
-    loja.valor = {
-      carteira: CARTEIRA,
-      cartoes: [],
-      faturas: [],
+  it("hex só na bolinha da origem", () => {
+    const { container } = montar({
       transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001")],
-    };
-    const { container } = render(<Mes />);
-    expect(container.innerHTML).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+    });
+    const semBola = container.innerHTML.replace(/data-cor-origem[\s\S]*?>/g, ">");
+    expect(semBola).not.toMatch(/#[0-9a-fA-F]{3,8}/);
   });
 });

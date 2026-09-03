@@ -37,6 +37,8 @@ export type Conta = {
   arquivada: boolean;
   donoID?: string;
   visibilidade?: VisibilidadeOrigem;
+  /** Mesma paleta dos cartões (`CORES_CARTAO`). */
+  cor?: string;
 };
 
 /** usd = pontos por US$ 1 da fatura (IOF). brl = pontos por R$ 1 gasto. */
@@ -105,7 +107,7 @@ export type Transacao = {
   metaID?: string;
 };
 
-/** Compromisso mensal da carteira (gasto ou receita). Não vira lançamento sozinho. */
+/** Fixo mensal da carteira. Gera lançamentos no horizonte (ou até a última parcela). */
 export type DespesaFixa = {
   id: string;
   carteiraID: string;
@@ -116,6 +118,10 @@ export type DespesaFixa = {
   contaID?: string;
   cartaoID?: string;
   tipo: "despesa" | "receita";
+  /** 1 = todo mês; N = N competências com valor por parcela. */
+  parcelas?: number;
+  /** Centavos de cada parcela. Tamanho = `parcelas` quando N > 1. */
+  valoresParcelas?: Centavos[];
 };
 
 /** Teto por categoria, economia do mês ou objetivo de longo prazo. */

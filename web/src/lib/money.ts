@@ -48,11 +48,15 @@ export class EntradaValor {
     return this.centavos > 0;
   }
 
+  definir(centavos: number) {
+    const inteiro = Math.trunc(centavos);
+    this.magnitude = Math.abs(inteiro);
+    this.negativo = inteiro < 0;
+  }
+
   static deCentavos(centavos: number) {
     const e = new EntradaValor();
-    const inteiro = Math.trunc(centavos);
-    e.magnitude = Math.abs(inteiro);
-    e.negativo = inteiro < 0;
+    e.definir(centavos);
     return e;
   }
 }

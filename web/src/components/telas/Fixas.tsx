@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { competenciaDe, ROTULO_TIPO_CONTA } from "@/lib/domain";
 import { categoriaPorId } from "@/lib/categorias";
-import { vencimentosDoMes } from "@/lib/despesas-fixas";
+import { HORIZONTE_FIXOS, vencimentosDoMes } from "@/lib/despesas-fixas";
+import { formatarBRL } from "@/lib/money";
 import { useLoja } from "@/lib/store";
-import { useAviso } from "../ui/Aviso";
 import { Cabecalho } from "../ui/Cabecalho";
 import { LinhaLista } from "../ui/LinhaLista";
 import { Numero } from "../ui/Numero";
@@ -13,27 +13,9 @@ import { Rotulo } from "../ui/Rotulo";
 import { Vazio } from "../ui/Vazio";
 
 export function Fixas() {
-  const {
-    despesasFixas,
-    transacoes,
-    contas,
-    cartoes,
-    carteira,
-    categorias,
-    lancarDespesaFixa,
-  } = useLoja();
-  const { avisar } = useAviso();
+  const { despesasFixas, transacoes, contas, cartoes, carteira, categorias } = useLoja();
   const competencia = competenciaDe(new Date());
   const vencimentos = vencimentosDoMes(despesasFixas ?? [], transacoes, competencia);
-  const pendentes = vencimentos.filter((v) => !v.lancada).length;
-
-  async function lancar(id: string) {
-    try {
-      await lancarDespesaFixa(id, competencia);
-    } catch {
-      avisar("erro", "Não deu para lançar este fixo. Tente de novo.");
-    }
-  }
 
   function origem(fixa: (typeof vencimentos)[number]["fixa"]) {
     if (fixa.tipo === "receita") {
@@ -46,6 +28,18 @@ export function Fixas() {
     }
     const conta = contas.find((c) => c.id === fixa.contaID);
     return conta ? `${conta.nome} · ${ROTULO_TIPO_CONTA[conta.tipo]}` : "conta";
+  }
+
+  function detalhe(fixa: (typeof vencimentos)[number]["fixa"]) {
+    const n = fixa.parcelas ?? 1;
+    if (n > 1) {
+      const vals = fixa.valoresParcelas ?? [];
+      const distintos = new Set(vals).size > 1;
+      return distintos
+        ? `${n}x · valores diferentes`
+        : `${n}x de ${formatarBRL(vals[0] ?? fixa.valor)}`;
+    }
+    return `todo mês · ${HORIZONTE_FIXOS} meses à frente`;
   }
 
   return (
@@ -65,8 +59,8 @@ export function Fixas() {
       />
       <div className="px-4 pt-6">
         <p className="text-[12px] text-cinza">
-          Gastos e receitas de {carteira.nome} que se repetem ou já estão projetados. Lançar o
-          mês não apaga o cadastro.
+          Gastos e receitas de {carteira.nome} que se repetem. Os lançamentos nascem sozinhos no
+          mês atual e nos próximos {HORIZONTE_FIXOS} — ou até a última parcela.
         </p>
         {vencimentos.length === 0 ? (
           <Vazio
@@ -85,9 +79,7 @@ export function Fixas() {
             <div className="mt-6">
               <Rotulo>neste mês</Rotulo>
               <p className="mt-1 text-[12px] text-cinza">
-                {pendentes === 0
-                  ? "Todos já viraram lançamento neste mês."
-                  : `${pendentes} ainda sem lançamento`}
+                Já viraram lançamento. Na aba mês, deslize os a pagar para marcar pago.
               </p>
               <div className="mt-2">
                 {vencimentos.map((v) => {
@@ -104,22 +96,14 @@ export function Fixas() {
                       >
                         <span className="block truncate text-[14px] text-grafite">{v.fixa.nome}</span>
                         <span className="block truncate text-[12px] text-cinza">
-                          {receita ? "receita" : "gasto"} · vence dia {Number(v.venceEm.slice(-2))}
+                          {receita ? "receita" : "gasto"} · dia {Number(v.venceEm.slice(-2))}
                           {cat ? ` · ${cat.nome}` : ""}
                         </span>
                       </Link>
                       <Numero centavos={v.fixa.valor} tamanho="corpo" />
-                      {v.lancada ? (
-                        <span className="shrink-0 text-[12px] text-cinza">lançada</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void lancar(v.fixa.id)}
-                          className="shrink-0 text-[14px] font-semibold text-grafite"
-                        >
-                          Lançar
-                        </button>
-                      )}
+                      <span className="shrink-0 text-[12px] text-cinza">
+                        {v.lancada ? "no mês" : "gerando"}
+                      </span>
                     </div>
                   );
                 })}
@@ -132,7 +116,7 @@ export function Fixas() {
                   <LinhaLista
                     key={v.fixa.id}
                     titulo={v.fixa.nome}
-                    subtitulo={`${v.fixa.tipo === "receita" ? "receita" : "gasto"} · todo dia ${v.fixa.diaVencimento} · ${origem(v.fixa)}`}
+                    subtitulo={`${v.fixa.tipo === "receita" ? "receita" : "gasto"} · ${detalhe(v.fixa)} · ${origem(v.fixa)}`}
                     valor={v.fixa.valor}
                     href={`/mais/fixas/${v.fixa.id}`}
                   />

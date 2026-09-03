@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { competenciaDe, type DespesaFixa } from "@/lib/domain";
 import { hashDedupFixa } from "@/lib/despesas-fixas";
 import { Fixas } from "./Fixas";
@@ -39,7 +38,6 @@ function montar(extra: Record<string, unknown> = {}) {
     cartoes: [],
     transacoes: [],
     despesasFixas: [FIXA],
-    lancarDespesaFixa: vi.fn(),
     ...extra,
   };
   return render(
@@ -50,18 +48,15 @@ function montar(extra: Record<string, unknown> = {}) {
 }
 
 describe("Fixas", () => {
-  it("lista o cadastro mesmo sem lançamento no mês", () => {
+  it("lista o cadastro sem exigir toque de Lançar", () => {
     montar();
     expect(screen.getAllByText("Aluguel").length).toBeGreaterThanOrEqual(2);
-    const editar = screen.getAllByRole("link", { name: /Aluguel/ });
-    expect(editar.length).toBeGreaterThanOrEqual(2);
-    for (const link of editar) {
-      expect(link).toHaveAttribute("href", "/mais/fixas/f1");
-    }
-    expect(screen.getByRole("button", { name: "Lançar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lançar" })).toBeNull();
+    expect(screen.getByText(/nascem sozinhos/)).toBeInTheDocument();
+    expect(screen.getByText(/12 meses à frente/)).toBeInTheDocument();
   });
 
-  it("mostra lançada e esconde o botão quando a competência já tem gasto", () => {
+  it("mostra no mês quando a competência já tem gasto", () => {
     const c = competenciaDe(new Date());
     montar({
       transacoes: [
@@ -78,17 +73,22 @@ describe("Fixas", () => {
         },
       ],
     });
-    expect(screen.getByText("lançada")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Lançar" })).toBeNull();
+    expect(screen.getByText("no mês")).toBeInTheDocument();
     expect(screen.getAllByText("Aluguel").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("lança o mês sem tirar a linha do cadastro", async () => {
-    const lancar = vi.fn().mockResolvedValue(undefined);
-    montar({ lancarDespesaFixa: lancar });
-    await userEvent.click(screen.getByRole("button", { name: "Lançar" }));
-    expect(lancar).toHaveBeenCalledWith("f1", competenciaDe(new Date()));
-    expect(screen.getAllByRole("link", { name: /Aluguel/ }).length).toBeGreaterThanOrEqual(2);
+  it("mostra parcelas com valores diferentes no cadastro", () => {
+    montar({
+      despesasFixas: [
+        {
+          ...FIXA,
+          nome: "Financiamento",
+          parcelas: 4,
+          valoresParcelas: [120_000, 80_000, 80_000, 80_000],
+        },
+      ],
+    });
+    expect(screen.getByText(/4x · valores diferentes/)).toBeInTheDocument();
   });
 
   it("oferece cadastro no estado vazio", () => {

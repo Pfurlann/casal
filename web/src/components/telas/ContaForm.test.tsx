@@ -54,6 +54,21 @@ async function digitarCentavos(digitos: string) {
   return user;
 }
 
+describe("ContaForm — cor", () => {
+  it("grava a cor da paleta dos cartões", async () => {
+    montar();
+    const user = userEvent.setup({ delay: null });
+    await user.type(screen.getByLabelText("Nome"), "Nubank");
+    const bolas = screen.getAllByRole("button", { name: /^Cor / });
+    expect(bolas.length).toBeGreaterThan(1);
+    await user.click(bolas[2]!);
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(salvarConta.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ nome: "Nubank", cor: expect.stringMatching(/^#/) }),
+    );
+  });
+});
+
 describe("ContaForm — visibilidade", () => {
   it("na carteira pessoal começa em Pessoal e grava o dono", async () => {
     montar();

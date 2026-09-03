@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Numero } from "./Numero";
+import { BolinhaCor } from "./SeletorCor";
 
 function Conteudo({
   icone,
@@ -7,15 +8,20 @@ function Conteudo({
   subtitulo,
   valor,
   tom,
+  cor,
+  pago,
 }: {
   icone?: React.ReactNode;
   titulo: string;
   subtitulo?: string;
   valor?: number;
   tom: "normal" | "atencao";
+  cor?: string;
+  pago?: boolean;
 }) {
   return (
     <>
+      {cor && <BolinhaCor cor={cor} />}
       {icone && <span className="shrink-0 text-cinza">{icone}</span>}
       <span className="min-w-0 flex-1 text-left">
         <span
@@ -29,6 +35,11 @@ function Conteudo({
           <span className="block truncate text-[12px] text-cinza">{subtitulo}</span>
         )}
       </span>
+      {pago && (
+        <span aria-label="pago" className="shrink-0 text-[14px] text-pago">
+          ✓
+        </span>
+      )}
       {valor !== undefined && <Numero centavos={valor} tamanho="corpo" tom={tom} />}
     </>
   );
@@ -43,6 +54,9 @@ export function LinhaLista({
   tom = "normal",
   href,
   aoClicar,
+  cor,
+  pago,
+  semBorda,
 }: {
   icone?: React.ReactNode;
   titulo: string;
@@ -51,9 +65,14 @@ export function LinhaLista({
   tom?: "normal" | "atencao";
   href?: string;
   aoClicar?: () => void;
+  cor?: string;
+  pago?: boolean;
+  semBorda?: boolean;
 }) {
   const classe =
-    "flex min-h-[44px] w-full items-center gap-3 border-b border-nevoa py-3 text-left";
+    `flex min-h-[44px] w-full items-center gap-3 py-3 text-left ${
+      semBorda ? "" : "border-b border-nevoa"
+    }`;
   const filhos = (
     <Conteudo
       icone={icone}
@@ -61,6 +80,8 @@ export function LinhaLista({
       subtitulo={subtitulo}
       valor={valor}
       tom={tom}
+      cor={cor}
+      pago={pago}
     />
   );
 

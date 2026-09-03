@@ -32,8 +32,8 @@ import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { SeletorCategoria } from "../ui/SeletorCategoria";
+import { BolinhaCor } from "../ui/SeletorCor";
 import { Teclado } from "../ui/Teclado";
-import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
 
 function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
@@ -74,7 +74,6 @@ export function Lancar() {
   const [metaID, setMetaID] = useState("");
   const [parcelas, setParcelas] = useState(1);
   const [pagadorEscolhido, setPagadorEscolhido] = useState<string | undefined>(undefined);
-  const [mais, setMais] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const mostraPagador = carteiraMostraPagador(carteira);
   const pagadorID = pagadorEscolhido ?? usuarioID ?? "";
@@ -89,8 +88,9 @@ export function Lancar() {
   const ehReceita = tipo === "receita";
   const origemCartao = !ehReceita && Boolean(cartaoID);
   const temOrigem = origemCartao || Boolean(contaID);
-  const pode = entrada.podeSalvar && temOrigem && !salvando;
-  const titulo = mais ? "mais opções" : ehReceita ? "nova receita" : "novo gasto";
+  const descricaoOk = descricao.trim().length > 0;
+  const pode = entrada.podeSalvar && temOrigem && descricaoOk && !salvando;
+  const titulo = ehReceita ? "nova receita" : "novo gasto";
   const voltar = () => {
     if (window.history.length > 1) router.back();
     else router.push("/mes");
@@ -124,6 +124,18 @@ export function Lancar() {
   });
   const mostraCartoes = !ehReceita && cartoesPagador.length > 0;
   const mostraSelect = contasPagador.length > 0 || mostraCartoes;
+  const cartaoEscolhido = origemCartao ? cartoesPagador.find((c) => c.id === cartaoID) : undefined;
+  const contaEscolhida = !origemCartao ? contasPagador.find((c) => c.id === contaID) : undefined;
+  const corOrigem = cartaoEscolhido?.cor ?? contaEscolhida?.cor;
+  const nomeOrigem = cartaoEscolhido
+    ? `${cartaoEscolhido.banco} · final ${cartaoEscolhido.ultimos4}`
+    : contaEscolhida?.nome;
+  const avisoDescricao =
+    entrada.podeSalvar && temOrigem && !descricaoOk
+      ? ehReceita
+        ? "Diz de onde veio."
+        : "Diz onde foi o gasto."
+      : undefined;
 
   useEffect(() => {
     const contaVale = contasPagador.some((c) => c.id === contaID);
@@ -169,6 +181,10 @@ export function Lancar() {
   }
 
   async function salvar() {
+    if (!descricaoOk) {
+      avisar("erro", ehReceita ? "Diz de onde veio." : "Diz onde foi o gasto.");
+      return;
+    }
     if (!pode) return;
     setSalvando(true);
     try {
@@ -176,7 +192,7 @@ export function Lancar() {
       await lancar({
         valor: entrada.centavos,
         categoriaID,
-        descricao,
+        descricao: descricao.trim(),
         data: dataDeLocalISO(dataISO),
         cartaoID: origemCartao ? cartaoID : undefined,
         contaID: origemCartao ? undefined : contaID || undefined,
@@ -278,101 +294,97 @@ export function Lancar() {
       {carteira?.nome && (
         <p className="px-4 pt-1 text-center text-[12px] text-cinza">em {carteira.nome}</p>
       )}
-      {mais ? (
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          role="group"
+          aria-label="Tipo de lançamento"
+          className="mt-4 flex justify-center gap-2 px-4"
+        >
+          <Etiqueta ativa={!ehReceita} aoClicar={() => escolherTipo("despesa")}>
+            Gasto
+          </Etiqueta>
+          <Etiqueta ativa={ehReceita} aoClicar={() => escolherTipo("receita")}>
+            Receita
+          </Etiqueta>
+        </div>
+        <div
+          className="px-4 pt-6 text-center"
+          role="status"
+          aria-live="polite"
+          aria-label={ehReceita ? "Valor da receita" : "Valor do gasto"}
+        >
+          <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
+        </div>
+        <div className="px-4">
           <Campo
             label={ehReceita ? "De onde veio" : "Onde foi o gasto"}
             value={descricao}
             onChange={setDescricao}
+            erro={avisoDescricao}
           />
-          <div className="mt-6">
-            <Botao variante="primario" onClick={() => setMais(false)}>
-              Pronto
-            </Botao>
-          </div>
         </div>
-      ) : (
-        <>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div
-              role="group"
-              aria-label="Tipo de lançamento"
-              className="mt-4 flex justify-center gap-2 px-4"
-            >
-              <Etiqueta ativa={!ehReceita} aoClicar={() => escolherTipo("despesa")}>
-                Gasto
-              </Etiqueta>
-              <Etiqueta ativa={ehReceita} aoClicar={() => escolherTipo("receita")}>
-                Receita
-              </Etiqueta>
-            </div>
-            <div
-              className="px-4 pt-6 text-center"
-              role="status"
-              aria-live="polite"
-              aria-label={ehReceita ? "Valor da receita" : "Valor do gasto"}
-            >
-              <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
-            </div>
-            <div className="mt-5 px-4">
-              <SeletorCategoria
-                tipo={tipo}
-                custom={categoriasCustom}
-                valor={categoriaID}
-                onChange={setCategoriaID}
-              />
-            </div>
-            {progresso && (
-              <p
-                className={`mt-3 px-4 text-center text-[12px] ${
-                  progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
-                }`}
-              >
-                {fraseTeto(progresso, nomeTeto)}
-              </p>
-            )}
-            {mostraPagador && (
-              <div className="mt-4 px-4">
-                <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>
-                <SeletorPagador
-                  membros={membros ?? []}
-                  usuarioID={usuarioID}
-                  valor={pagadorID}
-                  onChange={setPagadorEscolhido}
-                />
-              </div>
-            )}
-          </div>
-          <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3">
-            <Rotulo>data</Rotulo>
-            <input
-              type="date"
-              value={dataISO}
-              onChange={(e) => setDataISO(e.target.value)}
-              aria-label="Data do lançamento"
-              className={classeSelect()}
-            />
-            {seletorOrigem}
-          </div>
-          <div className="relative z-0 shrink-0">
-            <Teclado
-              aoDigitar={(d) => {
-                entrada.digitar(d);
-                tick((n) => n + 1);
-              }}
-              aoApagar={() => {
-                entrada.apagar();
-                tick((n) => n + 1);
-              }}
-              aoSalvar={salvar}
-              aoFechar={voltar}
-              aoMaisOpcoes={() => setMais(true)}
-              podeSalvar={pode}
-              mostraSalvar
+        <div className="mt-5 px-4">
+          <SeletorCategoria
+            tipo={tipo}
+            custom={categoriasCustom}
+            valor={categoriaID}
+            onChange={setCategoriaID}
+          />
+        </div>
+        {progresso && (
+          <p
+            className={`mt-3 px-4 text-center text-[12px] ${
+              progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
+            }`}
+          >
+            {fraseTeto(progresso, nomeTeto)}
+          </p>
+        )}
+        {mostraPagador && (
+          <div className="mt-4 px-4">
+            <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>
+            <SeletorPagador
+              membros={membros ?? []}
+              usuarioID={usuarioID}
+              valor={pagadorID}
+              onChange={setPagadorEscolhido}
             />
           </div>
-        </>
-      )}
+        )}
+      </div>
+      <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3">
+        <Rotulo>data</Rotulo>
+        <input
+          type="date"
+          value={dataISO}
+          onChange={(e) => setDataISO(e.target.value)}
+          aria-label="Data do lançamento"
+          className={classeSelect()}
+        />
+        {corOrigem && nomeOrigem && (
+          <div className="mt-2 flex items-center gap-2 text-[12px] text-cinza">
+            <BolinhaCor cor={corOrigem} />
+            <span>{nomeOrigem}</span>
+          </div>
+        )}
+        {seletorOrigem}
+      </div>
+      <div className="relative z-0 shrink-0">
+        <Teclado
+          aoDigitar={(d) => {
+            entrada.digitar(d);
+            tick((n) => n + 1);
+          }}
+          aoApagar={() => {
+            entrada.apagar();
+            tick((n) => n + 1);
+          }}
+          aoSalvar={salvar}
+          aoFechar={voltar}
+          podeSalvar={pode}
+          mostraSalvar
+        />
+      </div>
     </div>
   );
 }

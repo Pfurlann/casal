@@ -6,6 +6,7 @@ import { useState } from "react";
 import { categoriasVisiveis } from "@/lib/categorias";
 import { ROTULO_TIPO_CONTA, type DespesaFixa } from "@/lib/domain";
 import { validarDespesaFixa } from "@/lib/despesas-fixas";
+import { formatarBRL } from "@/lib/money";
 import { EntradaValor } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import { useAviso } from "../ui/Aviso";
@@ -40,19 +41,37 @@ export function DespesaFixaForm({ id }: { id?: string }) {
   const [contaID, setContaID] = useState(existente?.contaID ?? (existente?.cartaoID ? "" : contas[0]?.id ?? ""));
   const [cartaoID, setCartaoID] = useState(existente?.tipo === "receita" ? "" : existente?.cartaoID ?? "");
   const [entrada] = useState(() => EntradaValor.deCentavos(existente?.valor ?? 0));
+  const nInicial = existente?.parcelas && existente.parcelas > 1 ? existente.parcelas : 1;
+  const [parcelar, setParcelar] = useState(nInicial > 1);
+  const [parcelas, setParcelas] = useState(nInicial > 1 ? nInicial : 2);
+  const [valores, setValores] = useState<number[]>(
+    existente?.valoresParcelas && existente.valoresParcelas.length === nInicial
+      ? existente.valoresParcelas
+      : [existente?.valor ?? 0],
+  );
+  const [parcelaEdicao, setParcelaEdicao] = useState(0);
   const [, tick] = useState(0);
   const [salvando, setSalvando] = useState(false);
 
   const ehReceita = tipo === "receita";
   const origemCartao = !ehReceita && Boolean(cartaoID);
   const pagoCom = origemCartao ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
+  const n = parcelar ? parcelas : 1;
+  const valoresAtivos = parcelar
+    ? Array.from({ length: n }, (_, i) => {
+        const v = valores[i];
+        return v && v > 0 ? v : entrada.centavos;
+      })
+    : [entrada.centavos];
   const erro = validarDespesaFixa({
     nome,
-    valor: entrada.centavos,
+    valor: valoresAtivos[0] ?? entrada.centavos,
     diaVencimento,
     contaID: origemCartao ? undefined : contaID || undefined,
     cartaoID: origemCartao ? cartaoID : undefined,
     tipo,
+    parcelas: n,
+    valoresParcelas: parcelar ? valoresAtivos : undefined,
   });
   const pode = !erro && !salvando;
   const voltar = () => router.push("/mais/fixas");
@@ -90,12 +109,14 @@ export function DespesaFixaForm({ id }: { id?: string }) {
       id: existente?.id ?? crypto.randomUUID(),
       carteiraID: carteira.id,
       nome: nome.trim(),
-      valor: entrada.centavos,
+      valor: valoresAtivos[0] ?? entrada.centavos,
       categoriaID,
       diaVencimento,
       contaID: origemCartao ? undefined : contaID || undefined,
       cartaoID: origemCartao ? cartaoID : undefined,
       tipo,
+      parcelas: n > 1 ? n : undefined,
+      valoresParcelas: n > 1 ? valoresAtivos : undefined,
     };
   }
 
@@ -207,6 +228,83 @@ export function DespesaFixaForm({ id }: { id?: string }) {
           </p>
         </div>
 
+        <div className="mt-4">
+          <Rotulo>parcelar</Rotulo>
+          <div className="mt-2 flex gap-2">
+            <Etiqueta ativa={!parcelar} aoClicar={() => setParcelar(false)}>
+              Todo mês
+            </Etiqueta>
+            <Etiqueta
+              ativa={parcelar}
+              aoClicar={() => {
+                setParcelar(true);
+                const atual = entrada.centavos || (valores.find((v) => v > 0) ?? 0);
+                setValores(Array.from({ length: parcelas }, () => atual));
+              }}
+            >
+              Parcelar
+            </Etiqueta>
+          </div>
+          {parcelar && (
+            <>
+              <select
+                value={parcelas}
+                aria-label="Número de parcelas"
+                onChange={(e) => {
+                  const nNovo = Number(e.target.value);
+                  setParcelas(nNovo);
+                  const atual = entrada.centavos || valores[0] || 0;
+                  setValores(Array.from({ length: nNovo }, (_, i) => valores[i] ?? atual));
+                  if (parcelaEdicao >= nNovo) setParcelaEdicao(0);
+                }}
+                className="mt-2 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite"
+              >
+                {Array.from({ length: 47 }, (_, i) => i + 2).map((nOpt) => (
+                  <option key={nOpt} value={nOpt}>
+                    {nOpt} vezes
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-[12px] text-cinza">
+                Toque a parcela para editar o valor. Financiamento: 1ª diferente das demais.
+              </p>
+              <div className="mt-2" role="list" aria-label="Valores das parcelas">
+                {valoresAtivos.map((v, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Parcela ${i + 1} de ${n}`}
+                    aria-pressed={parcelaEdicao === i}
+                    onClick={() => {
+                      setParcelaEdicao(i);
+                      entrada.definir(v);
+                      tick((x) => x + 1);
+                    }}
+                    className={`flex min-h-[44px] w-full items-center justify-between border-b border-nevoa py-2 text-left ${
+                      parcelaEdicao === i ? "text-grafite" : "text-cinza"
+                    }`}
+                  >
+                    <span className="text-[14px]">{i + 1}ª</span>
+                    <span className="font-numero text-[14px] tabular-nums">{formatarBRL(v)}</span>
+                  </button>
+                ))}
+              </div>
+              {parcelaEdicao > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = valoresAtivos[parcelaEdicao] ?? 0;
+                    setValores(valoresAtivos.map((atual, i) => (i >= parcelaEdicao ? v : atual)));
+                  }}
+                  className="mt-2 flex min-h-[44px] items-center text-[14px] font-semibold text-grafite"
+                >
+                  Copiar este valor nas seguintes
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
         {precisaOrigem ? (
           <div className="mt-4">
             <p className="text-[14px] text-cinza">
@@ -261,11 +359,25 @@ export function DespesaFixaForm({ id }: { id?: string }) {
       <Teclado
         aoDigitar={(d) => {
           entrada.digitar(d);
-          tick((n) => n + 1);
+          if (parcelar) {
+            setValores((atual) => {
+              const prox = Array.from({ length: n }, (_, i) => atual[i] ?? entrada.centavos);
+              prox[parcelaEdicao] = entrada.centavos;
+              return prox;
+            });
+          }
+          tick((x) => x + 1);
         }}
         aoApagar={() => {
           entrada.apagar();
-          tick((n) => n + 1);
+          if (parcelar) {
+            setValores((atual) => {
+              const prox = Array.from({ length: n }, (_, i) => atual[i] ?? 0);
+              prox[parcelaEdicao] = entrada.centavos;
+              return prox;
+            });
+          }
+          tick((x) => x + 1);
         }}
         aoSalvar={salvar}
         aoFechar={voltar}

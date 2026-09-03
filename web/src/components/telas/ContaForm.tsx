@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Conta, TipoConta, VisibilidadeOrigem } from "@/lib/domain";
-import { ROTULO_TIPO_CONTA } from "@/lib/domain";
+import { CORES_CARTAO, ROTULO_TIPO_CONTA, type Conta, type TipoConta, type VisibilidadeOrigem } from "@/lib/domain";
+import { COR_ORIGEM_PADRAO } from "@/lib/origem";
 import { EntradaValor } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import { visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
@@ -14,6 +14,7 @@ import { Campo } from "../ui/Campo";
 import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { SeletorCor } from "../ui/SeletorCor";
 import { SeletorVisibilidade } from "../ui/SeletorVisibilidade";
 import { Teclado } from "../ui/Teclado";
 
@@ -27,6 +28,7 @@ export function ContaForm({ id }: { id?: string }) {
 
   const [nome, setNome] = useState(existente?.nome ?? "");
   const [tipo, setTipo] = useState<TipoConta>(existente?.tipo ?? "corrente");
+  const [cor, setCor] = useState(existente?.cor ?? CORES_CARTAO[0] ?? COR_ORIGEM_PADRAO);
   const [visibilidade, setVisibilidade] = useState<VisibilidadeOrigem>(
     existente?.visibilidade ?? visibilidadePadraoDaCarteira(carteira),
   );
@@ -47,6 +49,7 @@ export function ContaForm({ id }: { id?: string }) {
       arquivada,
       donoID: existente?.donoID ?? usuarioID,
       visibilidade,
+      cor,
     };
   }
 
@@ -100,6 +103,8 @@ export function ContaForm({ id }: { id?: string }) {
             ))}
           </div>
         </div>
+
+        <SeletorCor valor={cor} onChange={setCor} />
 
         <SeletorVisibilidade valor={visibilidade} onChange={setVisibilidade} />
 

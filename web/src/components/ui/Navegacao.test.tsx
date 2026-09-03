@@ -8,12 +8,22 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Navegacao", () => {
-  it("oferece os quatro destinos", () => {
+  it("oferece os destinos do phone e a visão no desktop", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
-    for (const nome of ["mês", "cartões", "metas", "mais"]) {
+    for (const nome of ["visão", "mês", "cartões", "metas", "mais"]) {
       expect(screen.getByRole("link", { name: nome })).toBeInTheDocument();
     }
+    expect(screen.getByRole("link", { name: "visão" })).toHaveAttribute("href", "/visao");
+  });
+
+  it("marca visão ativa na seção inteira", () => {
+    caminho.atual = "/visao";
+    render(<Navegacao />);
+    expect(screen.getByRole("link", { name: "visão" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("marca o destino ativo com aria-current, não só com cor", () => {
@@ -57,5 +67,30 @@ describe("Navegacao — trilho de desktop", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
     expect(screen.getAllByRole("link", { name: "mês" })).toHaveLength(1);
+  });
+
+  it("no desktop o trilho é um painel de 240px, não uma barra apertada", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    expect(screen.getByRole("navigation", { name: "Seções" }).className).toContain(
+      "lg:w-[240px]",
+    );
+    expect(screen.getByRole("navigation", { name: "Seções" }).className).toContain(
+      "lg:sticky",
+    );
+  });
+
+  it("abas e lançar têm press e alvo de 44px", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    expect(screen.getByRole("link", { name: "mês" }).className).toContain(
+      "casal-toque",
+    );
+    expect(screen.getByRole("link", { name: "mês" }).className).toContain(
+      "min-h-[44px]",
+    );
+    expect(
+      screen.getByRole("link", { name: "Novo lançamento" }).className,
+    ).toContain("casal-toque");
   });
 });

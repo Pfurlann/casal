@@ -193,11 +193,17 @@ export function IconeCategoria({ nome, size = 16 }: { nome?: string; size?: numb
   return <>{desenhar(size)}</>;
 }
 
-export type NomeAba = "inicio" | "cartoes" | "metas" | "mais";
+export type NomeAba = "visao" | "inicio" | "cartoes" | "metas" | "mais";
 
 export function IconeAba({ nome }: { nome: NomeAba }) {
   const comum = { viewBox: "0 0 24 24", width: 22, height: 22, "aria-hidden": true } as const;
   switch (nome) {
+    case "visao":
+      return (
+        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">
+          <path d="M5 17V11M10 17V7M15 17v-5M20 17V9" strokeLinecap="round" />
+        </svg>
+      );
     case "inicio":
       return (
         <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">

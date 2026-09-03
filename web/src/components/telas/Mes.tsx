@@ -1,10 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoriaPorId } from "@/lib/categorias";
-import { competenciaDe, type Transacao } from "@/lib/domain";
+import { competenciaDe, rotuloDaCompetencia, type Transacao } from "@/lib/domain";
 import { compromissosAPagar } from "@/lib/compromissos";
-import { eLancamentoPago } from "@/lib/despesas-fixas";
+import {
+  competenciaDoHashFatura,
+  eCompraNoCartao,
+  eLancamentoDeFatura,
+  eLancamentoPago,
+  hashDedupFatura,
+  lancamentoDoTotalDaFatura,
+} from "@/lib/faturas";
 import {
   folgaDoPeriodo,
   fraseTeto,
@@ -27,6 +35,7 @@ import { LinhaDeslizavel } from "../ui/LinhaDeslizavel";
 import { LinhaLista } from "../ui/LinhaLista";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { BolinhaCor } from "../ui/SeletorCor";
 import { Trilha } from "../ui/Trilha";
 import { Vazio } from "../ui/Vazio";
 import { ModalPagar } from "./ModalPagar";
@@ -48,7 +57,6 @@ export function Mes() {
     membros,
     usuarioID,
     categorias,
-    despesasFixas,
     metas,
     compromissos,
     liquidarLancamento,
@@ -65,7 +73,23 @@ export function Mes() {
     const d = new Date(t.data);
     return (t.tipo === "despesa" || t.tipo === "receita") && d >= inicio && d < fim;
   });
-  const gastos = doMes.filter((t) => t.tipo === "despesa");
+  const totaisFatura = cartoes
+    .map((cartao) => {
+      const f = faturaAtualOuRascunho(cartao, faturas, agora);
+      return lancamentoDoTotalDaFatura(
+        cartao,
+        f,
+        transacoes,
+        transacoes.find((t) => t.hashDedup === hashDedupFatura(cartao.id, { ano: f.ano, mes: f.mes })),
+      );
+    })
+    .filter((t): t is Transacao => t != null && t.valor > 0);
+  const hashesMes = new Set(doMes.map((t) => t.hashDedup));
+  const listaMes = [
+    ...doMes,
+    ...totaisFatura.filter((t) => !hashesMes.has(t.hashDedup)),
+  ];
+  const gastos = doMes.filter((t) => t.tipo === "despesa" && !eLancamentoDeFatura(t));
   const receitas = doMes.filter((t) => t.tipo === "receita");
   const gasto = gastos.reduce((s, t) => s + t.valor, 0);
   const receita = receitas.reduce((s, t) => s + t.valor, 0);
@@ -88,11 +112,11 @@ export function Mes() {
   });
 
   const linhas = useMemo(() => {
-    return doMes
+    return listaMes
       .slice()
       .reverse()
       .map((t) => {
-        const pago = eLancamentoPago(t, transacoes, despesasFixas ?? []);
+        const pago = eLancamentoPago(t, faturas);
         return { t, pago };
       })
       .filter(({ pago }) => {
@@ -109,53 +133,58 @@ export function Mes() {
           }
         }
       });
-  }, [doMes, transacoes, despesasFixas, filtro]);
+  }, [listaMes, faturas, filtro]);
 
   return (
     <div>
       <Cabecalho titulo={`${MESES[agora.getMonth()]} · ${carteira.nome}`} marca folga={folga} />
-      <div className="px-4 pt-8">
-        <Rotulo>gasto neste mês</Rotulo>
-        <div className="mt-2">
-          <Numero centavos={gasto} tamanho="heroi" subordinaCentavos />
-        </div>
-        {receita > 0 && (
-          <div className="mt-3">
-            <Rotulo>receita neste mês</Rotulo>
-            <div className="mt-1">
-              <Numero centavos={receita} tamanho="secao" />
-            </div>
+      <div className="casal-resumo-mes px-4 pt-8">
+        <div>
+          <Rotulo>gasto neste mês</Rotulo>
+          <div className="mt-2">
+            <Numero centavos={gasto} tamanho="heroi" subordinaCentavos />
           </div>
-        )}
-        <div className="mt-5">
-          <Trilha consumido={gasto} total={gasto + comprometido} />
-        </div>
-        <p className="mt-2 font-numero text-[12px] tabular-nums text-cinza">
-          {comprometido > 0
-            ? `${gastos.length} lançamentos · faturas somam mais`
-            : `${gastos.length} lançamentos`}
-        </p>
-        {comprometido > 0 && (
-          <div className="mt-1">
-            <span className="text-[12px] text-cinza">comprometido em faturas </span>
-            <Numero centavos={comprometido} tamanho="legenda" tom="atencao" />
-          </div>
-        )}
-        {alertasTeto.length > 0 && (
           <div className="mt-5">
-            <Rotulo>tetos</Rotulo>
-            <div className="mt-2">
-              {alertasTeto.map(({ meta, progresso }) => {
-                const cat = categoriaPorId(meta.categoriaID, categorias);
-                return (
-                  <p key={meta.id} className="py-1 text-[12px] text-ambar-texto">
-                    {fraseTeto(progresso, cat?.nome ?? nomeDaMeta(meta, categorias))}
-                  </p>
-                );
-              })}
-            </div>
+            <Trilha consumido={gasto} total={gasto + comprometido} />
           </div>
-        )}
+          <p className="mt-2 font-numero text-[12px] tabular-nums text-cinza">
+            {gastos.length} lançamentos
+          </p>
+        </div>
+        <div>
+          {receita > 0 && (
+            <div>
+              <Rotulo>receita neste mês</Rotulo>
+              <div className="mt-1">
+                <Numero centavos={receita} tamanho="secao" />
+              </div>
+            </div>
+          )}
+          {comprometido > 0 && (
+            <div className={receita > 0 ? "mt-5" : undefined}>
+              <Rotulo>comprometido em faturas</Rotulo>
+              <div className="mt-1">
+                <Numero centavos={comprometido} tamanho="secao" tom="atencao" />
+              </div>
+              <p className="mt-1 text-[12px] text-cinza">faturas somam mais que o gasto do mês</p>
+            </div>
+          )}
+          {alertasTeto.length > 0 && (
+            <div className={receita > 0 || comprometido > 0 ? "mt-5" : undefined}>
+              <Rotulo>tetos</Rotulo>
+              <div className="mt-2">
+                {alertasTeto.map(({ meta, progresso }) => {
+                  const cat = categoriaPorId(meta.categoriaID, categorias);
+                  return (
+                    <p key={meta.id} className="py-1 text-[12px] text-ambar-texto">
+                      {fraseTeto(progresso, cat?.nome ?? nomeDaMeta(meta, categorias))}
+                    </p>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {aPagarComp.length > 0 && (
@@ -179,7 +208,7 @@ export function Mes() {
         </div>
       )}
 
-      {doMes.length === 0 ? (
+      {listaMes.length === 0 ? (
         aPagarComp.length === 0 ? (
           <Vazio frase="Nenhum gasto este mês. Toque em + para registrar o primeiro." />
         ) : null
@@ -197,6 +226,13 @@ export function Mes() {
               A pagar
             </Etiqueta>
           </div>
+          <div className="casal-tabela-cabeca mt-4" role="row">
+            <span>descrição</span>
+            <span>categoria</span>
+            <span>origem</span>
+            <span>valor</span>
+            <span>estado</span>
+          </div>
           <div className="mt-2">
             {linhas.length === 0 ? (
               <p className="py-4 text-[14px] text-cinza">
@@ -208,32 +244,61 @@ export function Mes() {
                 const quem =
                   mostraPagador ? indicadorPagador(t.pagadorID, membros ?? [], usuarioID) : null;
                 const origem = origemDaTransacao(t, contas, cartoes);
-                const papel = t.tipo === "receita" ? "receita" : (cat?.nome ?? "Sem categoria");
-                const partes = [
-                  papel,
-                  t.parcelaTotal > 1 ? `${t.parcelaN}/${t.parcelaTotal}` : null,
-                  origem?.nome,
-                  quem,
-                ].filter(Boolean);
+                const compraCartao = eCompraNoCartao(t);
+                const papel = eLancamentoDeFatura(t)
+                  ? "fatura"
+                  : t.tipo === "receita" ? "receita" : (cat?.nome ?? "Sem categoria");
+                const parcela = t.parcelaTotal > 1 ? `${t.parcelaN}/${t.parcelaTotal}` : null;
+                const partes = [papel, parcela, origem?.nome, quem].filter(Boolean);
+                const titulo = t.descricao || cat?.nome || "Sem descrição";
                 return (
                   <LinhaDeslizavel
                     key={t.id}
-                    desabilitado={pago}
+                    desabilitado={pago || compraCartao}
                     acao={
-                      pago || !liquidarLancamento
+                      pago || compraCartao || !liquidarLancamento
                         ? undefined
                         : { rotulo: "Pago", aoClicar: () => setPagando(t) }
                     }
                   >
-                    <LinhaLista
-                      href={`/lancamentos/${t.id}`}
-                      titulo={t.descricao || cat?.nome || "Sem descrição"}
-                      subtitulo={partes.join(" · ")}
-                      valor={t.valor}
-                      cor={origem?.cor}
-                      pago={pago}
-                      semBorda
-                    />
+                    <Link
+                      href={
+                        eLancamentoDeFatura(t) && t.cartaoID
+                          ? `/cartoes/${t.cartaoID}/faturas/${rotuloDaCompetencia(
+                              competenciaDoHashFatura(t.hashDedup)?.competencia
+                                ?? { ano: agora.getFullYear(), mes: agora.getMonth() + 1 },
+                            )}/pagar`
+                          : `/lancamentos/${t.id}`
+                      }
+                      className="casal-toque casal-linha-mes"
+                    >
+                      <span className="casal-linha-mes-desc">
+                        <span className="block truncate text-[14px] text-grafite">{titulo}</span>
+                        <span className="casal-linha-mes-sub">{partes.join(" · ")}</span>
+                      </span>
+                      <span className="casal-linha-mes-cat">
+                        {papel}
+                        {parcela ? ` · ${parcela}` : ""}
+                      </span>
+                      <span className="casal-linha-mes-origem">
+                        {origem?.cor && <BolinhaCor cor={origem.cor} />}
+                        <span className="truncate">
+                          {[origem?.nome, quem].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                      <span className="casal-linha-mes-valor">
+                        <Numero centavos={t.valor} tamanho="corpo" />
+                      </span>
+                      <span className="shrink-0">
+                        {pago ? (
+                          <span aria-label="pago" className="text-[14px] text-pago">
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="casal-linha-mes-estado-texto">a pagar</span>
+                        )}
+                      </span>
+                    </Link>
                   </LinhaDeslizavel>
                 );
               })
@@ -249,6 +314,7 @@ export function Mes() {
           contaID={pagando.contaID}
           cartaoID={pagando.cartaoID}
           aoFechar={() => setPagando(null)}
+          somenteContas={eLancamentoDeFatura(pagando)}
           aoConfirmar={(origem) => liquidarLancamento({ id: pagando.id, ...origem })}
         />
       )}

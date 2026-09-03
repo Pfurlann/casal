@@ -78,10 +78,21 @@ describe("Mes", () => {
       transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1")],
     });
     expect(screen.getByRole("link", { name: /Mercado/ })).toBeInTheDocument();
-    expect(screen.getByText(/Corrente/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Corrente/).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Mercado/ })).toHaveAttribute(
       "href",
       "/lancamentos/tx-1",
+    );
+  });
+
+  it("no desktop a lista vira tabela, não card de telefone", () => {
+    const { container } = montar({
+      transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1")],
+    });
+    expect(container.querySelector(".casal-resumo-mes")).toBeTruthy();
+    expect(container.querySelector(".casal-linha-mes")).toBeTruthy();
+    expect(container.querySelector(".casal-tabela-cabeca")?.textContent).toMatch(
+      /descrição.*categoria.*origem.*valor.*estado/,
     );
   });
 
@@ -139,7 +150,7 @@ describe("Mes", () => {
       ],
     });
     expect(screen.getByText("Aluguel")).toBeInTheDocument();
-    expect(screen.getByText("Mercado", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getAllByText("Mercado", { selector: "span" }).length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole("button", { name: "Pagos" }));
     expect(screen.queryByText("Aluguel")).toBeNull();
     expect(screen.getByRole("link", { name: /Mercado/ })).toBeInTheDocument();
@@ -171,6 +182,80 @@ describe("Mes", () => {
     );
   });
 
+  it("compra no cartão mostra o método sem check", () => {
+    const { container } = montar({
+      cartoes: [{
+        id: "k1",
+        carteiraID: "c1",
+        apelido: "Roxinho",
+        banco: "Nubank",
+        ultimos4: "4417",
+        bandeira: "mastercard",
+        cor: CORES_CARTAO[0],
+        limite: 1_000_000,
+        diaFechamento: 28,
+        diaVencimento: 5,
+        arquivado: false,
+      }],
+      transacoes: [
+        {
+          ...despesa(4200, "Padaria", "00000000-0000-0000-0000-000000000002", "tx-cartao"),
+          contaID: undefined,
+          cartaoID: "k1",
+          status: "liquidado",
+        },
+      ],
+    });
+    expect(screen.getByText(/Roxinho/)).toBeInTheDocument();
+    expect(container.querySelector("[data-cor-origem]")).toBeTruthy();
+    expect(screen.queryByLabelText("pago")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Pago" })).toBeNull();
+  });
+
+  it("mostra o total da fatura em a pagar", async () => {
+    const agora = new Date();
+    const noMes = new Date(agora.getFullYear(), agora.getMonth(), 10, 12, 0, 0);
+    montar({
+      cartoes: [{
+        id: "k1",
+        carteiraID: "c1",
+        apelido: "Roxinho",
+        banco: "Nubank",
+        ultimos4: "4417",
+        bandeira: "mastercard",
+        cor: CORES_CARTAO[0],
+        limite: 1_000_000,
+        diaFechamento: 28,
+        diaVencimento: 5,
+        arquivado: false,
+      }],
+      faturas: [{
+        id: "inv-1",
+        cartaoID: "k1",
+        ano: agora.getFullYear(),
+        mes: agora.getMonth() + 1,
+        fechaEm: `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-28`,
+        venceEm: `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-05`,
+        status: "aberta",
+        valorPago: 0,
+      }],
+      transacoes: [
+        {
+          ...despesa(4200, "Padaria", "00000000-0000-0000-0000-000000000002", "tx-cartao"),
+          data: noMes.toISOString(),
+          contaID: undefined,
+          cartaoID: "k1",
+          status: "a_pagar",
+        },
+      ],
+    });
+    expect(screen.getByText("Fatura Roxinho")).toBeInTheDocument();
+    expect(screen.queryByLabelText("pago")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "A pagar" }));
+    expect(screen.getByText("Fatura Roxinho")).toBeInTheDocument();
+    expect(screen.getByText("Padaria")).toBeInTheDocument();
+  });
+
   it("sinaliza a cor da conta na linha", () => {
     const { container } = montar({
       transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001")],
@@ -178,7 +263,7 @@ describe("Mes", () => {
     const bola = container.querySelector("[data-cor-origem]") as HTMLElement;
     expect(bola).toBeTruthy();
     expect(bola.style.background).toBeTruthy();
-    expect(screen.getByText(/Corrente/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Corrente/).length).toBeGreaterThan(0);
     expect(screen.getByLabelText("pago")).toBeInTheDocument();
   });
 

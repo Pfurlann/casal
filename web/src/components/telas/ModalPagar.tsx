@@ -16,6 +16,7 @@ export function ModalPagar({
   valor,
   contaID,
   cartaoID,
+  somenteContas,
   aoFechar,
   aoConfirmar,
 }: {
@@ -23,6 +24,7 @@ export function ModalPagar({
   valor: number;
   contaID?: string;
   cartaoID?: string;
+  somenteContas?: boolean;
   aoFechar: () => void;
   aoConfirmar: (p: { contaID?: string; cartaoID?: string; metaID?: string }) => Promise<void>;
 }) {
@@ -39,7 +41,13 @@ export function ModalPagar({
     () => opcoesContaComReserva(contasPagador, metas),
     [contasPagador, metas],
   );
-  const inicial = cartaoID ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
+  const inicial = somenteContas
+    ? (contaID ? `conta:${contaID}` : "")
+    : cartaoID
+      ? `cartao:${cartaoID}`
+      : contaID
+        ? `conta:${contaID}`
+        : "";
   const [pagoCom, setPagoCom] = useState(inicial);
   const [salvando, setSalvando] = useState(false);
   const origem = parseOrigemPago(pagoCom);
@@ -73,7 +81,7 @@ export function ModalPagar({
             onChange={(e) => setPagoCom(e.target.value)}
             className="mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite"
           >
-            <option value="">Escolha conta ou cartão</option>
+            <option value="">{somenteContas ? "Escolha a conta" : "Escolha conta ou cartão"}</option>
             {opcoesConta.length > 0 && (
               <optgroup label="Contas">
                 {opcoesConta.map((o) => (
@@ -83,7 +91,7 @@ export function ModalPagar({
                 ))}
               </optgroup>
             )}
-            {cartoesPagador.length > 0 && (
+            {!somenteContas && cartoesPagador.length > 0 && (
               <optgroup label="Cartões">
                 {cartoesPagador.map((c) => (
                   <option key={c.id} value={`cartao:${c.id}`}>

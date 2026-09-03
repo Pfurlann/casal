@@ -21,7 +21,7 @@ const CARTAO = {
   apelido: "Roxinho",
   banco: "Nubank",
   ultimos4: "4417",
-  bandeira: "mastercard",
+  bandeira: "mastercard" as const,
   cor: "grafite",
   limite: 500000,
   diaFechamento: 28,

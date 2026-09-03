@@ -78,16 +78,18 @@ export function Cartoes() {
           </Link>
         }
       />
-      <div className="px-4 pt-8">
-        <Rotulo>a pagar este mês</Rotulo>
-        <div className="mt-2">
-          <Numero centavos={totalMes} tamanho="heroi" subordinaCentavos />
+      <div className="casal-grade px-4 pt-8">
+        <div>
+          <Rotulo>a pagar este mês</Rotulo>
+          <div className="mt-2">
+            <Numero centavos={totalMes} tamanho="heroi" subordinaCentavos />
+          </div>
         </div>
-      </div>
-      <div className="mt-8 px-4">
-        <Rotulo>próximas faturas · todos os cartões</Rotulo>
-        <div className="mt-3">
-          <Curva pontos={pontos} />
+        <div>
+          <Rotulo>próximas faturas · todos os cartões</Rotulo>
+          <div className="mt-3">
+            <Curva pontos={pontos} />
+          </div>
         </div>
       </div>
       <div className="mt-8 px-4">

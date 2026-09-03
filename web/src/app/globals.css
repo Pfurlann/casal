@@ -40,11 +40,46 @@ select {
   padding-bottom: 132px;
 }
 
+.casal-tabela-cabeca {
+  display: none;
+}
+
+.casal-linha-mes {
+  display: flex;
+  width: 100%;
+  min-height: var(--alvo);
+  align-items: center;
+  gap: var(--e-3);
+  padding-block: var(--e-3);
+  text-align: left;
+}
+
+.casal-linha-mes-desc {
+  min-width: 0;
+  flex: 1;
+}
+
+.casal-linha-mes-cat,
+.casal-linha-mes-origem,
+.casal-linha-mes-estado-texto {
+  display: none;
+}
+
+.casal-linha-mes-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cinza);
+  font-size: 12px;
+}
+
 @media (min-width: 1024px) {
   .casal-shell {
     display: flex;
     align-items: stretch;
-    max-width: 1280px;
+    width: 100%;
+    max-width: 1440px;
     margin-inline: auto;
     padding-inline: var(--e-6);
     gap: var(--e-4);
@@ -53,10 +88,67 @@ select {
   .casal-principal {
     flex: 1;
     min-width: 0;
-    max-width: 880px;
+    width: 100%;
+    max-width: 1100px;
     margin-inline: 0;
     padding-inline: var(--e-4);
     padding-bottom: var(--e-8);
+  }
+
+  .casal-resumo-mes,
+  .casal-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--e-7) var(--e-8);
+    align-items: start;
+  }
+
+  .casal-tabela-cabeca {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.4fr) max-content max-content;
+    gap: var(--e-4);
+    align-items: center;
+    padding-block: var(--e-2);
+    border-bottom: 1px solid var(--nevoa);
+    color: var(--cinza);
+    font-size: 12px;
+  }
+
+  .casal-linha-mes {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.4fr) max-content max-content;
+    gap: var(--e-4);
+    align-items: center;
+    width: 100%;
+    min-height: var(--alvo);
+    padding-block: var(--e-3);
+    text-align: left;
+  }
+
+  .casal-linha-mes-desc {
+    flex: unset;
+  }
+
+  .casal-linha-mes-sub {
+    display: none;
+  }
+
+  .casal-linha-mes-cat,
+  .casal-linha-mes-origem,
+  .casal-linha-mes-estado-texto {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--e-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cinza);
+    font-size: 13px;
+  }
+
+  .casal-linha-mes-valor {
+    justify-self: end;
   }
 }
 

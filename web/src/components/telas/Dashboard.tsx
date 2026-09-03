@@ -52,48 +52,49 @@ export function Dashboard() {
         <Rotulo>diagnóstico · {MESES[(d.competencia.mes ?? 1) - 1]}</Rotulo>
         <p className="mt-2 text-[16px] leading-snug text-grafite">{d.frase}</p>
 
-        <div className="mt-8">
-          <Rotulo>gastos vs receitas</Rotulo>
-          <div className="mt-2">
-            <Numero centavos={d.gasto} tamanho="heroi" subordinaCentavos />
-          </div>
-          <p className="mt-1 text-[12px] text-cinza">gastos neste mês</p>
-          <div className="mt-3">
-            <Numero
-              centavos={d.receita}
-              tamanho="secao"
-              tom={d.fluxo < 0 ? "atencao" : "normal"}
-            />
-          </div>
-          <p className="mt-1 text-[12px] text-cinza">receitas neste mês</p>
-          <div className="mt-4">
-            <Trilha
-              consumido={d.gasto}
-              total={d.gasto + d.receita > 0 ? d.gasto + d.receita : 0}
-            />
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <Rotulo>fluxo de caixa</Rotulo>
-          <div className="mt-2">
-            <LinhaLista titulo="Entradas" valor={d.receita} semBorda />
-            <LinhaLista titulo="Saídas" valor={d.gasto} semBorda />
-            <LinhaLista
-              titulo="Fluxo do mês"
-              subtitulo="receitas − gastos"
-              valor={d.fluxo}
-              tom={d.fluxo < 0 ? "atencao" : "normal"}
-              semBorda={d.saldoContas === undefined}
-            />
-            {d.saldoContas !== undefined && (
-              <LinhaLista
-                titulo="Saldo nas contas"
-                subtitulo="o que está no banco hoje"
-                valor={d.saldoContas}
-                href="/mais/contas"
+        <div className="casal-grade mt-8">
+          <div>
+            <Rotulo>gastos vs receitas</Rotulo>
+            <div className="mt-2">
+              <Numero centavos={d.gasto} tamanho="heroi" subordinaCentavos />
+            </div>
+            <p className="mt-1 text-[12px] text-cinza">gastos neste mês</p>
+            <div className="mt-3">
+              <Numero
+                centavos={d.receita}
+                tamanho="secao"
+                tom={d.fluxo < 0 ? "atencao" : "normal"}
               />
-            )}
+            </div>
+            <p className="mt-1 text-[12px] text-cinza">receitas neste mês</p>
+            <div className="mt-4">
+              <Trilha
+                consumido={d.gasto}
+                total={d.gasto + d.receita > 0 ? d.gasto + d.receita : 0}
+              />
+            </div>
+          </div>
+          <div>
+            <Rotulo>fluxo de caixa</Rotulo>
+            <div className="mt-2">
+              <LinhaLista titulo="Entradas" valor={d.receita} semBorda />
+              <LinhaLista titulo="Saídas" valor={d.gasto} semBorda />
+              <LinhaLista
+                titulo="Fluxo do mês"
+                subtitulo="receitas − gastos"
+                valor={d.fluxo}
+                tom={d.fluxo < 0 ? "atencao" : "normal"}
+                semBorda={d.saldoContas === undefined}
+              />
+              {d.saldoContas !== undefined && (
+                <LinhaLista
+                  titulo="Saldo nas contas"
+                  subtitulo="o que está no banco hoje"
+                  valor={d.saldoContas}
+                  href="/mais/contas"
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

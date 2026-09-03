@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { competenciaDaCompra, totalDaFatura, type Cartao, type Fatura, type Transacao } from "./domain";
 import {
+  competenciaDaTransacao,
   eCompraNoCartao,
   eLancamentoPago,
   hashDedupFatura,
@@ -78,6 +79,24 @@ describe("pago vs a pagar", () => {
     const paga: Fatura = { ...FATURA_SET, status: "paga", valorPago: 10_000 };
     const linha = lancamentoDoTotalDaFatura(CARTAO, paga, [compra()]);
     expect(eLancamentoPago(linha!, [paga])).toBe(true);
+  });
+});
+
+describe("competenciaDaTransacao", () => {
+  it("compra OFX depois do fechamento vai para a fatura do mês seguinte", () => {
+    const nanquim: Cartao = { ...CARTAO, id: "nan", diaFechamento: 7, diaVencimento: 15 };
+    const depois = compra({
+      data: "2026-08-25T15:00:00.000Z",
+      cartaoID: "nan",
+      hashDedup: "ofx|nan|park",
+    });
+    const antes = compra({
+      data: "2026-08-05T15:00:00.000Z",
+      cartaoID: "nan",
+      hashDedup: "ofx|nan|barbe",
+    });
+    expect(competenciaDaTransacao(depois, [nanquim])).toEqual({ ano: 2026, mes: 9 });
+    expect(competenciaDaTransacao(antes, [nanquim])).toEqual({ ano: 2026, mes: 8 });
   });
 });
 

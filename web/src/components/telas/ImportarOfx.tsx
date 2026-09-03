@@ -6,8 +6,10 @@ import { categoriasVisiveis } from "@/lib/categorias";
 import {
   competenciaDaCompra,
   dataDeLocalISO,
+  hrefDoMes,
   rotuloCurto,
   type Cartao,
+  type Competencia,
 } from "@/lib/domain";
 import {
   ACCEPT_ARQUIVO_OFX,
@@ -136,7 +138,12 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           ? "Esses gastos já estavam na fatura."
           : `${r.importados} gasto${r.importados === 1 ? "" : "s"} na fatura.`,
       );
-      router.push(`/cartoes/${cartao.id}`);
+      const comps = escolhidas.map((l) => competenciaDaCompra(dataDeLocalISO(l.data), cartao));
+      const destino = comps.reduce<Competencia | undefined>((acc, c) => {
+        if (!acc) return c;
+        return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
+      }, undefined) ?? competenciaDaCompra(new Date(), cartao);
+      router.push(hrefDoMes(destino));
     } catch {
       avisar("erro", "Não deu para importar. Tente de novo.");
     } finally {

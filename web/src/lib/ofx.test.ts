@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Cartao, Categoria, Transacao } from "./domain";
 import { competenciaDaCompra } from "./domain";
+import { transacoesDoMes } from "./metas";
 import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX } from "./ofx-fixture";
 import {
   ACCEPT_ARQUIVO_OFX,
@@ -322,5 +323,24 @@ describe("transacoesDoOfx", () => {
       cartao: CARTAO,
       existentes,
     })).toHaveLength(0);
+  });
+
+  it("compra CREDIT do OFX com categoria custom entra no mês da fatura", () => {
+    const nanquim: Cartao = { ...CARTAO, id: "nan", diaFechamento: 7, diaVencimento: 15 };
+    const txs = transacoesDoOfx({
+      linhas: [{
+        descricao: "PARK EXPRESS",
+        valor: 4000,
+        data: "2026-08-25",
+        categoriaID: "cat-pet",
+        hashDedup: hashDedupOfx("nan", "20260825-park"),
+      }],
+      carteiraID: "w1",
+      cartaoID: "nan",
+      cartao: nanquim,
+    });
+    expect(txs[0]?.categoriaID).toBe("cat-pet");
+    expect(transacoesDoMes(txs, { ano: 2026, mes: 9 }, [nanquim])).toHaveLength(1);
+    expect(transacoesDoMes(txs, { ano: 2026, mes: 8 }, [nanquim])).toHaveLength(0);
   });
 });

@@ -23,7 +23,7 @@ import { Trilha } from "../ui/Trilha";
 import { Vazio } from "../ui/Vazio";
 
 export function Metas() {
-  const { metas, transacoes, categorias, contas, carteira } = useLoja();
+  const { metas, transacoes, categorias, contas, carteira, cartoes } = useLoja();
   const competencia = competenciaDe(new Date());
   const ativas = metasAtivas(metas);
   const tetos = ativas.filter((m) => m.tipo === "teto_categoria");
@@ -102,7 +102,7 @@ export function Metas() {
                 <div className="mt-2">
                   {tetos.map((m) => {
                     const cat = categoriaPorId(m.categoriaID, categorias);
-                    const gasto = gastoDaCategoria(transacoes ?? [], m.categoriaID ?? "", competencia);
+                    const gasto = gastoDaCategoria(transacoes ?? [], m.categoriaID ?? "", competencia, cartoes);
                     const p = progressoTeto(m.valorAlvo, gasto);
                     return (
                       <div key={m.id}>

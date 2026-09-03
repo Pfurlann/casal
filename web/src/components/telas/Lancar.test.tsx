@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { dataDeLocalISO, dataLocalISO, transacoesDoLancamento } from "@/lib/domain";
+import { competenciaDe, dataDeLocalISO, dataLocalISO, hrefDoMes, transacoesDoLancamento } from "@/lib/domain";
 import { Lancar } from "./Lancar";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -143,6 +143,7 @@ describe("Lancar", () => {
         data: dataDeLocalISO(dataLocalISO()),
       }),
     );
+    expect(empurrar).toHaveBeenCalledWith(hrefDoMes(competenciaDe(dataDeLocalISO(dataLocalISO()))));
   });
 
   it("mostra forma de pagamento e data de hoje sem abrir mais opções", () => {

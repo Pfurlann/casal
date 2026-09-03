@@ -100,7 +100,7 @@ export function Lancar() {
   const teto = !ehReceita ? tetoDaCategoria(metas, categoriaID) : undefined;
   const competencia = competenciaDe(dataDeLocalISO(dataISO));
   const gastoTeto = teto?.categoriaID
-    ? gastoDaCategoria(transacoes ?? [], teto.categoriaID, competencia)
+    ? gastoDaCategoria(transacoes ?? [], teto.categoriaID, competencia, cartoesPagador)
     : 0;
   const progresso = teto
     ? progressoTeto(teto.valorAlvo, gastoTeto + entrada.centavos)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Conta, Meta, Transacao } from "./domain";
+import type { Cartao, Conta, Meta, Transacao } from "./domain";
 import {
   alocarNaMeta,
   alocadoNaConta,
@@ -72,6 +72,45 @@ describe("transacoesDoMes", () => {
     expect(doMes.map((t) => t.id)).toEqual(["be"]);
     expect(doMes[0]?.categoriaID).toBe("966ee5dd-4382-42fe-bd8c-1c009faddac0");
     expect(transacoesDoMes(lista, { ano: 2026, mes: 8 }).map((t) => t.id)).toEqual(["ago"]);
+  });
+
+  it("compra OFX no cartão aparece no mês da competência da fatura, com categoria custom", () => {
+    const nanquim: Cartao = {
+      id: "6474d2f6-56ef-42a7-859e-3a2bca2cfdda",
+      carteiraID: "w1",
+      apelido: "Nanquim",
+      banco: "Caixa",
+      ultimos4: "4687",
+      bandeira: "mastercard",
+      cor: "grafite",
+      limite: 1_000_000,
+      diaFechamento: 7,
+      diaVencimento: 15,
+      arquivado: false,
+    };
+    const bemEstar = "966ee5dd-4382-42fe-bd8c-1c009faddac0";
+    const lista = [
+      tx({
+        id: "ofx-set",
+        valor: 4_000,
+        categoriaID: bemEstar,
+        descricao: "PARK EXPRESS",
+        data: "2026-08-25T15:00:00.000Z",
+        cartaoID: nanquim.id,
+        hashDedup: "ofx|nanquim|park",
+      }),
+      tx({
+        id: "ofx-ago",
+        valor: 10_500,
+        categoriaID: bemEstar,
+        descricao: "BARBEARIADOKEL VIN",
+        data: "2026-08-05T15:00:00.000Z",
+        cartaoID: nanquim.id,
+        hashDedup: "ofx|nanquim|barbe",
+      }),
+    ];
+    expect(transacoesDoMes(lista, C, [nanquim]).map((t) => t.id)).toEqual(["ofx-set"]);
+    expect(transacoesDoMes(lista, { ano: 2026, mes: 8 }, [nanquim]).map((t) => t.id)).toEqual(["ofx-ago"]);
   });
 });
 

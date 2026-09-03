@@ -337,6 +337,57 @@ describe("Mes", () => {
     expect(screen.getAllByText(/Bem Estar/).length).toBeGreaterThan(0);
   });
 
+  it("compra OFX de agosto cai no mês da fatura (fechamento dia 7) com categoria custom", () => {
+    const bemEstar = {
+      id: "966ee5dd-4382-42fe-bd8c-1c009faddac0",
+      nome: "Bem Estar",
+      icone: "outros",
+      cor: "grafite",
+      tipo: "despesa" as const,
+      carteiraID: "c1",
+    };
+    const nanquim = {
+      id: "6474d2f6-56ef-42a7-859e-3a2bca2cfdda",
+      carteiraID: "c1",
+      apelido: "Nanquim",
+      banco: "Caixa",
+      ultimos4: "4687",
+      bandeira: "mastercard" as const,
+      cor: CORES_CARTAO[0],
+      limite: 1_000_000,
+      diaFechamento: 7,
+      diaVencimento: 15,
+      arquivado: false,
+    };
+    montar({
+      competenciaRota: "2026-09",
+      categorias: [bemEstar],
+      cartoes: [nanquim],
+      transacoes: [
+        {
+          ...despesa(4_000, "PARK EXPRESS", bemEstar.id, "tx-park"),
+          data: "2026-08-25T15:00:00.000Z",
+          cartaoID: nanquim.id,
+          contaID: undefined,
+          hashDedup: "ofx|nanquim|park",
+          status: "a_pagar",
+        },
+        {
+          ...despesa(10_500, "BARBEARIADOKEL VIN", bemEstar.id, "tx-barbe"),
+          data: "2026-08-05T15:00:00.000Z",
+          cartaoID: nanquim.id,
+          contaID: undefined,
+          hashDedup: "ofx|nanquim|barbe",
+          status: "a_pagar",
+        },
+      ],
+    });
+    expect(screen.getByText(/setembro/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /PARK EXPRESS/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Bem Estar/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("BARBEARIADOKEL VIN")).toBeNull();
+  });
+
   it("hex só na bolinha da origem", () => {
     const { container } = montar({
       transacoes: [despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001")],

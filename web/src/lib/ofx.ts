@@ -1,8 +1,12 @@
 import { categoriasVisiveis } from "./categorias";
 import {
   CATEGORIAS,
+  avancando,
+  competenciaDaCompra,
   dataDeLocalISO,
+  fechamento,
   uuid,
+  type Cartao,
   type Categoria,
   type Transacao,
 } from "./domain";
@@ -18,6 +22,8 @@ export type LinhaOfx = {
   descricao: string;
   valorCentavos: Centavos;
   tipo: TipoLinhaOfx;
+  parcelaN: number;
+  parcelaTotal: number;
 };
 
 export type LinhaImportacaoOfx = {
@@ -26,7 +32,71 @@ export type LinhaImportacaoOfx = {
   data: string;
   categoriaID: string;
   hashDedup: string;
+  parcelaN?: number;
+  parcelaTotal?: number;
 };
+
+export type ParcelaOfx = { n: number; m: number };
+
+function eParcelaValida(n: number, m: number): boolean {
+  return Number.isInteger(n) && Number.isInteger(m) && n >= 1 && m >= 2 && n <= m && m <= 48;
+}
+
+/** PARC 3/12, Parc. 03 de 12, PARCELA 3/12, 03/12 no fim — Itaú/Nubank/C6. */
+export function parcelaDoTexto(texto: string): ParcelaOfx | null {
+  const padroes: RegExp[] = [
+    /\bparc(?:ela|elado)?\.?\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\b/i,
+    /\b(\d{1,2})\s+de\s+(\d{1,2})\s*(?:parc|$)/i,
+    /(?:^|[\s\-])(\d{1,2})\/(\d{1,2})\s*$/,
+  ];
+  for (const re of padroes) {
+    const achado = re.exec(texto);
+    if (!achado) continue;
+    const n = Number(achado[1]);
+    const m = Number(achado[2]);
+    if (eParcelaValida(n, m)) return { n, m };
+  }
+  return null;
+}
+
+export function parcelaDaLinha(l: { descricao: string; parcelaN?: number; parcelaTotal?: number }): ParcelaOfx | null {
+  if (l.parcelaN != null && l.parcelaTotal != null && eParcelaValida(l.parcelaN, l.parcelaTotal)) {
+    return { n: l.parcelaN, m: l.parcelaTotal };
+  }
+  return parcelaDoTexto(l.descricao);
+}
+
+/** Quantas transações esta linha OFX gera (atual + futuras). */
+export function lancamentosDaLinha(l: { descricao: string; parcelaN?: number; parcelaTotal?: number }): number {
+  const p = parcelaDaLinha(l);
+  return p ? p.m - p.n + 1 : 1;
+}
+
+export function fraseParcelaOfx(n: number, m: number): string | undefined {
+  if (!eParcelaValida(n, m)) return undefined;
+  const lanca = m - n + 1;
+  return `parcela ${n}/${m} · lança ${lanca} restante${lanca === 1 ? "" : "s"}`;
+}
+
+/** Competências da parcela n até m. Atual = data do OFX; futuras = fechamento. */
+export function expansaoParcelasOfx(
+  dataISO: string,
+  n: number,
+  m: number,
+  cartao: Cartao,
+): { numero: number; data: string }[] {
+  if (!eParcelaValida(n, m)) return [{ numero: 1, data: dataISO }];
+  const atual = competenciaDaCompra(dataDeLocalISO(dataISO), cartao);
+  const saida: { numero: number; data: string }[] = [];
+  for (let k = n; k <= m; k++) {
+    const competencia = avancando(atual, k - n);
+    saida.push({
+      numero: k,
+      data: k === n ? dataISO : fechamento(competencia, cartao),
+    });
+  }
+  return saida;
+}
 
 type TipoStmt =
   | "CREDIT"
@@ -212,7 +282,16 @@ export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOf
     const fitId = fitIdDaLinha(bloco, data, tipo === "gasto" ? -valorCentavos : valorCentavos, descricao);
     if (vistos.has(fitId)) continue;
     vistos.add(fitId);
-    const linha: LinhaOfx = { fitId, data, descricao, valorCentavos, tipo };
+    const parc = parcelaDoTexto(descricao);
+    const linha: LinhaOfx = {
+      fitId,
+      data,
+      descricao,
+      valorCentavos,
+      tipo,
+      parcelaN: parc?.n ?? 1,
+      parcelaTotal: parc?.m ?? 1,
+    };
     if (tipo === "gasto") gastos.push(linha);
     else creditos.push(linha);
   }
@@ -253,10 +332,15 @@ export function classificarCategoria(descricao: string, custom?: Categoria[]): s
   return categoriasVisiveis(custom, "despesa")[0]?.id ?? CATEGORIAS.find((c) => c.tipo === "despesa")?.id ?? CATEGORIA_OUTROS_ID;
 }
 
+export function hashDedupOfxParcela(hashAtual: string, atual: number, numero: number, total: number): string {
+  return numero === atual ? hashAtual : `${hashAtual}|p${numero}de${total}`;
+}
+
 export function transacoesDoOfx(p: {
   linhas: LinhaImportacaoOfx[];
   carteiraID: string;
   cartaoID: string;
+  cartao?: Cartao;
   pagadorID?: string;
   existentes?: Transacao[];
 }): Transacao[] {
@@ -264,22 +348,35 @@ export function transacoesDoOfx(p: {
   const novas: Transacao[] = [];
   for (const linha of p.linhas) {
     if (hashes.has(linha.hashDedup)) continue;
-    hashes.add(linha.hashDedup);
-    novas.push({
-      id: uuid(),
-      carteiraID: p.carteiraID,
-      tipo: "despesa",
-      valor: linha.valor,
-      data: dataDeLocalISO(linha.data).toISOString(),
-      categoriaID: linha.categoriaID,
-      descricao: linha.descricao,
-      cartaoID: p.cartaoID,
-      pagadorID: p.pagadorID,
-      hashDedup: linha.hashDedup,
-      parcelaN: 1,
-      parcelaTotal: 1,
-      status: "liquidado",
-    });
+    const parc = parcelaDaLinha(linha);
+    const partes =
+      parc && p.cartao
+        ? expansaoParcelasOfx(linha.data, parc.n, parc.m, p.cartao)
+        : [{ numero: parc?.n ?? 1, data: linha.data }];
+    const grupo = partes.length > 1 ? uuid() : undefined;
+    const total = parc?.m ?? 1;
+    const atual = parc?.n ?? 1;
+    for (const parte of partes) {
+      const hash = hashDedupOfxParcela(linha.hashDedup, atual, parte.numero, total);
+      if (hashes.has(hash)) continue;
+      hashes.add(hash);
+      novas.push({
+        id: uuid(),
+        carteiraID: p.carteiraID,
+        tipo: "despesa",
+        valor: linha.valor,
+        data: dataDeLocalISO(parte.data).toISOString(),
+        categoriaID: linha.categoriaID,
+        descricao: linha.descricao,
+        cartaoID: p.cartaoID,
+        pagadorID: p.pagadorID,
+        hashDedup: hash,
+        grupoParcela: grupo,
+        parcelaN: parte.numero,
+        parcelaTotal: total,
+        status: "liquidado",
+      });
+    }
   }
   return novas;
 }

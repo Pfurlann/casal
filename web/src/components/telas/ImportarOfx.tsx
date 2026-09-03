@@ -11,8 +11,10 @@ import {
 } from "@/lib/domain";
 import {
   classificarCategoria,
+  fraseParcelaOfx,
   hashDedupOfx,
   jaImportada,
+  lancamentosDaLinha,
   lerTextoDoArquivo,
   parseOfx,
   type LinhaOfx,
@@ -68,6 +70,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
 
   const novos = linhas.filter((l) => !l.jaTem);
   const totalNovos = novos.reduce((s, l) => s + l.valorCentavos, 0);
+  const lancamentosNovos = novos.reduce((s, l) => s + lancamentosDaLinha(l), 0);
 
   async function lerArquivo(file: File | undefined) {
     setErroArquivo(null);
@@ -111,6 +114,8 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           data: l.data,
           categoriaID: l.categoriaID,
           hashDedup: l.hashDedup,
+          parcelaN: l.parcelaN,
+          parcelaTotal: l.parcelaTotal,
         })),
       });
       avisar(
@@ -165,6 +170,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
               </div>
               <p className="mt-1 text-[12px] text-cinza">
                 {novos.length} novo{novos.length === 1 ? "" : "s"}
+                {lancamentosNovos !== novos.length ? ` · ${lancamentosNovos} lançamentos` : ""}
                 {linhas.length - novos.length > 0
                   ? ` · ${linhas.length - novos.length} já na fatura`
                   : ""}
@@ -212,7 +218,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
                 onClick={() => void salvar()}
                 disabled={novos.length === 0 || salvando}
               >
-                Lançar {novos.length} gasto{novos.length === 1 ? "" : "s"}
+                Lançar {lancamentosNovos} gasto{lancamentosNovos === 1 ? "" : "s"}
               </Botao>
             </div>
           </>
@@ -236,6 +242,7 @@ function LinhaRevisao({
   onCategoria: (id: string) => void;
 }) {
   const competencia = competenciaDaCompra(dataDeLocalISO(linha.data), cartao);
+  const parcela = fraseParcelaOfx(linha.parcelaN, linha.parcelaTotal);
   return (
     <li className="border-b border-nevoa py-3">
       <div className="flex items-start justify-between gap-3">
@@ -243,6 +250,7 @@ function LinhaRevisao({
           <span className="block truncate text-[14px] text-grafite">{linha.descricao}</span>
           <span className="block text-[12px] text-cinza">
             {dataBr(linha.data)} · fatura {rotuloCurto(competencia)}
+            {parcela ? ` · ${parcela}` : ""}
             {linha.jaTem ? " · já na fatura" : ""}
           </span>
         </span>

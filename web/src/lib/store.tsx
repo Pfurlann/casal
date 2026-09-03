@@ -1210,10 +1210,11 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       linhas,
       carteiraID: estado.carteira.id,
       cartaoID: cartao.id,
+      cartao,
       pagadorID: pagadorPadrao(undefined, usuario?.id),
       existentes: estado.transacoes,
     });
-    const repetidos = linhas.length - novas.length;
+    const repetidos = linhas.filter((l) => estado.transacoes.some((t) => t.hashDedup === l.hashDedup)).length;
     if (novas.length === 0) return { importados: 0, repetidos };
     await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
     if (sb) {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FIXTURE_FATURA_OFX } from "@/lib/ofx-fixture";
+import { FIXTURE_FATURA_OFX, FIXTURE_PARCELA_OFX } from "@/lib/ofx-fixture";
 import { ImportarOfx } from "./ImportarOfx";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -113,5 +113,30 @@ describe("ImportarOfx", () => {
     await enviarFixture();
     expect(screen.getByText(/1 já na fatura/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Lançar 2 gastos/ })).toBeEnabled();
+  });
+
+  it("mostra parcela 3/12 e lança o grupo com a categoria escolhida", async () => {
+    montar();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(
+      input,
+      new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
+    );
+    expect(await screen.findByText(/parcela 3\/12 · lança 10 restantes/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Lançar 10 gastos/ })).toBeEnabled();
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /Categoria de MAGAZINE LUIZA/ }),
+      "Pet",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 10 gastos/ }));
+    const arg = importar.fn.mock.calls[0]?.[0] as {
+      linhas: { categoriaID: string; parcelaN: number; parcelaTotal: number }[];
+    };
+    expect(arg.linhas).toHaveLength(1);
+    expect(arg.linhas[0]).toMatchObject({
+      categoriaID: "cat-pet",
+      parcelaN: 3,
+      parcelaTotal: 12,
+    });
   });
 });

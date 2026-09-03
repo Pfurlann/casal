@@ -28,6 +28,21 @@ describe("Teclado — ponteiro", () => {
       );
     }
   });
+
+  it("alterna o sinal pelo botão +/−", async () => {
+    const aoAlternarSinal = vi.fn();
+    render(
+      <Teclado
+        aoDigitar={() => {}}
+        aoApagar={() => {}}
+        aoAlternarSinal={aoAlternarSinal}
+      />,
+    );
+    const tecla = screen.getByRole("button", { name: "Alternar sinal do saldo" });
+    expect(tecla.className).toContain("min-h-[44px]");
+    await userEvent.click(tecla);
+    expect(aoAlternarSinal).toHaveBeenCalledOnce();
+  });
 });
 
 describe("Teclado — teclado físico", () => {
@@ -82,6 +97,19 @@ describe("Teclado — teclado físico", () => {
     );
     await userEvent.keyboard("{Escape}");
     expect(aoFechar).toHaveBeenCalledOnce();
+  });
+
+  it("alterna o sinal com o hífen", async () => {
+    const aoAlternarSinal = vi.fn();
+    render(
+      <Teclado
+        aoDigitar={() => {}}
+        aoApagar={() => {}}
+        aoAlternarSinal={aoAlternarSinal}
+      />,
+    );
+    await userEvent.keyboard("-");
+    expect(aoAlternarSinal).toHaveBeenCalledOnce();
   });
 
   it("ignora letra", async () => {

@@ -94,14 +94,34 @@ export function ContaForm({ id }: { id?: string }) {
           </div>
         </div>
 
-        <div
-          className="mt-6"
-          role="status"
-          aria-live="polite"
-          aria-label="Saldo inicial"
-        >
+        <div className="mt-6">
           <Rotulo>saldo inicial</Rotulo>
-          <div className="mt-2">
+          <div className="mt-2 flex gap-2">
+            <Etiqueta
+              ativa={!entrada.negativo}
+              aoClicar={() => {
+                if (entrada.negativo) entrada.alternarSinal();
+                tick((n) => n + 1);
+              }}
+            >
+              Crédito
+            </Etiqueta>
+            <Etiqueta
+              ativa={entrada.negativo}
+              aoClicar={() => {
+                if (!entrada.negativo) entrada.alternarSinal();
+                tick((n) => n + 1);
+              }}
+            >
+              Estou devendo
+            </Etiqueta>
+          </div>
+          <div
+            className="mt-2"
+            role="status"
+            aria-live="polite"
+            aria-label="Saldo inicial"
+          >
             <Numero centavos={entrada.centavos} tamanho="secao" />
           </div>
         </div>
@@ -121,6 +141,10 @@ export function ContaForm({ id }: { id?: string }) {
         }}
         aoApagar={() => {
           entrada.apagar();
+          tick((n) => n + 1);
+        }}
+        aoAlternarSinal={() => {
+          entrada.alternarSinal();
           tick((n) => n + 1);
         }}
         aoSalvar={salvar}

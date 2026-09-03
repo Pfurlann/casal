@@ -75,4 +75,15 @@ struct CartaoTests {
         #expect(conta.saldoInicial == Money(centavos: 150_000))
         #expect(conta.tipo == .corrente)
     }
+
+    @Test("conta aceita saldo inicial negativo")
+    func contaSaldoNegativo() {
+        let conta = Conta(
+            carteiraID: UUID(),
+            nome: "Corrente",
+            tipo: .corrente,
+            saldoInicial: Money(centavos: -5_000)
+        )
+        #expect(conta.saldoInicial == Money(centavos: -5_000))
+    }
 }

@@ -50,4 +50,36 @@ describe("EntradaValor", () => {
   it("não permite salvar valor zero", () => {
     expect(new EntradaValor().podeSalvar).toBe(false);
   });
+
+  it("carrega saldo inicial negativo em centavos", () => {
+    const e = EntradaValor.deCentavos(-5000);
+    expect(e.centavos).toBe(-5000);
+    expect(e.negativo).toBe(true);
+    expect(formatarBRL(e.centavos)).toBe("−R$ 50,00");
+  });
+
+  it("alterna o sinal sem usar float", () => {
+    const e = EntradaValor.deCentavos(1850);
+    e.alternarSinal();
+    expect(e.centavos).toBe(-1850);
+    e.alternarSinal();
+    expect(e.centavos).toBe(1850);
+  });
+
+  it("preserva o sinal ao digitar e apagar", () => {
+    const e = new EntradaValor();
+    e.alternarSinal();
+    e.digitar(5);
+    e.digitar(0);
+    e.digitar(0);
+    e.digitar(0);
+    expect(e.centavos).toBe(-5000);
+    e.apagar();
+    expect(e.centavos).toBe(-500);
+  });
+
+  it("não habilita salvar quando o valor é negativo", () => {
+    const e = EntradaValor.deCentavos(-100);
+    expect(e.podeSalvar).toBe(false);
+  });
 });

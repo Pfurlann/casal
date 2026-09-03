@@ -21,17 +21,27 @@ export function dividir(centavos: Centavos, partes: number): Centavos[] {
 }
 
 export class EntradaValor {
-  centavos = 0;
+  /** Magnitude em centavos. O sinal mora em `negativo`. */
+  private magnitude = 0;
+  negativo = false;
+
+  get centavos(): Centavos {
+    return this.negativo ? -this.magnitude : this.magnitude;
+  }
 
   digitar(d: number) {
     if (d < 0 || d > 9) return;
-    const proximo = this.centavos * 10 + d;
+    const proximo = this.magnitude * 10 + d;
     if (proximo > 99_999_999_99) return;
-    this.centavos = proximo;
+    this.magnitude = proximo;
   }
 
   apagar() {
-    this.centavos = Math.trunc(this.centavos / 10);
+    this.magnitude = Math.trunc(this.magnitude / 10);
+  }
+
+  alternarSinal() {
+    this.negativo = !this.negativo;
   }
 
   get podeSalvar() {
@@ -40,7 +50,9 @@ export class EntradaValor {
 
   static deCentavos(centavos: number) {
     const e = new EntradaValor();
-    e.centavos = Math.max(0, centavos);
+    const inteiro = Math.trunc(centavos);
+    e.magnitude = Math.abs(inteiro);
+    e.negativo = inteiro < 0;
     return e;
   }
 }

@@ -15,6 +15,7 @@ export function Teclado({
   aoSalvar,
   aoFechar,
   aoMaisOpcoes,
+  aoAlternarSinal,
   podeSalvar = false,
   mostraSalvar = false,
 }: {
@@ -23,6 +24,7 @@ export function Teclado({
   aoSalvar?: () => void;
   aoFechar?: () => void;
   aoMaisOpcoes?: () => void;
+  aoAlternarSinal?: () => void;
   podeSalvar?: boolean;
   mostraSalvar?: boolean;
 }) {
@@ -41,6 +43,11 @@ export function Teclado({
         aoApagar();
         return;
       }
+      if ((e.key === "-" || e.key === "−") && aoAlternarSinal) {
+        e.preventDefault();
+        aoAlternarSinal();
+        return;
+      }
       if (e.key === "Enter" && aoSalvar && podeSalvar) {
         e.preventDefault();
         aoSalvar();
@@ -53,7 +60,7 @@ export function Teclado({
     }
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
-  }, [aoDigitar, aoApagar, aoSalvar, aoFechar, podeSalvar]);
+  }, [aoDigitar, aoApagar, aoSalvar, aoFechar, aoAlternarSinal, podeSalvar]);
 
   return (
     <div className="px-2 pt-2 pb-[max(8px,env(safe-area-inset-bottom))]">
@@ -76,6 +83,10 @@ export function Teclado({
         {mostraSalvar && aoMaisOpcoes ? (
           <Tecla aoClicar={aoMaisOpcoes} rotulo="Mais opções">
             <IconeMaisOpcoes size={22} />
+          </Tecla>
+        ) : aoAlternarSinal ? (
+          <Tecla aoClicar={aoAlternarSinal} rotulo="Alternar sinal do saldo">
+            +/−
           </Tecla>
         ) : (
           <div />

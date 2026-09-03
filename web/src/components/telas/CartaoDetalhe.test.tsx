@@ -51,6 +51,19 @@ describe("CartaoDetalhe", () => {
     expect(screen.getByText("parcela 1 de 3")).toBeInTheDocument();
   });
 
+  it("abre a edição ao tocar no lançamento da fatura", () => {
+    loja.valor = {
+      cartoes: [CARTAO],
+      faturas: [],
+      transacoes: [parcela(1, new Date(2026, 8, 28, 12))],
+    };
+    render(<CartaoDetalhe id="k1" />);
+    expect(screen.getByRole("link", { name: /Sofá/ })).toHaveAttribute(
+      "href",
+      "/lancamentos/p1",
+    );
+  });
+
   it("mostra programa, saldo e pts por US$ 1", () => {
     loja.valor = {
       cartoes: [

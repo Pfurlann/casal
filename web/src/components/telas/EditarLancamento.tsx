@@ -27,7 +27,12 @@ export function EditarLancamento({ id }: { id: string }) {
   const { transacoes, editar, apagar } = loja;
   const contasTodas = loja.contasTodas ?? loja.contas ?? [];
   const cartoesTodos = loja.cartoesTodos ?? loja.cartoes ?? [];
-  const carteiras = loja.carteiras ?? [];
+  const carteiras =
+    (loja.carteiras ?? []).length > 0
+      ? (loja.carteiras ?? [])
+      : loja.carteira
+        ? [{ ...loja.carteira, membrosN: 1, souDono: true }]
+        : [];
   const { avisar } = useAviso();
   const router = useRouter();
   const tx = transacoes.find((t) => t.id === id);

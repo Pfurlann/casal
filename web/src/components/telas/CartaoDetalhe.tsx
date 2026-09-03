@@ -142,6 +142,7 @@ export function CartaoDetalhe({ id }: { id: string }) {
                 lancamentos.map((t) => (
                   <LinhaLista
                     key={t.id}
+                    href={`/lancamentos/${t.id}`}
                     titulo={t.descricao || "Sem descrição"}
                     subtitulo={
                       t.parcelaTotal > 1 ? `parcela ${t.parcelaN} de ${t.parcelaTotal}` : undefined

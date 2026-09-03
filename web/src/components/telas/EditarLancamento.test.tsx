@@ -110,21 +110,67 @@ describe("EditarLancamento", () => {
     expect(screen.queryByRole("button", { name: "Apagar último dígito" })).toBeNull();
     expect(screen.getByText(/Nubank · final 1234/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apagar lançamento" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Carteira")).toHaveValue("c1");
   });
 
   it("salva só descrição e categoria da parcela tocada", async () => {
     montar(PARCELA);
+    await userEvent.clear(screen.getByLabelText("Onde foi o gasto"));
+    await userEvent.type(screen.getByLabelText("Onde foi o gasto"), "Sofá novo");
+    await userEvent.click(screen.getByRole("button", { name: /Restaurante/ }));
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(editar.fn).toHaveBeenCalledWith({
       id: "p2",
-      descricao: "Sofá",
-      categoriaID: "00000000-0000-0000-0000-000000000001",
+      descricao: "Sofá novo",
+      categoriaID: "00000000-0000-0000-0000-000000000002",
       valor: undefined,
       carteiraID: "c1",
       contaID: undefined,
       cartaoID: "k1",
       pagadorID: undefined,
     });
+  });
+
+  it("edita descrição, categoria e carteira de um gasto no cartão à vista", async () => {
+    montar({
+      ...AVISTA,
+      id: "k-av",
+      cartaoID: "k1",
+    });
+    await userEvent.clear(screen.getByLabelText("Onde foi o gasto"));
+    await userEvent.type(screen.getByLabelText("Onde foi o gasto"), "Farmácia");
+    await userEvent.click(screen.getByRole("button", { name: /Restaurante/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(editar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "k-av",
+        descricao: "Farmácia",
+        categoriaID: "00000000-0000-0000-0000-000000000002",
+        cartaoID: "k1",
+        carteiraID: "c1",
+      }),
+    );
+  });
+
+  it("edita descrição e categoria de um gasto na conta", async () => {
+    montar({
+      ...AVISTA,
+      id: "a1",
+      contaID: "acc1",
+    });
+    await userEvent.clear(screen.getByLabelText("Onde foi o gasto"));
+    await userEvent.type(screen.getByLabelText("Onde foi o gasto"), "Luz");
+    await userEvent.click(screen.getByRole("button", { name: /Restaurante/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(editar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "a1",
+        descricao: "Luz",
+        categoriaID: "00000000-0000-0000-0000-000000000002",
+        contaID: "acc1",
+        cartaoID: undefined,
+      }),
+    );
   });
 
   it("pede confirmação e apaga um lançamento à vista", async () => {

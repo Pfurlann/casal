@@ -20,7 +20,8 @@ export type ColunasPrograma = {
 
 /** Sem nome = cartão sem pontos. */
 export function programaVisivel(p?: ProgramaPontos): ProgramaPontos | undefined {
-  const nome = p?.nome.trim();
+  if (!p) return undefined;
+  const nome = p.nome.trim();
   if (!nome) return undefined;
   return { ...p, nome };
 }

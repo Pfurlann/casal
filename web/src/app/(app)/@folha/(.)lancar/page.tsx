@@ -8,7 +8,7 @@ export default function FolhaLancar() {
   const router = useRouter();
   return (
     <Folha aoFechar={() => router.back()} trava>
-      <Lancar />
+      <Lancar comoFolha />
     </Folha>
   );
 }

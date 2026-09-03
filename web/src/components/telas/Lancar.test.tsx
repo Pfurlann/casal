@@ -6,7 +6,11 @@ import { Lancar } from "./Lancar";
 import { ProvedorAviso } from "../ui/Aviso";
 
 const empurrar = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: empurrar, back: vi.fn() }) }));
+const substituir = vi.fn();
+const voltarHist = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: empurrar, replace: substituir, back: voltarHist }),
+}));
 
 const lancar = vi.hoisted(() => ({ fn: vi.fn() }));
 const loja = vi.hoisted(() => ({ valor: {} as Record<string, unknown> }));
@@ -64,8 +68,11 @@ function montar(opts?: {
   salvarCategoria?: (c: unknown) => Promise<void>;
   metas?: Record<string, unknown>[];
   transacoes?: Record<string, unknown>[];
+  comoFolha?: boolean;
 }) {
   empurrar.mockClear();
+  substituir.mockClear();
+  voltarHist.mockClear();
   loja.valor = {
     carteira: opts?.carteira ?? { id: "c1", nome: "Nosso" },
     cartoes: opts?.cartoes ?? [],
@@ -82,7 +89,7 @@ function montar(opts?: {
   };
   return render(
     <ProvedorAviso>
-      <Lancar />
+      <Lancar comoFolha={opts?.comoFolha} />
     </ProvedorAviso>,
   );
 }
@@ -143,7 +150,28 @@ describe("Lancar", () => {
         data: dataDeLocalISO(dataLocalISO()),
       }),
     );
-    expect(empurrar).toHaveBeenCalledWith(hrefDoMes(competenciaDe(dataDeLocalISO(dataLocalISO()))));
+    expect(substituir).toHaveBeenCalledWith(hrefDoMes(competenciaDe(dataDeLocalISO(dataLocalISO()))));
+    expect(voltarHist).not.toHaveBeenCalled();
+    expect(empurrar).not.toHaveBeenCalled();
+  });
+
+  it("na folha mobile, fecha com back e depois vai ao mês certo", async () => {
+    lancar.fn.mockClear();
+    montar({ comoFolha: true });
+    await userEvent.keyboard("1000");
+    await informarDescricao("Almoço");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalled();
+    expect(voltarHist).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(substituir).toHaveBeenCalledWith(
+        hrefDoMes(competenciaDe(dataDeLocalISO(dataLocalISO()))),
+      );
+    });
+    expect(voltarHist.mock.invocationCallOrder[0]).toBeLessThan(
+      substituir.mock.invocationCallOrder[0]!,
+    );
+    expect(empurrar).not.toHaveBeenCalled();
   });
 
   it("mostra forma de pagamento e data de hoje sem abrir mais opções", () => {
@@ -241,6 +269,8 @@ describe("Lancar", () => {
     await informarDescricao();
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText(/Não deu para salvar/)).toBeInTheDocument();
+    expect(substituir).not.toHaveBeenCalled();
+    expect(voltarHist).not.toHaveBeenCalled();
     expect(empurrar).not.toHaveBeenCalled();
   });
 

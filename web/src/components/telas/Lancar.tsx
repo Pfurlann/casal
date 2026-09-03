@@ -46,7 +46,7 @@ function classeSelect() {
   return "relative z-10 mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 }
 
-export function Lancar() {
+export function Lancar({ comoFolha = false }: { comoFolha?: boolean } = {}) {
   const {
     cartoes,
     cartoesTodos,
@@ -95,7 +95,20 @@ export function Lancar() {
   const titulo = ehReceita ? "nova receita" : "novo gasto";
   const voltar = () => {
     if (window.history.length > 1) router.back();
-    else router.push("/mes");
+    else router.replace("/mes");
+  };
+
+  /** Soft `push` após salvar deixa @folha/(.)lancar montada no mobile/PWA. */
+  const irAposSucesso = (destino: string) => {
+    if (comoFolha) {
+      router.back();
+      // iOS: back precisa assentar o histórico antes do replace do mês certo.
+      window.setTimeout(() => {
+        router.replace(destino);
+      }, 0);
+      return;
+    }
+    router.replace(destino);
   };
   const teto = !ehReceita ? tetoDaCategoria(metas, categoriaID) : undefined;
   const competencia = competenciaDe(dataDeLocalISO(dataISO));
@@ -207,10 +220,10 @@ export function Lancar() {
       const destino = origemCartao && cartaoEscolhido
         ? competenciaDaCompra(data, cartaoEscolhido)
         : competenciaDe(data);
-      router.push(hrefDoMes(destino));
+      irAposSucesso(hrefDoMes(destino));
+      // Mantém salvando até desmontar — no mobile evita reabrir/reenviar se a nav atrasar.
     } catch {
       avisar("erro", "Não deu para salvar o lançamento. Tente de novo.");
-    } finally {
       setSalvando(false);
     }
   }
@@ -296,7 +309,7 @@ export function Lancar() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Cabecalho titulo={titulo} voltarPara="/mes" />
+      <Cabecalho titulo={titulo} aoVoltar={voltar} />
       {carteira?.nome && (
         <p className="px-4 pt-1 text-center text-[12px] text-cinza">em {carteira.nome}</p>
       )}

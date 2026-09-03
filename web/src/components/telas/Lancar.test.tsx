@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { dataDeLocalISO, dataLocalISO } from "@/lib/domain";
 import { Lancar } from "./Lancar";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -37,12 +38,36 @@ const CONTA = {
   arquivada: false,
 };
 
-function montar(opts?: { cartoes?: typeof CARTAO[]; contas?: typeof CONTA[] }) {
+const MEMBROS = [
+  { userId: "u1", email: "eu@casa.br", papel: "dono" as const },
+  { userId: "u2", email: "ana@casa.br", papel: "membro" as const },
+];
+
+const PET = {
+  id: "cat-pet",
+  nome: "Pet",
+  icone: "outros",
+  cor: "grafite",
+  tipo: "despesa" as const,
+  carteiraID: "c1",
+};
+
+function montar(opts?: {
+  cartoes?: typeof CARTAO[];
+  contas?: typeof CONTA[];
+  carteira?: Record<string, unknown>;
+  membros?: typeof MEMBROS;
+  usuarioID?: string;
+  categorias?: typeof PET[];
+}) {
   empurrar.mockClear();
   loja.valor = {
-    carteira: { id: "c1", nome: "Nosso" },
+    carteira: opts?.carteira ?? { id: "c1", nome: "Nosso" },
     cartoes: opts?.cartoes ?? [],
     contas: opts?.contas ?? [CONTA],
+    membros: opts?.membros ?? [],
+    usuarioID: opts?.usuarioID,
+    categorias: opts?.categorias ?? [],
     lancar: lancar.fn,
   };
   return render(
@@ -84,6 +109,52 @@ describe("Lancar", () => {
         contaID: CONTA.id,
         cartaoID: undefined,
         parcelas: 1,
+        tipo: "despesa",
+        data: dataDeLocalISO(dataLocalISO()),
+      }),
+    );
+  });
+
+  it("mostra forma de pagamento e data de hoje sem abrir mais opções", () => {
+    montar();
+    expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do lançamento")).toHaveValue(dataLocalISO());
+    expect(screen.getByRole("button", { name: "Gasto" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("passa a data editada para o lançamento", async () => {
+    lancar.fn.mockClear();
+    montar();
+    fireEvent.change(screen.getByLabelText("Data do lançamento"), {
+      target: { value: "2026-08-15" },
+    });
+    await userEvent.keyboard("1000");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ data: dataDeLocalISO("2026-08-15") }),
+    );
+  });
+
+  it("lança receita na conta, com categoria de receita e sem cartão", async () => {
+    lancar.fn.mockClear();
+    montar({ cartoes: [CARTAO] });
+    await userEvent.click(screen.getByRole("button", { name: "Receita" }));
+    expect(screen.getByRole("heading", { name: "nova receita" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Salário/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Restaurante/ })).toBeNull();
+    expect(screen.getByLabelText("Conta que recebe")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /final 4417/ })).toBeNull();
+    await userEvent.keyboard("850000");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valor: 850000,
+        tipo: "receita",
+        categoriaID: "00000000-0000-0000-0000-000000000013",
+        contaID: CONTA.id,
+        cartaoID: undefined,
+        parcelas: 1,
+        data: dataDeLocalISO(dataLocalISO()),
       }),
     );
   });
@@ -108,7 +179,6 @@ describe("Lancar", () => {
     montar({ contas: [], cartoes: [] });
     await userEvent.keyboard("1000");
     expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     expect(screen.getByRole("link", { name: "Cadastrar conta" })).toHaveAttribute(
       "href",
       "/mais/contas/novo",
@@ -116,23 +186,31 @@ describe("Lancar", () => {
     expect(screen.queryByLabelText("Forma de pagamento")).toBeNull();
   });
 
-  it("sem contas, ainda deixa escolher um cartão", async () => {
+  it("sem contas, ainda deixa escolher um cartão na tela principal", async () => {
     montar({ contas: [], cartoes: [CARTAO] });
     await userEvent.keyboard("1000");
     expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     expect(screen.getByRole("link", { name: "Cadastrar conta" })).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
-    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
     expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
   });
 
-  it("abre mais opções no lugar do teclado, com conta, cartão e parcelas", async () => {
+  it("abre mais opções no lugar do teclado, só com a descrição", async () => {
     montar({ cartoes: [CARTAO] });
     await userEvent.keyboard("10000");
     await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     expect(screen.getByRole("heading", { name: "mais opções" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
+    expect(screen.getByLabelText("Onde foi o gasto")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Forma de pagamento")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "novo gasto" })).toBeInTheDocument();
+  });
+
+  it("escolhe cartão e parcelas na tela principal, sem abrir mais opções", async () => {
+    montar({ cartoes: [CARTAO] });
+    await userEvent.keyboard("10000");
     expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
     expect(screen.queryByLabelText("Parcelas")).toBeNull();
 
@@ -142,20 +220,14 @@ describe("Lancar", () => {
 
     await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "3");
     expect(screen.getByText(/3x de R\$ 33,34, primeira parcela maior se houver sobra/)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
-    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "novo gasto" })).toBeInTheDocument();
   });
 
   it("grava o lançamento no cartão com o número de parcelas, sem conta", async () => {
     lancar.fn.mockClear();
     montar({ cartoes: [CARTAO] });
     await userEvent.keyboard("300000");
-    await userEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
     await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "12");
-    await userEvent.click(screen.getByRole("button", { name: "Pronto" }));
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -163,7 +235,56 @@ describe("Lancar", () => {
         cartaoID: CARTAO.id,
         contaID: undefined,
         parcelas: 12,
+        tipo: "despesa",
       }),
+    );
+  });
+
+  it("na conjunta, quem pagou começa no usuário logado", async () => {
+    lancar.fn.mockClear();
+    montar({
+      carteira: { id: "c1", nome: "Nosso", visibilidade: "aberta", rotulo: "compartilhada" },
+      membros: MEMBROS,
+      usuarioID: "u1",
+    });
+    expect(screen.getByLabelText("Quem pagou")).toHaveValue("u1");
+    expect(screen.getByRole("option", { name: "Você" })).toBeInTheDocument();
+    await userEvent.keyboard("1000");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(expect.objectContaining({ pagadorID: "u1" }));
+  });
+
+  it("troca o pagador para o parceiro", async () => {
+    lancar.fn.mockClear();
+    montar({
+      carteira: { id: "c1", nome: "Nosso", visibilidade: "aberta", rotulo: "compartilhada" },
+      membros: MEMBROS,
+      usuarioID: "u1",
+    });
+    await userEvent.selectOptions(screen.getByLabelText("Quem pagou"), "u2");
+    await userEvent.keyboard("1000");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(expect.objectContaining({ pagadorID: "u2" }));
+  });
+
+  it("na pessoal, omite quem pagou", () => {
+    montar({
+      carteira: { id: "c1", nome: "Meu", visibilidade: "fechada", rotulo: "pessoal" },
+      membros: [MEMBROS[0]],
+      usuarioID: "u1",
+    });
+    expect(screen.queryByLabelText("Quem pagou")).toBeNull();
+  });
+
+  it("mostra categoria custom da carteira e grava com o id dela", async () => {
+    lancar.fn.mockClear();
+    montar({ categorias: [PET] });
+    expect(screen.getByRole("button", { name: /Pet/ })).toBeInTheDocument();
+    await userEvent.keyboard("1000");
+    await userEvent.click(screen.getByRole("button", { name: /Pet/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ categoriaID: "cat-pet", tipo: "despesa", valor: 1000 }),
     );
   });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   competenciaDaRota,
+  dataDeLocalISO,
+  dataLocalISO,
   planejarParcelas,
   rotuloDaCompetencia,
   transacoesDoLancamento,
@@ -134,5 +136,48 @@ describe("transacoesDoLancamento", () => {
     expect(txs.every((t) => t.cartaoID === "k1")).toBe(true);
     expect(txs.every((t) => t.contaID === undefined)).toBe(true);
     expect(new Set(txs.map((t) => t.hashDedup)).size).toBe(12);
+  });
+
+  it("grava o mesmo pagador em todas as parcelas", () => {
+    const txs = transacoesDoLancamento({
+      valor: 9000,
+      descricao: "Sofá",
+      data: data(2026, 9, 10),
+      cartao: CARTAO,
+      parcelas: 3,
+      carteiraID: "c1",
+      pagadorID: "u2",
+    });
+    expect(txs).toHaveLength(3);
+    expect(txs.every((t) => t.pagadorID === "u2")).toBe(true);
+  });
+
+  it("grava receita positiva na conta, sem cartão", () => {
+    const txs = transacoesDoLancamento({
+      valor: 850000,
+      descricao: "Salário",
+      categoriaID: "00000000-0000-0000-0000-000000000013",
+      data: data(2026, 9, 2),
+      contaID: "a1",
+      cartao: CARTAO,
+      parcelas: 3,
+      carteiraID: "c1",
+      tipo: "receita",
+    });
+    expect(txs).toHaveLength(1);
+    expect(txs[0]).toMatchObject({
+      tipo: "receita",
+      valor: 850000,
+      contaID: "a1",
+      cartaoID: undefined,
+      parcelaTotal: 1,
+    });
+  });
+});
+
+describe("data local do lançamento", () => {
+  it("formata e relê o dia sem virar UTC", () => {
+    expect(dataLocalISO(data(2026, 8, 15))).toBe("2026-08-15");
+    expect(dataDeLocalISO("2026-08-15")).toEqual(data(2026, 8, 15));
   });
 });

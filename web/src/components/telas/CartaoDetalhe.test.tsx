@@ -51,6 +51,30 @@ describe("CartaoDetalhe", () => {
     expect(screen.getByText("parcela 1 de 3")).toBeInTheDocument();
   });
 
+  it("mostra programa, saldo e pts por US$ 1", () => {
+    loja.valor = {
+      cartoes: [
+        {
+          ...CARTAO,
+          programa: {
+            nome: "Livelo",
+            saldo: 12500,
+            pontosPorUnidadeX100: 220,
+            moeda: "usd",
+            valorPontoCentavos: 3,
+          },
+        },
+      ],
+      faturas: [],
+      transacoes: [],
+    };
+    render(<CartaoDetalhe id="k1" />);
+    expect(screen.getByText(/Livelo · 12\.500 pts/)).toBeInTheDocument();
+    expect(screen.getByText(/2,2 pts por US\$ 1/)).toBeInTheDocument();
+    expect(screen.getByText("R$ 375,00")).toBeInTheDocument();
+    expect(screen.getByText("Saldo informado por você")).toBeInTheDocument();
+  });
+
   it("lista competências futuras com o valor da parcela", async () => {
     loja.valor = {
       cartoes: [CARTAO],

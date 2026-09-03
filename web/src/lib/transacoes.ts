@@ -8,6 +8,7 @@ export type EdicaoLancamento = {
   carteiraID?: string;
   contaID?: string;
   cartaoID?: string;
+  pagadorID?: string;
 };
 
 export type ApagarLancamento = {
@@ -24,11 +25,15 @@ function mudaCarteiraOuOrigem(alvo: Transacao, p: EdicaoLancamento): boolean {
   return false;
 }
 
-/** Carteira e origem novas valem para o grupo inteiro. Descrição e valor, só na linha tocada. */
+function mudaPagador(alvo: Transacao, p: EdicaoLancamento): boolean {
+  return Boolean(p.pagadorID && p.pagadorID !== (alvo.pagadorID ?? ""));
+}
+
+/** Carteira, origem e pagador novos valem para o grupo inteiro. Descrição e valor, só na linha tocada. */
 export function idsParaEditar(transacoes: Transacao[], p: EdicaoLancamento): string[] {
   const alvo = transacoes.find((t) => t.id === p.id);
   if (!alvo) return [];
-  if (mudaCarteiraOuOrigem(alvo, p) && alvo.grupoParcela) {
+  if ((mudaCarteiraOuOrigem(alvo, p) || mudaPagador(alvo, p)) && alvo.grupoParcela) {
     return transacoes.filter((t) => t.grupoParcela === alvo.grupoParcela).map((t) => t.id);
   }
   return [alvo.id];
@@ -49,6 +54,7 @@ export function aplicarEdicao(transacoes: Transacao[], p: EdicaoLancamento): Tra
       valor,
     };
     if (p.carteiraID) proxima.carteiraID = p.carteiraID;
+    if (p.pagadorID) proxima.pagadorID = p.pagadorID;
     if (p.cartaoID) {
       proxima.cartaoID = p.cartaoID;
       proxima.contaID = undefined;

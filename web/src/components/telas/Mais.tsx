@@ -9,7 +9,7 @@ import { Rotulo } from "../ui/Rotulo";
 import { Botao } from "../ui/Botao";
 
 export function Mais() {
-  const { contas, carteira, remoto } = useLoja();
+  const { contas, carteira, remoto, despesasFixas, categorias } = useLoja();
   const { usuario, sair } = useAuth();
   return (
     <div>
@@ -43,6 +43,24 @@ export function Mais() {
                 : "corrente, poupança e dinheiro"
             }
             href="/mais/contas"
+          />
+          <LinhaLista
+            titulo="Categorias"
+            subtitulo={
+              categorias?.length
+                ? `padrão e as suas · ${categorias.length} em ${carteira.nome}`
+                : `padrão e as suas · ${carteira.nome}`
+            }
+            href="/mais/categorias"
+          />
+          <LinhaLista
+            titulo="Fixos"
+            subtitulo={
+              despesasFixas?.length
+                ? `aluguel, salário · ${despesasFixas.length} em ${carteira.nome}`
+                : `aluguel, salário, assinaturas · ${carteira.nome}`
+            }
+            href="/mais/fixas"
           />
         </div>
         <p className="mt-8 text-[12px] text-cinza">

@@ -24,13 +24,20 @@ import {
   vencimento,
   type Cartao,
   type Carteira,
+  type Categoria,
   type Conta,
   type Fatura,
   type RotuloCarteira,
+  type Competencia,
+  type DespesaFixa,
   type Transacao,
   type VisibilidadeCarteira,
 } from "./domain";
+import { COR_CATEGORIA_CUSTOM } from "./categorias";
+import { jaLancada, transacaoDaFixa } from "./despesas-fixas";
+import { pagadorPadrao } from "./pagador";
 import { clienteSupabase } from "./supabase";
+import { colunasDoPrograma, programaDeColunas } from "./pontos";
 import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
 
 export type MembroCarteira = {
@@ -55,6 +62,10 @@ export type Estado = {
   cartoesTodos: Cartao[];
   faturas: Fatura[];
   transacoes: Transacao[];
+  categorias: Categoria[];
+  categoriasTodas: Categoria[];
+  despesasFixas: DespesaFixa[];
+  despesasFixasTodas: DespesaFixa[];
   membros: MembroCarteira[];
   convite: ConviteAtivo | null;
 };
@@ -123,6 +134,11 @@ function mapearCartao(c: {
   dia_fechamento: number;
   dia_vencimento: number;
   arquivado?: boolean | null;
+  programa_pontos?: string | null;
+  saldo_pontos?: number | null;
+  pontos_por_unidade_x100?: number | null;
+  moeda_acumulo?: string | null;
+  valor_ponto_centavos?: number | null;
 }): Cartao {
   return {
     id: c.id,
@@ -136,6 +152,51 @@ function mapearCartao(c: {
     diaFechamento: c.dia_fechamento,
     diaVencimento: c.dia_vencimento,
     arquivado: Boolean(c.arquivado),
+    programa: programaDeColunas(c),
+  };
+}
+
+function mapearDespesaFixa(r: {
+  id: string;
+  wallet_id: string;
+  nome: string;
+  valor_centavos: number;
+  category_id: string;
+  dia_vencimento: number;
+  account_id?: string | null;
+  card_id?: string | null;
+  tipo?: string | null;
+}): DespesaFixa {
+  return {
+    id: r.id,
+    carteiraID: r.wallet_id,
+    nome: r.nome,
+    valor: r.valor_centavos,
+    categoriaID: r.category_id,
+    diaVencimento: r.dia_vencimento,
+    contaID: r.account_id ?? undefined,
+    cartaoID: r.card_id ?? undefined,
+    tipo: r.tipo === "receita" ? "receita" : "despesa",
+  };
+}
+
+function mapearCategoria(r: {
+  id: string;
+  wallet_id?: string | null;
+  nome: string;
+  icone?: string | null;
+  cor?: string | null;
+  tipo?: string | null;
+  deleted_at?: string | null;
+}): Categoria | null {
+  if (r.deleted_at || !r.wallet_id) return null;
+  return {
+    id: r.id,
+    nome: r.nome,
+    icone: r.icone || "outros",
+    cor: r.cor || COR_CATEGORIA_CUSTOM,
+    tipo: r.tipo === "receita" ? "receita" : "despesa",
+    carteiraID: r.wallet_id,
   };
 }
 
@@ -167,6 +228,10 @@ const VAZIO: Estado = {
   cartoesTodos: [],
   faturas: [],
   transacoes: [],
+  categorias: [],
+  categoriasTodas: [],
+  despesasFixas: [],
+  despesasFixasTodas: [],
   membros: [],
   convite: null,
 };
@@ -194,6 +259,10 @@ function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
     cartoesTodos: [],
     faturas: [],
     transacoes: [],
+    categorias: [],
+    categoriasTodas: [],
+    despesasFixas: [],
+    despesasFixasTodas: [],
     membros: [],
     convite: null,
   };
@@ -257,6 +326,7 @@ function chaveLocal(userId?: string | null) {
 }
 
 type Loja = Estado & {
+  usuarioID?: string;
   pronto: boolean;
   remoto: boolean;
   recarregar: () => Promise<void>;
@@ -270,6 +340,8 @@ type Loja = Estado & {
     cartaoID?: string;
     contaID?: string;
     parcelas: number;
+    pagadorID?: string;
+    tipo?: "despesa" | "receita";
   }) => Promise<void>;
   editar: (p: EdicaoLancamento) => Promise<void>;
   apagar: (p: ApagarLancamento) => Promise<void>;
@@ -285,6 +357,11 @@ type Loja = Estado & {
   selecionarCarteira: (id: string) => Promise<void>;
   salvarCarteira: (p: { id: string; nome: string; rotulo: RotuloCarteira; cor: string }) => Promise<string | null>;
   apagarCarteira: (id: string) => Promise<string | null>;
+  salvarDespesaFixa: (f: DespesaFixa) => Promise<void>;
+  apagarDespesaFixa: (id: string) => Promise<void>;
+  lancarDespesaFixa: (id: string, competencia?: Competencia) => Promise<void>;
+  salvarCategoria: (c: Categoria) => Promise<void>;
+  apagarCategoria: (id: string) => Promise<void>;
 };
 
 const Ctx = createContext<Loja | null>(null);
@@ -316,6 +393,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(bruto) as Estado;
         const contasTodas = parsed.contasTodas ?? parsed.contas ?? [];
         const cartoesTodos = parsed.cartoesTodos ?? parsed.cartoes ?? [];
+        const despesasFixasTodas = parsed.despesasFixasTodas ?? parsed.despesasFixas ?? [];
+        const categoriasTodas = parsed.categoriasTodas ?? parsed.categorias ?? [];
         setEstado({
           ...VAZIO,
           ...parsed,
@@ -330,6 +409,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           cartoesTodos,
           contas: parsed.contas ?? contasTodas.filter((c) => c.carteiraID === parsed.carteira?.id && !c.arquivada),
           cartoes: parsed.cartoes ?? cartoesTodos.filter((c) => c.carteiraID === parsed.carteira?.id && !c.arquivado),
+          despesasFixasTodas,
+          despesasFixas: parsed.despesasFixas ?? despesasFixasTodas.filter((f) => f.carteiraID === parsed.carteira?.id),
+          categoriasTodas,
+          categorias: parsed.categorias ?? categoriasTodas.filter((c) => c.carteiraID === parsed.carteira?.id),
         });
       } else {
         const inicial = bootstrap();
@@ -340,13 +423,15 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const [wallets, accounts, cards, invoices, txs, members] = await Promise.all([
+    const [wallets, accounts, cards, invoices, txs, members, fixas, cats] = await Promise.all([
       sb.from("wallets").select("*").is("deleted_at", null),
       sb.from("accounts").select("*").is("deleted_at", null),
       sb.from("cards").select("*").is("deleted_at", null),
       sb.from("invoices").select("*").is("deleted_at", null),
       sb.from("transactions").select("*").is("deleted_at", null),
       sb.from("wallet_members").select("wallet_id, user_id, email, papel"),
+      sb.from("fixed_expenses").select("*").is("deleted_at", null),
+      sb.from("categories").select("*"),
     ]);
 
     if (wallets.error) {
@@ -422,6 +507,23 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       .map((c) => mapearCartao(c as Parameters<typeof mapearCartao>[0]));
     const cartoes = cartoesTodos.filter((c) => c.carteiraID === walletId);
     const idsCartoes = new Set(cartoes.map((c) => c.id));
+    const localFallback = (): Estado | null => {
+      try {
+        const bruto = localStorage.getItem(localKey);
+        if (!bruto) return null;
+        return JSON.parse(bruto) as Estado;
+      } catch {
+        return null;
+      }
+    };
+    const despesasFixasTodas = !fixas.error
+      ? (fixas.data ?? []).map((r) => mapearDespesaFixa(r as Parameters<typeof mapearDespesaFixa>[0]))
+      : (localFallback()?.despesasFixasTodas ?? localFallback()?.despesasFixas ?? []);
+    const categoriasTodas = !cats.error
+      ? (cats.data ?? [])
+          .map((r) => mapearCategoria(r as Parameters<typeof mapearCategoria>[0]))
+          .filter((c): c is Categoria => Boolean(c))
+      : (localFallback()?.categoriasTodas ?? localFallback()?.categorias ?? []);
 
     const proximo: Estado = {
       carteira: {
@@ -461,11 +563,16 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           contaID: (t.account_id as string | null) ?? undefined,
           cartaoID: (t.card_id as string | null) ?? undefined,
           faturaID: (t.invoice_id as string | null) ?? undefined,
+          pagadorID: (t.pagador_id as string | null) ?? undefined,
           hashDedup: (t.hash_dedup as string) ?? "",
           grupoParcela: (t.grupo_parcela as string | null) ?? undefined,
           parcelaN: (t.parcela_n as number) ?? 1,
           parcelaTotal: (t.parcela_total as number) ?? 1,
         })),
+      despesasFixasTodas,
+      despesasFixas: despesasFixasTodas.filter((f) => f.carteiraID === walletId),
+      categoriasTodas,
+      categorias: categoriasTodas.filter((c) => c.carteiraID === walletId),
       membros: mapearMembros(linhasMembros, walletId),
       convite: convites.data?.[0]
         ? { codigo: convites.data[0].codigo as string, expiraEm: convites.data[0].expira_em as string }
@@ -503,6 +610,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         dia_vencimento: c.diaVencimento,
         arquivado: c.arquivado,
         updated_at: new Date().toISOString(),
+        ...colunasDoPrograma(c.programa),
       });
     }
   };
@@ -524,6 +632,105 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const salvarDespesaFixa = async (f: DespesaFixa) => {
+    const despesasFixasTodas = mesclarPorId(estado.despesasFixasTodas ?? estado.despesasFixas ?? [], f);
+    const despesasFixas = despesasFixasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    await commit({ ...estado, despesasFixasTodas, despesasFixas });
+    if (sb) {
+      const { error } = await sb.from("fixed_expenses").upsert({
+        id: f.id,
+        wallet_id: f.carteiraID,
+        nome: f.nome,
+        valor_centavos: f.valor,
+        category_id: f.categoriaID,
+        dia_vencimento: f.diaVencimento,
+        account_id: f.cartaoID ? null : f.contaID ?? null,
+        card_id: f.tipo === "receita" ? null : f.cartaoID ?? null,
+        tipo: f.tipo === "receita" ? "receita" : "despesa",
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    }
+  };
+
+  const apagarDespesaFixa = async (id: string) => {
+    const despesasFixasTodas = (estado.despesasFixasTodas ?? estado.despesasFixas ?? []).filter((f) => f.id !== id);
+    const despesasFixas = despesasFixasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    await commit({ ...estado, despesasFixasTodas, despesasFixas });
+    if (sb) {
+      const agora = new Date().toISOString();
+      const { error } = await sb.from("fixed_expenses").update({
+        deleted_at: agora,
+        updated_at: agora,
+      }).eq("id", id);
+      if (error) throw error;
+    }
+  };
+
+  const salvarCategoria = async (c: Categoria) => {
+    const categoriasTodas = mesclarPorId(estado.categoriasTodas ?? estado.categorias ?? [], c);
+    const categorias = categoriasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    await commit({ ...estado, categoriasTodas, categorias });
+    if (sb) {
+      const { error } = await sb.from("categories").upsert({
+        id: c.id,
+        wallet_id: c.carteiraID,
+        nome: c.nome,
+        icone: c.icone,
+        cor: c.cor || COR_CATEGORIA_CUSTOM,
+        tipo: c.tipo,
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    }
+  };
+
+  const apagarCategoria = async (id: string) => {
+    const categoriasTodas = (estado.categoriasTodas ?? estado.categorias ?? []).filter((c) => c.id !== id);
+    const categorias = categoriasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    await commit({ ...estado, categoriasTodas, categorias });
+    if (sb) {
+      const agora = new Date().toISOString();
+      const { error } = await sb.from("categories").update({
+        deleted_at: agora,
+        updated_at: agora,
+      }).eq("id", id);
+      if (error) throw error;
+    }
+  };
+
+  const lancarDespesaFixa = async (id: string, competencia?: Competencia) => {
+    const fixa = (estado.despesasFixas ?? []).find((f) => f.id === id);
+    if (!fixa) throw new Error("despesa fixa não encontrada");
+    const c = competencia ?? competenciaDe(new Date());
+    if (jaLancada(estado.transacoes, fixa.id, c)) return;
+    const tx = { ...transacaoDaFixa(fixa, c), pagadorID: usuario?.id };
+    await commit({ ...estado, transacoes: [...estado.transacoes, tx] });
+    if (sb) {
+      const { error } = await sb.from("transactions").insert({
+        id: tx.id,
+        wallet_id: tx.carteiraID,
+        tipo: tx.tipo,
+        valor_centavos: tx.valor,
+        data: tx.data,
+        category_id: tx.categoriaID ?? null,
+        descricao: tx.descricao,
+        account_id: tx.contaID ?? null,
+        card_id: tx.cartaoID ?? null,
+        pagador_id: tx.pagadorID ?? null,
+        hash_dedup: tx.hashDedup,
+        parcela_n: tx.parcelaN,
+        parcela_total: tx.parcelaTotal,
+      });
+      if (error) {
+        if (error.code === "23505") return;
+        throw error;
+      }
+    }
+  };
+
   const lancar: Loja["lancar"] = async ({
     valor,
     categoriaID,
@@ -532,8 +739,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     cartaoID,
     contaID,
     parcelas,
+    pagadorID,
+    tipo,
   }) => {
-    const cartao = estado.cartoes.find((c) => c.id === cartaoID);
+    const cartao = tipo === "receita" ? undefined : estado.cartoes.find((c) => c.id === cartaoID);
     const novas = transacoesDoLancamento({
       valor,
       categoriaID,
@@ -543,6 +752,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       contaID: cartao ? undefined : contaID,
       parcelas: cartao ? parcelas : 1,
       carteiraID: estado.carteira.id,
+      pagadorID: pagadorPadrao(pagadorID, usuario?.id),
+      tipo: tipo ?? "despesa",
     });
     await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
     if (sb) {
@@ -557,6 +768,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           descricao: t.descricao,
           account_id: t.contaID ?? null,
           card_id: t.cartaoID ?? null,
+          pagador_id: t.pagadorID ?? null,
           hash_dedup: t.hashDedup,
           grupo_parcela: t.grupoParcela ?? null,
           parcela_n: t.parcelaN,
@@ -586,6 +798,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
             wallet_id: t.carteiraID,
             account_id: t.contaID ?? null,
             card_id: t.cartaoID ?? null,
+            pagador_id: t.pagadorID ?? null,
             updated_at: agora,
           }).eq("id", t.id);
         }),
@@ -719,6 +932,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         cartoesTodos: estado.cartoesTodos ?? estado.cartoes,
         faturas: [],
         transacoes: [],
+        categorias: [],
+        categoriasTodas: (estado.categoriasTodas ?? estado.categorias ?? []).filter((c) => c.carteiraID !== id),
+        despesasFixas: [],
+        despesasFixasTodas: (estado.despesasFixasTodas ?? estado.despesasFixas ?? []).filter((f) => f.carteiraID !== id),
         membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
         convite: null,
       });
@@ -817,6 +1034,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           cartoesTodos: [],
           faturas: [],
           transacoes: [],
+          categorias: [],
+          categoriasTodas: [],
+          despesasFixas: [],
+          despesasFixasTodas: [],
           membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
           convite: null,
         });
@@ -826,6 +1047,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       if (proxima) lembrarCarteira(proxima.id);
       const contasTodas = (estado.contasTodas ?? estado.contas).filter((c) => c.carteiraID !== id);
       const cartoesTodos = (estado.cartoesTodos ?? estado.cartoes).filter((c) => c.carteiraID !== id);
+      const despesasFixasTodas = (estado.despesasFixasTodas ?? estado.despesasFixas ?? []).filter((f) => f.carteiraID !== id);
+      const categoriasTodas = (estado.categoriasTodas ?? estado.categorias ?? []).filter((c) => c.carteiraID !== id);
       await commit({
         ...estado,
         carteira: proxima
@@ -842,6 +1065,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         cartoesTodos,
         contas: proxima ? contasTodas.filter((c) => c.carteiraID === proxima.id) : estado.contas,
         cartoes: proxima ? cartoesTodos.filter((c) => c.carteiraID === proxima.id) : estado.cartoes,
+        despesasFixasTodas,
+        despesasFixas: proxima ? despesasFixasTodas.filter((f) => f.carteiraID === proxima.id) : estado.despesasFixas,
+        categoriasTodas,
+        categorias: proxima ? categoriasTodas.filter((c) => c.carteiraID === proxima.id) : estado.categorias,
         faturas: proxima ? [] : estado.faturas,
         transacoes: proxima ? [] : estado.transacoes,
         membros: proxima
@@ -876,6 +1103,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
 
   const valor: Loja = {
     ...estado,
+    usuarioID: usuario?.id,
     pronto,
     remoto: Boolean(sb),
     recarregar,
@@ -891,6 +1119,11 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     selecionarCarteira,
     salvarCarteira,
     apagarCarteira,
+    salvarDespesaFixa,
+    apagarDespesaFixa,
+    lancarDespesaFixa,
+    salvarCategoria,
+    apagarCategoria,
   };
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

@@ -2,11 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CATEGORIAS, ROTULO_TIPO_CONTA } from "@/lib/domain";
+import { categoriasVisiveis } from "@/lib/categorias";
+import { ROTULO_TIPO_CONTA } from "@/lib/domain";
 import { EntradaValor } from "@/lib/money";
+import { carteiraMostraPagador, membroPodeEditarLancamento } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
 import { ehGrupoParcela } from "@/lib/transacoes";
 import { Cabecalho } from "../ui/Cabecalho";
+import { SeletorPagador } from "../ui/SeletorPagador";
 import { Campo } from "../ui/Campo";
 import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
@@ -16,7 +19,6 @@ import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
 import { IconeCategoria } from "../Icones";
 
-const DESPESAS = CATEGORIAS.filter((c) => c.tipo === "despesa");
 const SELECT =
   "mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 
@@ -32,11 +34,16 @@ export function EditarLancamento({ id }: { id: string }) {
 
   const [entrada] = useState(() => EntradaValor.deCentavos(tx?.valor ?? 0));
   const [, tick] = useState(0);
-  const [categoriaID, setCategoriaID] = useState(tx?.categoriaID ?? DESPESAS[0].id);
+  const catsEdicao = categoriasVisiveis(
+    loja.categorias,
+    tx?.tipo === "receita" ? "receita" : "despesa",
+  );
+  const [categoriaID, setCategoriaID] = useState(tx?.categoriaID ?? catsEdicao[0]?.id ?? "");
   const [descricao, setDescricao] = useState(tx?.descricao ?? "");
   const [carteiraID, setCarteiraID] = useState(tx?.carteiraID ?? "");
   const [contaID, setContaID] = useState(tx?.contaID ?? "");
   const [cartaoID, setCartaoID] = useState(tx?.cartaoID ?? "");
+  const [pagadorEscolhido, setPagadorEscolhido] = useState<string | undefined>(undefined);
   const [salvando, setSalvando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [teclado, setTeclado] = useState(false);
@@ -70,7 +77,17 @@ export function EditarLancamento({ id }: { id: string }) {
   const mudouCarteira = carteiraID !== tx.carteiraID;
   const temOrigem = Boolean(cartaoID || contaID);
   const destSemOrigem = mudouCarteira && contasDest.length === 0 && cartoesDest.length === 0;
-  const pode = (!valorLivre || entrada.podeSalvar) && !salvando && (!mudouCarteira || temOrigem) && !destSemOrigem;
+  const destCarteira = carteiras.find((c) => c.id === carteiraID) ?? loja.carteira;
+  const mostraPagador = carteiraMostraPagador(destCarteira);
+  const pagadorID = pagadorEscolhido ?? tx.pagadorID ?? loja.usuarioID ?? "";
+  const mudouPagador = pagadorID !== (tx.pagadorID ?? "");
+  const podeMembro = membroPodeEditarLancamento(loja.membros ?? [], loja.usuarioID);
+  const pode =
+    (!valorLivre || entrada.podeSalvar) &&
+    !salvando &&
+    (!mudouCarteira || temOrigem) &&
+    !destSemOrigem &&
+    podeMembro;
   const mudouOrigem =
     mudouCarteira || cartaoID !== (tx.cartaoID ?? "") || contaID !== (tx.contaID ?? "");
 
@@ -123,6 +140,7 @@ export function EditarLancamento({ id }: { id: string }) {
         carteiraID,
         contaID: cartaoID ? undefined : contaID || undefined,
         cartaoID: cartaoID || undefined,
+        pagadorID: pagadorID || undefined,
       });
       voltar();
     } catch {
@@ -203,7 +221,7 @@ export function EditarLancamento({ id }: { id: string }) {
         <div className="mt-4">
           <Rotulo>categoria</Rotulo>
           <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-            {DESPESAS.map((c) => (
+            {catsEdicao.map((c) => (
               <Etiqueta
                 key={c.id}
                 ativa={categoriaID === c.id}
@@ -235,6 +253,23 @@ export function EditarLancamento({ id }: { id: string }) {
             {grupo && mudouOrigem && (
               <p className="mt-2 text-[12px] text-cinza">
                 O parcelamento inteiro vai junto para esta carteira.
+              </p>
+            )}
+          </div>
+        )}
+
+        {mostraPagador && (
+          <div className="mt-4">
+            <Rotulo>quem pagou</Rotulo>
+            <SeletorPagador
+              membros={loja.membros ?? []}
+              usuarioID={loja.usuarioID}
+              valor={pagadorID}
+              onChange={setPagadorEscolhido}
+            />
+            {grupo && mudouPagador && (
+              <p className="mt-2 text-[12px] text-cinza">
+                O parcelamento inteiro fica com esta pessoa.
               </p>
             )}
           </div>

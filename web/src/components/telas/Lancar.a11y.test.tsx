@@ -46,4 +46,11 @@ describe("Lancar — acessibilidade", () => {
     expect(screen.getByRole("button", { name: "Apagar último dígito" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mais opções" })).toBeInTheDocument();
   });
+
+  it("mostra forma de pagamento e data sem abrir mais opções", () => {
+    montar();
+    expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do lançamento")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Tipo de lançamento" })).toBeInTheDocument();
+  });
 });

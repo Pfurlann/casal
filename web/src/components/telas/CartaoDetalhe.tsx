@@ -8,7 +8,14 @@ import {
   competenciaDe,
   rotuloCurto,
   rotuloDaCompetencia,
+  type ProgramaPontos,
 } from "@/lib/domain";
+import {
+  equivalenteEmCentavos,
+  formatarMetricaPontos,
+  formatarSaldoPontos,
+  programaVisivel,
+} from "@/lib/pontos";
 import {
   faturaAtualOuRascunho,
   faturaDaCompetencia,
@@ -21,6 +28,30 @@ import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 
 type Aba = "atual" | "proxima" | "futuras";
+
+function BlocoPontos({ programa }: { programa?: ProgramaPontos }) {
+  const p = programaVisivel(programa);
+  if (!p) return null;
+  const reais = equivalenteEmCentavos(p);
+  return (
+    <div className="mt-4" aria-label="Programa de pontos">
+      <Rotulo>pontos</Rotulo>
+      <p className="mt-1 font-texto text-[16px] text-grafite">
+        {p.nome} · {formatarSaldoPontos(p.saldo)} pts
+      </p>
+      <p className="mt-1 text-[12px] text-cinza">
+        {formatarMetricaPontos(p)}
+        {reais != null && (
+          <>
+            {" · ≈ "}
+            <Numero centavos={reais} tamanho="legenda" />
+          </>
+        )}
+      </p>
+      <p className="mt-1 text-[12px] text-cinza">Saldo informado por você</p>
+    </div>
+  );
+}
 
 export function CartaoDetalhe({ id }: { id: string }) {
   const { cartoes, transacoes, faturas } = useLoja();
@@ -66,6 +97,7 @@ export function CartaoDetalhe({ id }: { id: string }) {
       />
       <div className="px-4 pt-6">
         <Rotulo>{cartao.banco} · final {cartao.ultimos4}</Rotulo>
+        <BlocoPontos programa={cartao.programa} />
         <div className="mt-4 flex gap-2">
           {(["atual", "proxima", "futuras"] as const).map((a) => (
             <button

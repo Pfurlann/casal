@@ -82,6 +82,7 @@ describe("EditarLancamento", () => {
       carteiraID: "c1",
       contaID: undefined,
       cartaoID: undefined,
+      pagadorID: undefined,
     });
   });
 
@@ -119,6 +120,7 @@ describe("EditarLancamento", () => {
       carteiraID: "c1",
       contaID: undefined,
       cartaoID: "k1",
+      pagadorID: undefined,
     });
   });
 
@@ -176,6 +178,78 @@ describe("EditarLancamento", () => {
         contaID: "a2",
         cartaoID: undefined,
       }),
+    );
+  });
+
+  const CONJUNTA = {
+    id: "c1",
+    nome: "Nosso",
+    visibilidade: "aberta",
+    rotulo: "compartilhada",
+  };
+  const MEMBROS = [
+    { userId: "u1", email: "eu@casa.br", papel: "dono" },
+    { userId: "u2", email: "ana@casa.br", papel: "membro" },
+  ];
+
+  it("troca o pagador na edição e grava o valor salvo como padrão", async () => {
+    loja.valor = {
+      transacoes: [{ ...AVISTA, pagadorID: "u1" }],
+      carteira: CONJUNTA,
+      membros: MEMBROS,
+      usuarioID: "u1",
+      cartoes: [],
+      editar: editar.fn,
+      apagar: apagar.fn,
+    };
+    render(
+      <ProvedorAviso>
+        <EditarLancamento id={AVISTA.id} />
+      </ProvedorAviso>,
+    );
+    expect(screen.getByLabelText("Quem pagou")).toHaveValue("u1");
+    await userEvent.selectOptions(screen.getByLabelText("Quem pagou"), "u2");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(editar.fn).toHaveBeenCalledWith(expect.objectContaining({ pagadorID: "u2" }));
+  });
+
+  it("na pessoal, omite quem pagou", () => {
+    loja.valor = {
+      transacoes: [AVISTA],
+      carteira: { id: "c1", nome: "Meu", visibilidade: "fechada", rotulo: "pessoal" },
+      membros: [MEMBROS[0]],
+      usuarioID: "u1",
+      cartoes: [],
+      editar: editar.fn,
+      apagar: apagar.fn,
+    };
+    render(
+      <ProvedorAviso>
+        <EditarLancamento id={AVISTA.id} />
+      </ProvedorAviso>,
+    );
+    expect(screen.queryByLabelText("Quem pagou")).toBeNull();
+  });
+
+  it("membro da conjunta, que não é dono, salva a edição", async () => {
+    loja.valor = {
+      transacoes: [{ ...AVISTA, pagadorID: "u1" }],
+      carteira: CONJUNTA,
+      membros: MEMBROS,
+      usuarioID: "u2",
+      cartoes: [],
+      editar: editar.fn,
+      apagar: apagar.fn,
+    };
+    render(
+      <ProvedorAviso>
+        <EditarLancamento id={AVISTA.id} />
+      </ProvedorAviso>,
+    );
+    expect(screen.queryByText(/Só quem criou/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(editar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "t1", pagadorID: "u1" }),
     );
   });
 });

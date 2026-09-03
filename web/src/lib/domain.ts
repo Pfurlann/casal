@@ -11,6 +11,8 @@ export type Categoria = {
   icone: string;
   cor: string;
   tipo: "despesa" | "receita";
+  /** Preenchido só em categoria da carteira. Ausente = padrão do sistema. */
+  carteiraID?: string;
 };
 
 export type RotuloCarteira = "pessoal" | "compartilhada" | "pj";
@@ -33,6 +35,22 @@ export type Conta = {
   arquivada: boolean;
 };
 
+/** usd = pontos por US$ 1 da fatura (IOF). brl = pontos por R$ 1 gasto. */
+export type MoedaAcumulo = "usd" | "brl";
+
+/**
+ * Programa de pontos do cartão.
+ * Saldo é o que a pessoa informa hoje — o app não consulta o banco.
+ * Métrica: pontos × 100 por 1 USD ou 1 BRL (220 = 2,20 pts).
+ */
+export type ProgramaPontos = {
+  nome: string;
+  saldo: number;
+  pontosPorUnidadeX100: number;
+  moeda: MoedaAcumulo;
+  valorPontoCentavos?: number;
+};
+
 export type Cartao = {
   id: string;
   carteiraID: string;
@@ -45,6 +63,7 @@ export type Cartao = {
   diaFechamento: number;
   diaVencimento: number;
   arquivado: boolean;
+  programa?: ProgramaPontos;
 };
 
 export type Fatura = {
@@ -69,10 +88,24 @@ export type Transacao = {
   contaID?: string;
   cartaoID?: string;
   faturaID?: string;
+  pagadorID?: string;
   hashDedup: string;
   grupoParcela?: string;
   parcelaN: number;
   parcelaTotal: number;
+};
+
+/** Compromisso mensal da carteira (gasto ou receita). Não vira lançamento sozinho. */
+export type DespesaFixa = {
+  id: string;
+  carteiraID: string;
+  nome: string;
+  valor: Centavos;
+  categoriaID: string;
+  diaVencimento: number;
+  contaID?: string;
+  cartaoID?: string;
+  tipo: "despesa" | "receita";
 };
 
 export type Competencia = { ano: number; mes: number };
@@ -223,8 +256,23 @@ export function transacoesDoLancamento(p: {
   contaID?: string;
   parcelas: number;
   carteiraID: string;
+  pagadorID?: string;
+  tipo?: TipoTransacao;
 }): Transacao[] {
-  const cartao = p.cartao;
+  const tipo = p.tipo ?? "despesa";
+  let cartao = p.cartao;
+  switch (tipo) {
+    case "receita":
+      cartao = undefined;
+      break;
+    case "despesa":
+    case "transferencia":
+      break;
+    default: {
+      const _nunca: never = tipo;
+      throw new Error(`tipo não tratado: ${_nunca}`);
+    }
+  }
   if (cartao && p.parcelas > 1) {
     const grupo = uuid();
     return planejarParcelas(p.valor, p.parcelas, p.data, cartao).map((parcela) => ({
@@ -236,6 +284,7 @@ export function transacoesDoLancamento(p: {
       categoriaID: p.categoriaID,
       descricao: p.descricao,
       cartaoID: cartao.id,
+      pagadorID: p.pagadorID,
       hashDedup: `${p.valor}|${p.descricao}|p${parcela.numero}de${parcela.total}`,
       grupoParcela: grupo,
       parcelaN: parcela.numero,
@@ -246,18 +295,33 @@ export function transacoesDoLancamento(p: {
     {
       id: uuid(),
       carteiraID: p.carteiraID,
-      tipo: "despesa",
+      tipo,
       valor: p.valor,
       data: p.data.toISOString(),
       categoriaID: p.categoriaID,
       descricao: p.descricao,
       contaID: cartao ? undefined : p.contaID,
       cartaoID: cartao?.id,
+      pagadorID: p.pagadorID,
       hashDedup: `${p.valor}|${p.descricao}|${p.data.toISOString()}`,
       parcelaN: 1,
       parcelaTotal: 1,
     },
   ];
+}
+
+/** YYYY-MM-DD no fuso local — valor de `<input type="date">`. */
+export function dataLocalISO(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
+/** Interpreta YYYY-MM-DD como meio-dia local, sem virar o dia anterior em UTC. */
+export function dataDeLocalISO(iso: string): Date {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  return new Date(ano ?? 1970, (mes ?? 1) - 1, dia ?? 1, 12, 0, 0);
 }
 
 export function horizonte(

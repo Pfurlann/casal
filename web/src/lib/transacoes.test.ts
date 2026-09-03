@@ -69,6 +69,19 @@ describe("aplicarEdicao", () => {
     expect(saida[1].descricao).toBe("Padaria");
   });
 
+  it("propaga o pagador para o grupo inteiro", () => {
+    const grupo = [
+      tx({ id: "1", grupoParcela: "g", parcelaN: 1, parcelaTotal: 2, pagadorID: "u1" }),
+      tx({ id: "2", grupoParcela: "g", parcelaN: 2, parcelaTotal: 2, pagadorID: "u1" }),
+    ];
+    const edicao = { id: "1", descricao: "Sofá", pagadorID: "u2" };
+    expect(idsParaEditar(grupo, edicao)).toEqual(["1", "2"]);
+    const saida = aplicarEdicao(grupo, edicao);
+    expect(saida.every((t) => t.pagadorID === "u2")).toBe(true);
+    expect(saida[0].descricao).toBe("Sofá");
+    expect(saida[1].descricao).toBe("Padaria");
+  });
+
   it("não mexe no resto do grupo se só muda a descrição", () => {
     const grupo = [
       tx({ id: "1", grupoParcela: "g", parcelaN: 1, parcelaTotal: 2, cartaoID: "k1" }),

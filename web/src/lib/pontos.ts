@@ -23,7 +23,13 @@ export function programaVisivel(p?: ProgramaPontos): ProgramaPontos | undefined 
   if (!p) return undefined;
   const nome = p.nome.trim();
   if (!nome) return undefined;
-  return { ...p, nome };
+  return {
+    nome,
+    saldo: p.saldo,
+    pontosPorUnidadeX100: p.pontosPorUnidadeX100,
+    moeda: p.moeda,
+    valorPontoCentavos: p.valorPontoCentavos,
+  };
 }
 
 export function programaDoCartao(c: Pick<Cartao, "programa">): ProgramaPontos | undefined {

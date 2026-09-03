@@ -82,6 +82,13 @@ describe("aplicarEdicao", () => {
     expect(saida[1].descricao).toBe("Padaria");
   });
 
+  it("preserva status e metaID ao editar descrição", () => {
+    const a = tx({ id: "a", status: "a_pagar", metaID: "g1" });
+    const [editada] = aplicarEdicao([a], { id: "a", descricao: "Luz", categoriaID: "cat-1" });
+    expect(editada.status).toBe("a_pagar");
+    expect(editada.metaID).toBe("g1");
+  });
+
   it("não mexe no resto do grupo se só muda a descrição", () => {
     const grupo = [
       tx({ id: "1", grupoParcela: "g", parcelaN: 1, parcelaTotal: 2, cartaoID: "k1" }),

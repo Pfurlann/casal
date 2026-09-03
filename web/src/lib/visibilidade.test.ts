@@ -86,6 +86,11 @@ describe("origensDoPagador", () => {
     expect(origensDoPagador(lista, CONJUNTA, "u2", "u1").map((o) => o.id)).toEqual(["ela-j"]);
   });
 
+  it("não quebra se contasTodas/cartoesTodos vieram undefined", () => {
+    expect(origensDoPagador(undefined, CONJUNTA, "u1", "u1")).toEqual([]);
+    expect(filtrarOrigensDaCarteira(undefined, CONJUNTA, "u1")).toEqual([]);
+  });
+
   it("se o pagador não tem origem visível, volta para as do logado", () => {
     const soPessoalParceiro = lista.filter((o) => o.id === "ela-p" || o.id === "eu-j");
     expect(origensDoPagador(soPessoalParceiro, CONJUNTA, "u2", "u1").map((o) => o.id)).toEqual([

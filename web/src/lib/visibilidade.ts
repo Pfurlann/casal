@@ -77,11 +77,11 @@ export function origemVisivelNaCarteira(
 }
 
 export function filtrarOrigensDaCarteira<T extends OrigemVisibilidade>(
-  origens: T[],
+  origens: T[] | undefined | null,
   carteira: CarteiraVisibilidade | null | undefined,
   donoAlvo?: string,
 ): T[] {
-  return origens.filter((o) => origemVisivelNaCarteira(o, carteira, donoAlvo));
+  return (origens ?? []).filter((o) => Boolean(o) && origemVisivelNaCarteira(o, carteira, donoAlvo));
 }
 
 /** Sem dono (legado) ou sem usuário logado: quem vê pode apagar. Senão, só o dono. */
@@ -116,13 +116,13 @@ export function cartoesAposApagar<
  * volta para as do usuário logado — nunca mistura cartão pessoal do parceiro.
  */
 export function origensDoPagador<T extends OrigemVisibilidade>(
-  origens: T[],
+  origens: T[] | undefined | null,
   carteira: CarteiraVisibilidade | null | undefined,
   pagadorID?: string,
   usuarioID?: string,
 ): T[] {
   const alvo = pagadorID || usuarioID;
-  const doAlvo = filtrarOrigensDaCarteira(origens, carteira, alvo);
+  const doAlvo = filtrarOrigensDaCarteira(origens ?? [], carteira, alvo);
   if (doAlvo.length > 0) return doAlvo;
   if (usuarioID && alvo && alvo !== usuarioID) {
     return filtrarOrigensDaCarteira(origens, carteira, usuarioID);

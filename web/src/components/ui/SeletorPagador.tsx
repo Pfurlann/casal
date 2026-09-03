@@ -14,12 +14,16 @@ export function SeletorPagador({
   valor: string;
   onChange: (id: string) => void;
 }) {
-  const opcoes =
+  const base =
     membros.length > 0
       ? membros
       : usuarioID
         ? [{ userId: usuarioID, email: "" }]
         : [];
+  const opcoes =
+    valor && !base.some((m) => m.userId === valor)
+      ? [...base, { userId: valor, email: "" }]
+      : base;
   if (opcoes.length === 0) return null;
 
   return (

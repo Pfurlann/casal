@@ -17,7 +17,7 @@ export function hashDedupFatura(cartaoID: string, c: Competencia): string {
 }
 
 export function eLancamentoDeFatura(t: Transacao): boolean {
-  return t.hashDedup.startsWith("fatura|");
+  return Boolean(t.hashDedup?.startsWith("fatura|"));
 }
 
 export function eCompraNoCartao(t: Transacao): boolean {

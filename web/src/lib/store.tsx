@@ -154,7 +154,7 @@ function mapearCartao(c: {
   banco: string;
   ultimos4: string;
   bandeira: string;
-  cor: string;
+  cor?: string | null;
   limite_centavos: number;
   dia_fechamento: number;
   dia_vencimento: number;
@@ -174,7 +174,7 @@ function mapearCartao(c: {
     banco: c.banco,
     ultimos4: c.ultimos4,
     bandeira: c.bandeira as Cartao["bandeira"],
-    cor: c.cor,
+    cor: corValida(c.cor),
     limite: c.limite_centavos,
     diaFechamento: c.dia_fechamento,
     diaVencimento: c.dia_vencimento,
@@ -297,8 +297,8 @@ function mapearCategoria(r: {
   cor?: string | null;
   tipo?: string | null;
   deleted_at?: string | null;
-}): Categoria | null {
-  if (r.deleted_at || !r.wallet_id) return null;
+} | null | undefined): Categoria | null {
+  if (!r || r.deleted_at || !r.wallet_id) return null;
   return {
     id: r.id,
     nome: r.nome,
@@ -566,7 +566,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           despesasFixasTodas,
           despesasFixas: parsed.despesasFixas ?? despesasFixasTodas.filter((f) => f.carteiraID === parsed.carteira?.id),
           categoriasTodas,
-          categorias: parsed.categorias ?? categoriasTodas.filter((c) => c.carteiraID === parsed.carteira?.id),
+          categorias: (parsed.categorias ?? categoriasTodas).filter((c) => c?.carteiraID === parsed.carteira?.id),
           metasTodas,
           metas: parsed.metas ?? metasTodas.filter((m) => m.carteiraID === parsed.carteira?.id),
           compromissosTodos,
@@ -744,7 +744,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       despesasFixasTodas,
       despesasFixas: despesasFixasTodas.filter((f) => f.carteiraID === walletId),
       categoriasTodas,
-      categorias: categoriasTodas.filter((c) => c.carteiraID === walletId),
+      categorias: categoriasTodas.filter((c) => c?.carteiraID === walletId),
       metasTodas,
       metas: metasTodas.filter((m) => m.carteiraID === walletId),
       compromissosTodos,

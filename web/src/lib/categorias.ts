@@ -26,21 +26,26 @@ export function eCategoriaSistema(id: string): boolean {
   return CATEGORIAS.some((c) => c.id === id);
 }
 
+function eCategoriaCustom(c: Categoria | null | undefined): c is Categoria {
+  if (!c?.id || !c.carteiraID) return false;
+  return !eCategoriaSistema(c.id);
+}
+
 export function categoriasVisiveis(
-  custom: Categoria[] | undefined,
+  custom: Array<Categoria | null | undefined> | undefined,
   tipo?: "despesa" | "receita",
 ): Categoria[] {
-  const extras = (custom ?? []).filter((c) => Boolean(c.carteiraID) && !eCategoriaSistema(c.id));
+  const extras = (custom ?? []).filter(eCategoriaCustom);
   const lista = [...CATEGORIAS, ...extras];
   return tipo ? lista.filter((c) => c.tipo === tipo) : lista;
 }
 
 export function categoriaPorId(
   id: string | undefined,
-  custom?: Categoria[],
+  custom?: Array<Categoria | null | undefined>,
 ): Categoria | undefined {
   if (!id) return undefined;
-  return (custom ?? []).find((c) => c.id === id) ?? CATEGORIAS.find((c) => c.id === id);
+  return (custom ?? []).find((c) => c?.id === id) ?? CATEGORIAS.find((c) => c.id === id);
 }
 
 export function validarCategoria(p: {

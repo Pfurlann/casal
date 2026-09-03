@@ -42,6 +42,13 @@ describe("categoriasVisiveis", () => {
     const sombra: Categoria = { ...PET, carteiraID: undefined };
     expect(categoriasVisiveis([sombra], "despesa").some((c) => c.id === "cat-pet")).toBe(false);
   });
+
+  it("não quebra no map se a custom veio nula ou sem id", () => {
+    expect(() => categoriasVisiveis([null, undefined, PET], "despesa")).not.toThrow();
+    const lista = categoriasVisiveis([null, undefined, PET], "despesa");
+    expect(lista.some((c) => c.id === "cat-pet")).toBe(true);
+    expect(categoriaPorId("cat-pet", [null, PET])?.nome).toBe("Pet");
+  });
 });
 
 describe("categoriaPorId / eCategoriaSistema", () => {

@@ -307,4 +307,33 @@ describe("EditarLancamento", () => {
     montar();
     expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();
   });
+
+  it("abre lançamento a_pagar sem contasTodas, cor, pagador órfão nem categoria furada", () => {
+    loja.valor = {
+      transacoes: [{
+        ...AVISTA,
+        status: "a_pagar",
+        metaID: "g1",
+        pagadorID: "u-sumido",
+        contaID: "acc1",
+        categoriaID: undefined,
+      }],
+      carteira: { id: "c1", nome: "Nosso", visibilidade: "aberta", rotulo: "compartilhada" },
+      categorias: [null, { id: "pet", nome: "Pet", carteiraID: "c1", tipo: "despesa" }],
+      membros: [{ userId: "u1", email: "eu@casa.br", papel: "dono" }],
+      usuarioID: "u1",
+      editar: editar.fn,
+      apagar: apagar.fn,
+    };
+    expect(() =>
+      render(
+        <ProvedorAviso>
+          <EditarLancamento id={AVISTA.id} />
+        </ProvedorAviso>,
+      ),
+    ).not.toThrow();
+    expect(screen.getByRole("heading", { name: "editar lançamento" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Quem pagou")).toHaveValue("u-sumido");
+  });
 });

@@ -57,6 +57,11 @@ describe("pago vs a pagar", () => {
     expect(eLancamentoPago(t, [FATURA_SET])).toBe(false);
   });
 
+  it("sem hashDedup não quebra o estado pago", () => {
+    const t = { ...compra({ cartaoID: undefined, contaID: "a1", status: "a_pagar" }), hashDedup: undefined as unknown as string };
+    expect(eLancamentoPago(t)).toBe(false);
+  });
+
   it("conta só fica paga depois de liquidar", () => {
     const aberta: Transacao = { ...compra({ cartaoID: undefined, contaID: "a1", status: "a_pagar" }) };
     const paga: Transacao = { ...aberta, status: "liquidado" };

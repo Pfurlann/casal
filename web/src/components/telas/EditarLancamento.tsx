@@ -298,7 +298,7 @@ export function EditarLancamento({ id }: { id: string }) {
                 <optgroup label="Contas">
                   {contasDest.map((c) => (
                     <option key={c.id} value={`conta:${c.id}`}>
-                      {c.nome} · {ROTULO_TIPO_CONTA[c.tipo]}
+                      {c.nome}{ROTULO_TIPO_CONTA[c.tipo] ? ` · ${ROTULO_TIPO_CONTA[c.tipo]}` : ""}
                     </option>
                   ))}
                 </optgroup>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DespesaFixaForm } from "./DespesaFixaForm";
 import { ProvedorAviso } from "../ui/Aviso";
@@ -43,8 +43,10 @@ function montar(extra: Record<string, unknown> = {}, id?: string) {
     contas: [CONTA],
     cartoes: [CARTAO],
     despesasFixas: [],
+    categorias: [],
     salvarDespesaFixa: vi.fn().mockResolvedValue(undefined),
     apagarDespesaFixa: vi.fn().mockResolvedValue(undefined),
+    salvarCategoria: vi.fn().mockResolvedValue(undefined),
     ...extra,
   };
   return render(
@@ -140,8 +142,29 @@ describe("DespesaFixaForm", () => {
       "f1",
     );
     expect(screen.getByDisplayValue("Aluguel")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Apagar fixo/ }));
+    expect(screen.getByRole("button", { name: "Apagar fixo" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Apagar fixo" }));
     expect(apagar).toHaveBeenCalledWith("f1");
     expect(empurrar).toHaveBeenCalledWith("/mais/fixas");
+  });
+
+  it("mostra o + para criar categoria além das sugeridas", () => {
+    montar();
+    expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();
+  });
+
+  it("cria categoria na folha, mostra o chip e deixa selecionada", async () => {
+    const salvarCategoria = vi.fn().mockResolvedValue(undefined);
+    montar({ salvarCategoria });
+    await userEvent.click(screen.getByRole("button", { name: "Nova categoria" }));
+    const dialog = screen.getByRole("dialog", { name: "Nova categoria" });
+    expect(dialog).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText("Nome"), "Pet");
+    await userEvent.click(screen.getByRole("button", { name: "Criar categoria" }));
+    expect(salvarCategoria).toHaveBeenCalledWith(
+      expect.objectContaining({ nome: "Pet", tipo: "despesa", carteiraID: "w1" }),
+    );
+    const chip = await screen.findByRole("button", { name: /Pet/ });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
   });
 });

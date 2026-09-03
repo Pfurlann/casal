@@ -98,13 +98,16 @@ export function Fixas() {
                       key={v.fixa.id}
                       className="flex min-h-[44px] items-center gap-3 border-b border-nevoa py-3"
                     >
-                      <span className="min-w-0 flex-1 text-left">
+                      <Link
+                        href={`/mais/fixas/${v.fixa.id}`}
+                        className="min-w-0 flex-1 text-left"
+                      >
                         <span className="block truncate text-[14px] text-grafite">{v.fixa.nome}</span>
                         <span className="block truncate text-[12px] text-cinza">
                           {receita ? "receita" : "gasto"} · vence dia {Number(v.venceEm.slice(-2))}
                           {cat ? ` · ${cat.nome}` : ""}
                         </span>
-                      </span>
+                      </Link>
                       <Numero centavos={v.fixa.valor} tamanho="corpo" />
                       {v.lancada ? (
                         <span className="shrink-0 text-[12px] text-cinza">lançada</span>

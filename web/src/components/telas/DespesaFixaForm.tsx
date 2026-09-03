@@ -8,14 +8,13 @@ import { ROTULO_TIPO_CONTA, type DespesaFixa } from "@/lib/domain";
 import { validarDespesaFixa } from "@/lib/despesas-fixas";
 import { EntradaValor } from "@/lib/money";
 import { useLoja } from "@/lib/store";
-import { IconeCategoria } from "../Icones";
 import { useAviso } from "../ui/Aviso";
-import { Botao } from "../ui/Botao";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Campo } from "../ui/Campo";
 import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { SeletorCategoria } from "../ui/SeletorCategoria";
 import { Teclado } from "../ui/Teclado";
 
 export function DespesaFixaForm({ id }: { id?: string }) {
@@ -46,7 +45,6 @@ export function DespesaFixaForm({ id }: { id?: string }) {
 
   const ehReceita = tipo === "receita";
   const origemCartao = !ehReceita && Boolean(cartaoID);
-  const cats = categoriasVisiveis(categorias, tipo);
   const pagoCom = origemCartao ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
   const erro = validarDespesaFixa({
     nome,
@@ -129,10 +127,25 @@ export function DespesaFixaForm({ id }: { id?: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <Cabecalho
-        titulo={existente ? "editar fixo" : "novo fixo"}
-        voltarPara="/mais/fixas"
-      />
+      <div className="sticky top-0 z-10 bg-ar">
+        <Cabecalho
+          titulo={existente ? "editar fixo" : "novo fixo"}
+          voltarPara="/mais/fixas"
+          acao={
+            existente ? (
+              <button
+                type="button"
+                aria-label="Apagar fixo"
+                onClick={() => void apagar()}
+                disabled={salvando}
+                className="flex min-h-[44px] items-center text-[14px] font-semibold text-ambar-texto"
+              >
+                Apagar
+              </button>
+            ) : undefined
+          }
+        />
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="pt-2 text-[12px] text-cinza">em {carteira.nome} · todo mês</p>
         <div className="mt-4" role="group" aria-label="Tipo do fixo">
@@ -165,17 +178,13 @@ export function DespesaFixaForm({ id }: { id?: string }) {
 
         <div className="mt-4">
           <Rotulo>categoria</Rotulo>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {cats.map((c) => (
-              <Etiqueta
-                key={c.id}
-                ativa={categoriaID === c.id}
-                aoClicar={() => setCategoriaID(c.id)}
-              >
-                <IconeCategoria nome={c.icone} size={14} />
-                {c.nome}
-              </Etiqueta>
-            ))}
+          <div className="mt-2">
+            <SeletorCategoria
+              tipo={tipo}
+              custom={categorias}
+              valor={categoriaID}
+              onChange={setCategoriaID}
+            />
           </div>
         </div>
 
@@ -248,13 +257,6 @@ export function DespesaFixaForm({ id }: { id?: string }) {
           </div>
         )}
 
-        {existente && (
-          <div className="mt-8">
-            <Botao variante="destrutivo" onClick={() => void apagar()} disabled={salvando}>
-              Apagar fixo
-            </Botao>
-          </div>
-        )}
       </div>
       <Teclado
         aoDigitar={(d) => {

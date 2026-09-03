@@ -53,7 +53,11 @@ describe("Fixas", () => {
   it("lista o cadastro mesmo sem lançamento no mês", () => {
     montar();
     expect(screen.getAllByText("Aluguel").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByRole("link", { name: /Aluguel/ })).toHaveAttribute("href", "/mais/fixas/f1");
+    const editar = screen.getAllByRole("link", { name: /Aluguel/ });
+    expect(editar.length).toBeGreaterThanOrEqual(2);
+    for (const link of editar) {
+      expect(link).toHaveAttribute("href", "/mais/fixas/f1");
+    }
     expect(screen.getByRole("button", { name: "Lançar" })).toBeInTheDocument();
   });
 
@@ -84,7 +88,7 @@ describe("Fixas", () => {
     montar({ lancarDespesaFixa: lancar });
     await userEvent.click(screen.getByRole("button", { name: "Lançar" }));
     expect(lancar).toHaveBeenCalledWith("f1", competenciaDe(new Date()));
-    expect(screen.getByRole("link", { name: /Aluguel/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Aluguel/ }).length).toBeGreaterThanOrEqual(2);
   });
 
   it("oferece cadastro no estado vazio", () => {

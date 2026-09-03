@@ -195,21 +195,28 @@ function normalizarTipo(raw: string): TipoStmt {
   }
 }
 
-function parecePagamento(memo: string): boolean {
-  return /pag(amento|to)|payment|\bpgto\b|fatura\s+paga/i.test(memo);
+/** Pagamento, estorno, ajuste de crédito — não confundir com PADEIRO. */
+export function pareceCredito(memo: string): boolean {
+  return /pagamento\b|pagto\b|\bpgto\b|\bpayment\b|pgto\s*fatura|fatura\s+paga|\bestorno\b|devolu[cç]|ajuste\s*cred|ajuste\s*cr[eé]dito|cred\s+parc/i.test(
+    memo,
+  );
 }
 
-function tipoDaLinha(trntype: string, centavos: number, memo: string): TipoLinhaOfx {
-  if (parecePagamento(memo)) return "credito";
+/**
+ * Cartão BR inverte TRNTYPE/sinal: compra vem CREDIT ou valor positivo.
+ * Memo de pagamento/estorno/ajuste ganha; CREDIT sem isso = gasto.
+ */
+export function classificarTipoOfx(trntype: string, _centavos: number, memo: string): TipoLinhaOfx {
+  if (pareceCredito(memo)) return "credito";
   const tipo = normalizarTipo(trntype);
   switch (tipo) {
-    case "CREDIT":
     case "PAYMENT":
-    case "INT":
     case "DIV":
     case "DEP":
     case "DIRECTDEP":
       return "credito";
+    case "CREDIT":
+    case "INT":
     case "DEBIT":
     case "POS":
     case "ATM":
@@ -221,9 +228,8 @@ function tipoDaLinha(trntype: string, centavos: number, memo: string): TipoLinha
     case "DIRECTDEBIT":
     case "REPEATPMT":
     case "OTHER":
-      return "gasto";
     case "UNKNOWN":
-      return centavos < 0 ? "gasto" : "credito";
+      return "gasto";
     default: {
       const _nunca: never = tipo;
       throw new Error(`tipo OFX não tratado: ${_nunca}`);
@@ -300,7 +306,7 @@ export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOf
     const data = dataDePosted(campo(bloco, "DTPOSTED") || campo(bloco, "DTUSER"));
     if (!data) continue;
     const descricao = descricaoDaLinha(bloco);
-    const tipo = tipoDaLinha(campo(bloco, "TRNTYPE"), centavos, descricao);
+    const tipo = classificarTipoOfx(campo(bloco, "TRNTYPE"), centavos, descricao);
     const valorCentavos = centavos < 0 ? -centavos : centavos;
     const fitId = fitIdDaLinha(bloco, data, tipo === "gasto" ? -valorCentavos : valorCentavos, descricao);
     if (vistos.has(fitId)) continue;

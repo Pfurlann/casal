@@ -21,7 +21,6 @@ import {
   parseOfx,
   type LinhaOfx,
 } from "@/lib/ofx";
-import { formatarBRL } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Numero } from "../ui/Numero";
@@ -46,33 +45,39 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
   const [texto, setTexto] = useState<string | null>(null);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
   const [escolhas, setEscolhas] = useState<Record<string, string>>({});
+  const [marcar, setMarcar] = useState<Record<string, boolean>>({});
   const [salvando, setSalvando] = useState(false);
 
   const extraido = useMemo(() => (texto ? parseOfx(texto) : null), [texto]);
   const cats = categoriasVisiveis(categorias, "despesa");
 
-  const gastos = extraido?.gastos ?? [];
-  const creditos = extraido?.creditos ?? [];
+  const extraidas = extraido
+    ? [...extraido.gastos, ...extraido.creditos].sort((a, b) =>
+        a.data < b.data ? -1 : a.data > b.data ? 1 : 0,
+      )
+    : [];
 
   const linhas = useMemo(
     () =>
       cartao
-        ? gastos.map((g) => {
+        ? extraidas.map((g) => {
             const hash = hashDedupOfx(cartao.id, g.fitId);
+            const jaTem = jaImportada(transacoes, hash);
             return {
               ...g,
               hashDedup: hash,
               categoriaID: escolhas[hash] ?? classificarCategoria(g.descricao, categorias),
-              jaTem: jaImportada(transacoes, hash),
+              jaTem,
+              lancar: jaTem ? false : (marcar[hash] ?? g.tipo === "gasto"),
             };
           })
         : [],
-    [cartao, gastos, escolhas, categorias, transacoes],
+    [cartao, extraidas, escolhas, marcar, categorias, transacoes],
   );
 
-  const novos = linhas.filter((l) => !l.jaTem);
-  const totalNovos = novos.reduce((s, l) => s + l.valorCentavos, 0);
-  const lancamentosNovos = novos.reduce((s, l) => s + lancamentosDaLinha(l), 0);
+  const escolhidas = linhas.filter((l) => l.lancar && !l.jaTem);
+  const totalNovos = escolhidas.reduce((s, l) => s + l.valorCentavos, 0);
+  const lancamentosNovos = escolhidas.reduce((s, l) => s + lancamentosDaLinha(l), 0);
 
   async function lerArquivo(file: File | undefined) {
     setErroArquivo(null);
@@ -92,12 +97,16 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         return;
       }
       const iniciais: Record<string, string> = {};
+      const marcas: Record<string, boolean> = {};
       if (cartao) {
-        for (const g of parsed.gastos) {
-          iniciais[hashDedupOfx(cartao.id, g.fitId)] = classificarCategoria(g.descricao, categorias);
+        for (const g of [...parsed.gastos, ...parsed.creditos]) {
+          const hash = hashDedupOfx(cartao.id, g.fitId);
+          iniciais[hash] = classificarCategoria(g.descricao, categorias);
+          marcas[hash] = g.tipo === "gasto";
         }
       }
       setEscolhas(iniciais);
+      setMarcar(marcas);
       setTexto(raw);
     } catch {
       setErroArquivo("Não deu para ler esse arquivo.");
@@ -106,12 +115,12 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
   }
 
   async function salvar() {
-    if (!cartao || novos.length === 0 || salvando) return;
+    if (!cartao || escolhidas.length === 0 || salvando) return;
     setSalvando(true);
     try {
       const r = await importarOfx({
         cartaoID: cartao.id,
-        linhas: novos.map((l) => ({
+        linhas: escolhidas.map((l) => ({
           descricao: l.descricao,
           valor: l.valorCentavos,
           data: l.data,
@@ -150,7 +159,8 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
       <div className="px-4 pt-6">
         <Rotulo>{cartao.apelido} · em {carteira.nome}</Rotulo>
         <p className="mt-2 text-[14px] text-cinza">
-          A competência segue o fechamento do cartão. Créditos e pagamentos ficam de fora.
+          A competência segue o fechamento do cartão. Desmarque o que não entra — créditos vêm
+          desmarcados.
         </p>
 
         <label className="mt-5 flex min-h-[44px] cursor-pointer items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite">
@@ -167,15 +177,15 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         {extraido && (
           <>
             <div className="mt-8">
-              <Rotulo>gastos da fatura</Rotulo>
+              <Rotulo>revisão do arquivo</Rotulo>
               <div className="mt-2">
                 <Numero centavos={totalNovos} tamanho="secao" />
               </div>
               <p className="mt-1 text-[12px] text-cinza">
-                {novos.length} novo{novos.length === 1 ? "" : "s"}
-                {lancamentosNovos !== novos.length ? ` · ${lancamentosNovos} lançamentos` : ""}
-                {linhas.length - novos.length > 0
-                  ? ` · ${linhas.length - novos.length} já na fatura`
+                {escolhidas.length} marcado{escolhidas.length === 1 ? "" : "s"}
+                {lancamentosNovos !== escolhidas.length ? ` · ${lancamentosNovos} lançamentos` : ""}
+                {linhas.filter((l) => l.jaTem).length > 0
+                  ? ` · ${linhas.filter((l) => l.jaTem).length} já na fatura`
                   : ""}
               </p>
             </div>
@@ -189,37 +199,16 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
                   categorias={cats.map((c) => ({ id: c.id, nome: c.nome }))}
                   cartao={cartao}
                   onCategoria={(id) => setEscolhas((xs) => ({ ...xs, [l.hashDedup]: id }))}
+                  onLancar={(v) => setMarcar((xs) => ({ ...xs, [l.hashDedup]: v }))}
                 />
               ))}
             </ul>
-
-            {creditos.length > 0 && (
-              <div className="mt-8">
-                <Rotulo>créditos e pagamentos · não lançados</Rotulo>
-                <ul className="mt-2">
-                  {creditos.map((c) => (
-                    <li
-                      key={c.fitId}
-                      className="flex min-h-[44px] items-center justify-between border-b border-nevoa py-3"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-[14px] text-grafite">{c.descricao}</span>
-                        <span className="block text-[12px] text-cinza">{dataBr(c.data)}</span>
-                      </span>
-                      <span className="font-numero text-[14px] text-cinza">
-                        {formatarBRL(c.valorCentavos)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
 
             <div className="mt-8 pb-10">
               <Botao
                 variante="primario"
                 onClick={() => void salvar()}
-                disabled={novos.length === 0 || salvando}
+                disabled={escolhidas.length === 0 || salvando}
               >
                 Lançar {lancamentosNovos} gasto{lancamentosNovos === 1 ? "" : "s"}
               </Botao>
@@ -237,22 +226,36 @@ function LinhaRevisao({
   categorias,
   cartao,
   onCategoria,
+  onLancar,
 }: {
-  linha: LinhaOfx & { jaTem: boolean; hashDedup: string };
+  linha: LinhaOfx & { jaTem: boolean; hashDedup: string; lancar: boolean };
   categoriaID: string;
   categorias: { id: string; nome: string }[];
   cartao: Cartao;
   onCategoria: (id: string) => void;
+  onLancar: (v: boolean) => void;
 }) {
   const competencia = competenciaDaCompra(dataDeLocalISO(linha.data), cartao);
   const parcela = fraseParcelaOfx(linha.parcelaN, linha.parcelaTotal);
+  const credito = linha.tipo === "credito";
   return (
     <li className="border-b border-nevoa py-3">
       <div className="flex items-start justify-between gap-3">
-        <span className="min-w-0">
+        <label className="flex min-h-[44px] min-w-[44px] shrink-0 items-center">
+          <input
+            type="checkbox"
+            checked={linha.lancar}
+            disabled={linha.jaTem}
+            aria-label={`Lançar ${linha.descricao}`}
+            onChange={(e) => onLancar(e.target.checked)}
+            className="h-5 w-5"
+          />
+        </label>
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px] text-grafite">{linha.descricao}</span>
           <span className="block text-[12px] text-cinza">
             {dataBr(linha.data)} · fatura {rotuloCurto(competencia)}
+            {credito ? " · crédito" : ""}
             {parcela ? ` · ${parcela}` : ""}
             {linha.jaTem ? " · já na fatura" : ""}
           </span>
@@ -265,7 +268,7 @@ function LinhaRevisao({
           aria-label={`Categoria de ${linha.descricao}`}
           className={SELECT}
           value={categoriaID}
-          disabled={linha.jaTem}
+          disabled={linha.jaTem || !linha.lancar}
           onChange={(e) => onCategoria(e.target.value)}
         >
           {categorias.map((c) => (

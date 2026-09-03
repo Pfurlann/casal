@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ACCEPT_ARQUIVO_OFX } from "@/lib/ofx";
-import { FIXTURE_FATURA_OFX, FIXTURE_PARCELA_OFX } from "@/lib/ofx-fixture";
+import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX } from "@/lib/ofx-fixture";
 import { ImportarOfx } from "./ImportarOfx";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -99,8 +99,25 @@ describe("ImportarOfx", () => {
     expect(screen.getByText("POSTO SHELL CENTRO")).toBeInTheDocument();
     expect(screen.getByText("LOJA GENERICA XYZ")).toBeInTheDocument();
     expect(screen.getByText("PAGAMENTO RECEBIDO")).toBeInTheDocument();
-    expect(screen.getByText(/não lançados/)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Lançar IFOOD *PIZZA NAPOLI" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Lançar PAGAMENTO RECEBIDO" })).not.toBeChecked();
     expect(screen.getByRole("button", { name: /Lançar 3 gastos/ })).toBeEnabled();
+  });
+
+  it("mostra compras CREDIT do cartão BR e deixa ajuste/pagamento desmarcados", async () => {
+    montar();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(
+      input,
+      new File([FIXTURE_NANQUIM_OFX], "nanquim.ofx", { type: "application/x-ofx" }),
+    );
+    expect(await screen.findByText("BARBEARIADOKEL VIN")).toBeInTheDocument();
+    expect(screen.getByText("AGENOR LOGISTICA")).toBeInTheDocument();
+    expect(screen.getByText("AJUSTE CRED PARC S JUROS")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Lançar BARBEARIADOKEL VIN" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Lançar AJUSTE CRED PARC S JUROS" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Lançar PAGAMENTO RECEBIDO" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: /Lançar 4 gastos/ })).toBeEnabled();
   });
 
   it("salva as categorias escolhidas na carteira atual", async () => {

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Cartao, Categoria, Transacao } from "./domain";
 import { competenciaDaCompra } from "./domain";
-import { FIXTURE_FATURA_OFX, FIXTURE_PARCELA_OFX } from "./ofx-fixture";
+import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX } from "./ofx-fixture";
 import {
   ACCEPT_ARQUIVO_OFX,
   CATEGORIA_OUTROS_ID,
   centavosDeOfx,
   classificarCategoria,
+  classificarTipoOfx,
   eConteudoOfx,
   eNomeOfx,
   erroSeNaoForOfx,
@@ -16,6 +17,7 @@ import {
   jaImportada,
   parcelaDoTexto,
   parseOfx,
+  pareceCredito,
   transacoesDoOfx,
 } from "./ofx";
 
@@ -96,6 +98,20 @@ describe("parseOfx", () => {
     });
   });
 
+  it("cartão BR: compras CREDIT viram gasto; AJUSTE CRED e pagamento são crédito", () => {
+    const { gastos, creditos } = parseOfx(FIXTURE_NANQUIM_OFX);
+    expect(gastos.map((g) => g.descricao)).toEqual([
+      "AGENOR LOGISTICA",
+      "BARBEARIADOKEL VIN",
+      "DELICIAS DO PADEIRO C",
+      "PARK EXPRESS",
+    ]);
+    expect(creditos.map((c) => [c.descricao, c.valorCentavos])).toEqual([
+      ["PAGAMENTO RECEBIDO", 80000],
+      ["AJUSTE CRED PARC S JUROS", 4],
+    ]);
+  });
+
   it("trata débito positivo estilo Itaú como gasto", () => {
     const { gastos, creditos } = parseOfx(`
       <STMTTRN>
@@ -109,6 +125,18 @@ describe("parseOfx", () => {
     expect(gastos).toHaveLength(1);
     expect(gastos[0]?.valorCentavos).toBe(8990);
     expect(creditos).toHaveLength(0);
+  });
+});
+
+describe("classificarTipoOfx", () => {
+  it("não trata CREDIT sozinho como crédito; memo decide estorno e pagamento", () => {
+    expect(classificarTipoOfx("CREDIT", 10500, "BARBEARIADOKEL VIN")).toBe("gasto");
+    expect(classificarTipoOfx("CREDIT", 400, "DELICIAS DO PADEIRO C")).toBe("gasto");
+    expect(classificarTipoOfx("DEBIT", -4, "AJUSTE CRED PARC S JUROS")).toBe("credito");
+    expect(classificarTipoOfx("CREDIT", 80000, "PAGAMENTO RECEBIDO")).toBe("credito");
+    expect(classificarTipoOfx("CREDIT", 10000, "ESTORNO IFOOD")).toBe("credito");
+    expect(pareceCredito("DELICIAS DO PADEIRO C")).toBe(false);
+    expect(pareceCredito("AJUSTE CRED PARC S JUROS")).toBe(true);
   });
 });
 

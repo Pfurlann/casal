@@ -1,4 +1,4 @@
-const CACHE = "casal-v35";
+const CACHE = "casal-v37";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());

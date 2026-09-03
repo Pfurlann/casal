@@ -51,6 +51,19 @@ describe("CartaoDetalhe", () => {
     expect(screen.getByText("parcela 1 de 3")).toBeInTheDocument();
   });
 
+  it("oferece importar OFX na fatura atual", () => {
+    loja.valor = {
+      cartoes: [CARTAO],
+      faturas: [],
+      transacoes: [],
+    };
+    render(<CartaoDetalhe id="k1" />);
+    expect(screen.getByRole("link", { name: "Importar OFX" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1/importar-ofx",
+    );
+  });
+
   it("abre a edição ao tocar no lançamento da fatura", () => {
     loja.valor = {
       cartoes: [CARTAO],

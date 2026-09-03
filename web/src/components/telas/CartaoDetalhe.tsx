@@ -133,6 +133,12 @@ export function CartaoDetalhe({ id }: { id: string }) {
                 Pagar
               </Link>
             )}
+            <Link
+              href={`/cartoes/${cartao.id}/importar-ofx`}
+              className={`${fatura.status !== "paga" && total > 0 ? "mt-3" : "mt-5"} flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite`}
+            >
+              Importar OFX
+            </Link>
             <div className="mt-8">
               {lancamentos.length === 0 ? (
                 <p className="py-8 text-center text-[14px] text-cinza">

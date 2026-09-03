@@ -30,6 +30,7 @@ const AVISTA = {
   parcelaN: 1,
   parcelaTotal: 1,
   cartaoID: undefined as string | undefined,
+  contaID: undefined as string | undefined,
 };
 
 const PARCELA = {

@@ -17,6 +17,7 @@ export function clienteSupabase(): SupabaseClient | null {
       autoRefreshToken: true,
       detectSessionInUrl: true,
       storage: typeof window === "undefined" ? undefined : window.localStorage,
+      experimental: { passkey: true },
     },
   });
   return cliente;

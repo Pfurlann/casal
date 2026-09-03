@@ -22,7 +22,7 @@ export function Botao({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`flex min-h-[44px] w-full items-center justify-center rounded-controle px-4 font-texto text-[14px] font-semibold disabled:opacity-40 ${VARIANTE[variante]}`}
+      className={`casal-toque flex min-h-[44px] w-full items-center justify-center rounded-controle px-4 font-texto text-[14px] font-semibold disabled:opacity-40 ${VARIANTE[variante]}`}
     >
       {children}
     </button>

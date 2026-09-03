@@ -70,7 +70,7 @@ export function Metas() {
           <Link
             href="/metas/nova"
             aria-label="Adicionar meta"
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center text-[20px] text-grafite"
+            className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[20px] text-grafite"
           >
             +
           </Link>

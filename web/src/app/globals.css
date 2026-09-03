@@ -28,6 +28,60 @@ select {
   outline-offset: 2px;
 }
 
+/* phone: coluna estreita + abas no rodapé. wide: trilho + painel útil. */
+.casal-shell {
+  min-height: 100dvh;
+}
+
+.casal-principal {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  padding-bottom: 132px;
+}
+
+@media (min-width: 1024px) {
+  .casal-shell {
+    display: flex;
+    align-items: stretch;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: var(--e-6);
+    gap: var(--e-4);
+  }
+
+  .casal-principal {
+    flex: 1;
+    min-width: 0;
+    max-width: 880px;
+    margin-inline: 0;
+    padding-inline: var(--e-4);
+    padding-bottom: var(--e-8);
+  }
+}
+
+.casal-toque {
+  transition:
+    transform var(--press-ms) ease,
+    opacity var(--press-ms) ease,
+    background-color var(--press-ms) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .casal-toque {
+    cursor: pointer;
+  }
+
+  .casal-toque:hover:not(:disabled) {
+    opacity: 0.92;
+  }
+}
+
+.casal-toque:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+  opacity: var(--press-opacidade);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -36,5 +90,9 @@ select {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .casal-toque:active:not(:disabled) {
+    transform: none;
   }
 }

@@ -115,14 +115,14 @@ export function CartaoDetalhe({ id }: { id: string }) {
                 type="button"
                 aria-label="Apagar cartão"
                 onClick={() => setConfirmando(true)}
-                className="flex min-h-[44px] items-center text-[14px] font-semibold text-ambar-texto"
+                className="casal-toque flex min-h-[44px] items-center text-[14px] font-semibold text-ambar-texto"
               >
                 Apagar
               </button>
             )}
             <Link
               href={`/cartoes/${cartao.id}/editar`}
-              className="flex min-h-[44px] items-center text-[14px] text-grafite"
+              className="casal-toque flex min-h-[44px] items-center text-[14px] text-grafite"
             >
               Editar
             </Link>
@@ -139,7 +139,7 @@ export function CartaoDetalhe({ id }: { id: string }) {
               type="button"
               onClick={() => setAba(a)}
               aria-pressed={aba === a}
-              className={`min-h-[44px] flex-1 rounded-controle text-[12px] ${
+              className={`casal-toque min-h-[44px] flex-1 rounded-controle text-[12px] ${
                 aba === a ? "bg-grafite text-ar" : "border border-nevoa text-grafite"
               }`}
             >
@@ -162,14 +162,14 @@ export function CartaoDetalhe({ id }: { id: string }) {
             {fatura.status !== "paga" && total > 0 && (
               <Link
                 href={`/cartoes/${cartao.id}/faturas/${rotuloDaCompetencia(fatura)}/pagar`}
-                className="mt-5 flex min-h-[44px] items-center justify-center rounded-controle bg-grafite font-texto text-[14px] font-semibold text-ar"
+                className="casal-toque mt-5 flex min-h-[44px] items-center justify-center rounded-controle bg-grafite font-texto text-[14px] font-semibold text-ar"
               >
                 Pagar
               </Link>
             )}
             <Link
               href={`/cartoes/${cartao.id}/importar-ofx`}
-              className={`${fatura.status !== "paga" && total > 0 ? "mt-3" : "mt-5"} flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite`}
+              className={`${fatura.status !== "paga" && total > 0 ? "mt-3" : "mt-5"} casal-toque flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite`}
             >
               Importar OFX
             </Link>

@@ -28,6 +28,20 @@ describe("Etiqueta", () => {
     expect(botao.style.backgroundColor).toBe("");
   });
 
+  it("tem feedback de press compartilhado", () => {
+    render(
+      <Etiqueta ativa={false} aoClicar={() => {}}>
+        Sistema
+      </Etiqueta>,
+    );
+    expect(screen.getByRole("button", { name: "Sistema" }).className).toContain(
+      "casal-toque",
+    );
+    expect(screen.getByRole("button", { name: "Sistema" }).className).toContain(
+      "min-h-[44px]",
+    );
+  });
+
   it("dispara a ação ao clicar", async () => {
     const aoClicar = vi.fn();
     render(

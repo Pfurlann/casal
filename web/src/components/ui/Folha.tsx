@@ -72,8 +72,10 @@ export function Folha({
         role="dialog"
         aria-modal="true"
         aria-label={rotulo}
-        className={`relative flex max-h-[92dvh] w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] ${
-          trava ? "min-h-0 overflow-hidden" : "overflow-y-auto"
+        className={`relative flex w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] lg:max-w-[480px] ${
+          trava
+            ? "h-[92dvh] min-h-0 overflow-hidden sm:h-[min(840px,88dvh)]"
+            : "max-h-[92dvh] overflow-y-auto lg:max-h-[min(840px,88dvh)]"
         }`}
       >
         {children}

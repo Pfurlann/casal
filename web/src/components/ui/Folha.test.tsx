@@ -73,6 +73,24 @@ describe("Folha", () => {
     expect(aoFechar).not.toHaveBeenCalled();
   });
 
+  it("no desktop a folha ganha largura útil sem virar telefone cortado", () => {
+    render(<Cena aoFechar={() => {}} />);
+    const folha = screen.getByRole("dialog");
+    expect(folha.className).toContain("lg:max-w-[480px]");
+    expect(folha.className).toContain("overflow-y-auto");
+  });
+
+  it("quando trava, prende a altura para o conteúdo interno rolar", () => {
+    render(
+      <Folha aoFechar={() => {}} trava>
+        <button type="button">dentro</button>
+      </Folha>,
+    );
+    const folha = screen.getByRole("dialog");
+    expect(folha.className).toContain("overflow-hidden");
+    expect(folha.className).toContain("h-[92dvh]");
+  });
+
   it("devolve o foco ao elemento de origem ao desmontar", () => {
     render(<Cena aoFechar={() => {}} />);
     const origem = screen.getByRole("button", { name: "origem" });

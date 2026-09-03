@@ -45,7 +45,7 @@ export function LinhaDeslizavel({
         <button
           type="button"
           onClick={acao!.aoClicar}
-          className="absolute inset-y-0 right-0 flex w-[88px] items-center justify-center bg-grafite text-[12px] font-semibold text-ar"
+          className="casal-toque absolute inset-y-0 right-0 flex w-[88px] items-center justify-center bg-grafite text-[12px] font-semibold text-ar"
         >
           {acao!.rotulo}
         </button>

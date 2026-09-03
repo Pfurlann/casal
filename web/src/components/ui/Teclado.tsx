@@ -69,7 +69,7 @@ export function Teclado({
           type="button"
           onClick={aoApagar}
           aria-label="Apagar último dígito"
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-controle text-grafite"
+          className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center rounded-controle text-grafite"
         >
           <IconeApagar size={22} />
         </button>
@@ -97,7 +97,7 @@ export function Teclado({
             type="button"
             disabled={!podeSalvar}
             onClick={aoSalvar}
-            className="min-h-[44px] rounded-controle bg-grafite font-texto text-[14px] font-semibold uppercase tracking-[0.1em] text-ar disabled:opacity-40"
+            className="casal-toque min-h-[44px] rounded-controle bg-grafite font-texto text-[14px] font-semibold uppercase tracking-[0.1em] text-ar disabled:opacity-40"
           >
             Salvar
           </button>
@@ -123,7 +123,7 @@ function Tecla({
       type="button"
       onClick={aoClicar}
       aria-label={rotulo}
-      className="flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-numero text-[18px] tabular-nums text-grafite"
+      className="casal-toque flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-numero text-[18px] tabular-nums text-grafite"
     >
       {children}
     </button>

@@ -12,9 +12,9 @@ export default function LayoutApp({
   return (
     <Providers>
       <ProvedorAviso>
-        <div className="lg:flex lg:justify-center">
+        <div className="casal-shell">
           <Navegacao />
-          <main className="mx-auto w-full max-w-[560px] pb-[132px] lg:mx-0 lg:max-w-[640px] lg:pb-12">
+          <main className="casal-principal">
             {children}
           </main>
         </div>

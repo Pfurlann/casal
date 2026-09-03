@@ -21,7 +21,7 @@ export function Cabecalho({
         <Link
           href={voltarPara}
           aria-label="Voltar"
-          className="flex min-h-[44px] min-w-[44px] items-center text-grafite"
+          className="casal-toque flex min-h-[44px] min-w-[44px] items-center text-grafite"
         >
           <IconeVoltar size={20} />
         </Link>

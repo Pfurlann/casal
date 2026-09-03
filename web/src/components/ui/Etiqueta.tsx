@@ -18,7 +18,7 @@ export function Etiqueta({
         color: ativa ? "var(--ar)" : "var(--grafite)",
         backgroundColor: ativa ? "var(--grafite)" : undefined,
       }}
-      className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-etiqueta px-3 text-[12px] ${
+      className={`casal-toque flex min-h-[44px] items-center justify-center gap-1.5 rounded-etiqueta px-3 text-[12px] ${
         ativa ? "bg-grafite" : "border border-nevoa"
       } ${className}`}
     >

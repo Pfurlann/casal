@@ -163,7 +163,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           desmarcados.
         </p>
 
-        <label className="mt-5 flex min-h-[44px] cursor-pointer items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite">
+        <label className="casal-toque mt-5 flex min-h-[44px] cursor-pointer items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite">
           Escolher arquivo OFX
           <input
             type="file"

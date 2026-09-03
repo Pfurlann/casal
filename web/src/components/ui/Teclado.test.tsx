@@ -26,7 +26,31 @@ describe("Teclado — ponteiro", () => {
       expect(screen.getByRole("button", { name: n }).className).toContain(
         "min-h-[44px]",
       );
+      expect(screen.getByRole("button", { name: n }).className).toContain(
+        "casal-toque",
+      );
     }
+  });
+
+  it("Apagar e Salvar também têm press", () => {
+    render(
+      <Teclado
+        aoDigitar={() => {}}
+        aoApagar={() => {}}
+        aoSalvar={() => {}}
+        podeSalvar
+        mostraSalvar
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Apagar último dígito" }).className,
+    ).toContain("casal-toque");
+    expect(screen.getByRole("button", { name: "Salvar" }).className).toContain(
+      "casal-toque",
+    );
+    expect(screen.getByRole("button", { name: "Salvar" }).className).toContain(
+      "min-h-[44px]",
+    );
   });
 
   it("alterna o sinal pelo botão +/−", async () => {

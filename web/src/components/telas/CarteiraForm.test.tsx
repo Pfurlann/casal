@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { CORES_CARTAO } from "@/lib/domain";
 import { CarteiraForm } from "./CarteiraForm";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -17,7 +18,7 @@ vi.mock("next/navigation", () => ({
 const CARTEIRA = {
   id: "w1",
   nome: "Nosso",
-  cor: "#7C5CFF",
+  cor: CORES_CARTAO[0],
   rotulo: "compartilhada" as const,
   visibilidade: "aberta" as const,
   membrosN: 1,

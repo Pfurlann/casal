@@ -7,9 +7,11 @@ import {
   avancando,
   competenciaDaCompra,
   competenciaDe,
+  dataLocalISO,
   rotuloCurto,
   rotuloDaCompetencia,
   type ProgramaPontos,
+  type Transacao,
 } from "@/lib/domain";
 import {
   equivalenteEmCentavos,
@@ -32,6 +34,12 @@ import { Rotulo } from "../ui/Rotulo";
 import { useAviso } from "../ui/Aviso";
 
 type Aba = "atual" | "proxima" | "futuras";
+
+/** Mais recente primeiro — mesmo desempate estável por id. */
+function porDataRecente(a: Transacao, b: Transacao): number {
+  const porData = b.data.localeCompare(a.data);
+  return porData !== 0 ? porData : b.id.localeCompare(a.id);
+}
 
 function BlocoPontos({ programa }: { programa?: ProgramaPontos }) {
   const p = programaVisivel(programa);
@@ -88,7 +96,15 @@ export function CartaoDetalhe({ id }: { id: string }) {
     .filter((t) => {
       const x = competenciaDaCompra(new Date(t.data), cartao);
       return x.ano === fatura.ano && x.mes === fatura.mes;
-    });
+    })
+    .slice()
+    .sort(porDataRecente);
+
+  function subtituloLancamento(t: Transacao): string {
+    const data = dataLocalISO(new Date(t.data)).split("-").reverse().join("/");
+    if (t.parcelaTotal > 1) return `${data} · parcela ${t.parcelaN} de ${t.parcelaTotal}`;
+    return data;
+  }
 
   async function apagar() {
     if (!cartao || !podeApagar) return;
@@ -184,9 +200,7 @@ export function CartaoDetalhe({ id }: { id: string }) {
                     key={t.id}
                     href={`/lancamentos/${t.id}`}
                     titulo={t.descricao || "Sem descrição"}
-                    subtitulo={
-                      t.parcelaTotal > 1 ? `parcela ${t.parcelaN} de ${t.parcelaTotal}` : undefined
-                    }
+                    subtitulo={subtituloLancamento(t)}
                     valor={t.valor}
                   />
                 ))

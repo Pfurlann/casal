@@ -65,7 +65,47 @@ describe("CartaoDetalhe", () => {
   it("mostra a parcela da fatura atual", () => {
     tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
     expect(screen.getByText("Sofá")).toBeInTheDocument();
-    expect(screen.getByText("parcela 1 de 3")).toBeInTheDocument();
+    expect(screen.getByText("28/09/2026 · parcela 1 de 3")).toBeInTheDocument();
+  });
+
+  it("lista gastos da fatura por data, mais recente primeiro", () => {
+    tela({
+      transacoes: [
+        {
+          id: "antiga",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 1000,
+          data: new Date(2026, 8, 5, 12).toISOString(),
+          descricao: "Padaria",
+          cartaoID: "k1",
+          hashDedup: "a",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+        {
+          id: "recente",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 2000,
+          data: new Date(2026, 8, 20, 12).toISOString(),
+          descricao: "Farmácia",
+          cartaoID: "k1",
+          hashDedup: "b",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+      ],
+    });
+    const linhas = screen.getAllByRole("link").filter((el) =>
+      /Padaria|Farmácia/.test(el.textContent ?? ""),
+    );
+    expect(linhas[0]).toHaveAccessibleName(/Farmácia/);
+    expect(linhas[1]).toHaveAccessibleName(/Padaria/);
+    expect(screen.getByText("20/09/2026")).toBeInTheDocument();
+    expect(screen.getByText("05/09/2026")).toBeInTheDocument();
   });
 
   it("oferece importar OFX na fatura atual", () => {

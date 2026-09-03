@@ -79,6 +79,8 @@ describe("planejarParcelas", () => {
     const parcelas = planejarParcelas(300_000, 12, data(2026, 9, 10), CARTAO);
     expect(parcelas).toHaveLength(12);
     expect(parcelas[0]?.competencia).toEqual({ ano: 2026, mes: 9 });
+    expect(parcelas[0]?.data).toBe("2026-09-10");
+    expect(parcelas[1]?.data).toBe("2026-10-28");
     expect(parcelas[11]?.competencia).toEqual({ ano: 2027, mes: 8 });
     expect(parcelas.map((p) => p.numero)).toEqual(Array.from({ length: 12 }, (_, i) => i + 1));
     expect(parcelas.every((p) => p.total === 12)).toBe(true);

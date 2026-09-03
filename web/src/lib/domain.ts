@@ -274,11 +274,15 @@ export function totalDaFatura(
     .reduce((s, t) => s + t.valor, 0);
 }
 
-/** Parcelas datadas no fechamento de cada competência. */
+/**
+ * Parcelas da compra: atual = data da compra; futuras = fechamento
+ * (mesmo critério do OFX PARC — não inventa parcelas passadas).
+ */
 export function planejarParcelas(total: Centavos, vezes: number, compraEm: Date, cartao: Cartao) {
   if (vezes <= 0) return [];
   const primeira = competenciaDaCompra(compraEm, cartao);
   const valores = dividir(total, vezes);
+  const dataCompra = dataLocalISO(compraEm);
   return valores.map((valor, i) => {
     const competencia = avancando(primeira, i);
     return {
@@ -286,7 +290,7 @@ export function planejarParcelas(total: Centavos, vezes: number, compraEm: Date,
       valor,
       numero: i + 1,
       total: vezes,
-      data: fechamento(competencia, cartao),
+      data: i === 0 ? dataCompra : fechamento(competencia, cartao),
     };
   });
 }

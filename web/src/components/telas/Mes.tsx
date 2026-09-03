@@ -282,8 +282,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                       href={
                         eLancamentoDeFatura(t) && t.cartaoID
                           ? `/cartoes/${t.cartaoID}/faturas/${rotuloDaCompetencia(
-                              competenciaDoHashFatura(t.hashDedup)?.competencia
-                                ?? { ano: agora.getFullYear(), mes: agora.getMonth() + 1 },
+                              competenciaDoHashFatura(t.hashDedup)?.competencia ?? competencia,
                             )}/pagar`
                           : `/lancamentos/${t.id}`
                       }

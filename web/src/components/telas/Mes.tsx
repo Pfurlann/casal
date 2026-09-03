@@ -305,7 +305,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                       <span className="casal-linha-mes-valor">
                         <Numero centavos={t.valor} tamanho="corpo" />
                       </span>
-                      <span className="shrink-0">
+                      <span className="casal-linha-mes-estado">
                         {pago ? (
                           <span aria-label="pago" className="text-[14px] text-pago">
                             ✓

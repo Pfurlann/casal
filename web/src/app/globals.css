@@ -103,11 +103,18 @@ select {
     align-items: start;
   }
 
-  .casal-tabela-cabeca {
+  /* Mesma grade no cabeçalho e em cada linha — sem max-content (largura por conteúdo). */
+  .casal-tabela-cabeca,
+  .casal-linha-mes {
+    --casal-cols-mes: minmax(0, 2.4fr) minmax(0, 1.1fr) minmax(0, 1.5fr) 7.25rem 4.5rem;
     display: grid;
-    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.4fr) max-content max-content;
-    gap: var(--e-4);
+    grid-template-columns: var(--casal-cols-mes);
+    column-gap: var(--e-4);
     align-items: center;
+    width: 100%;
+  }
+
+  .casal-tabela-cabeca {
     padding-block: var(--e-2);
     border-bottom: 1px solid var(--nevoa);
     color: var(--cinza);
@@ -115,11 +122,6 @@ select {
   }
 
   .casal-linha-mes {
-    display: grid;
-    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.4fr) max-content max-content;
-    gap: var(--e-4);
-    align-items: center;
-    width: 100%;
     min-height: var(--alvo);
     padding-block: var(--e-3);
     text-align: left;
@@ -127,19 +129,16 @@ select {
 
   .casal-linha-mes-desc {
     flex: unset;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .casal-linha-mes-sub {
     display: none;
   }
 
-  .casal-linha-mes-cat,
-  .casal-linha-mes-origem,
-  .casal-linha-mes-estado-texto {
-    display: flex;
+  .casal-linha-mes-cat {
     min-width: 0;
-    align-items: center;
-    gap: var(--e-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -147,8 +146,33 @@ select {
     font-size: 13px;
   }
 
+  .casal-linha-mes-origem {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--e-2);
+    overflow: hidden;
+    color: var(--cinza);
+    font-size: 13px;
+  }
+
+  .casal-linha-mes-estado-texto {
+    display: inline;
+    color: var(--cinza);
+    font-size: 13px;
+  }
+
+  .casal-tabela-cabeca > :nth-child(4),
   .casal-linha-mes-valor {
-    justify-self: end;
+    justify-self: stretch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .casal-tabela-cabeca > :nth-child(5),
+  .casal-linha-mes-estado {
+    justify-self: stretch;
+    text-align: right;
   }
 }
 

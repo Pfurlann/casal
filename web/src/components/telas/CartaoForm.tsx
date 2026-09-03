@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Cartao, MoedaAcumulo, ProgramaPontos } from "@/lib/domain";
+import type { Cartao, MoedaAcumulo, ProgramaPontos, VisibilidadeOrigem } from "@/lib/domain";
 import { CORES_CARTAO, ROTULO_BANDEIRA } from "@/lib/domain";
 import { EntradaValor } from "@/lib/money";
 import {
@@ -16,18 +16,20 @@ import {
   textoValorPonto,
 } from "@/lib/pontos";
 import { useLoja } from "@/lib/store";
+import { visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Campo } from "../ui/Campo";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { SeletorVisibilidade } from "../ui/SeletorVisibilidade";
 import { Teclado } from "../ui/Teclado";
 import { useAviso } from "../ui/Aviso";
 
 export function CartaoForm({ id }: { id?: string }) {
-  const { cartoes, carteira, salvarCartao } = useLoja();
+  const { cartoes, cartoesTodos, carteira, salvarCartao, usuarioID } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
-  const existente = cartoes.find((c) => c.id === id);
+  const existente = (cartoesTodos ?? cartoes).find((c) => c.id === id);
   const programaInicial = programaVisivel(existente?.programa);
 
   const [apelido, setApelido] = useState(existente?.apelido ?? "");
@@ -50,6 +52,9 @@ export function CartaoForm({ id }: { id?: string }) {
   );
   const [moedaAcumulo, setMoedaAcumulo] = useState<MoedaAcumulo>(programaInicial?.moeda ?? "usd");
   const [valorPonto, setValorPonto] = useState(textoValorPonto(programaInicial?.valorPontoCentavos));
+  const [visibilidade, setVisibilidade] = useState<VisibilidadeOrigem>(
+    existente?.visibilidade ?? visibilidadePadraoDaCarteira(carteira),
+  );
   const [, tick] = useState(0);
   const [salvando, setSalvando] = useState(false);
 
@@ -80,7 +85,7 @@ export function CartaoForm({ id }: { id?: string }) {
     try {
       await salvarCartao({
         id: existente?.id ?? crypto.randomUUID(),
-        carteiraID: carteira.id,
+        carteiraID: existente?.carteiraID ?? carteira.id,
         apelido: apelido.trim(),
         banco: banco.trim(),
         ultimos4,
@@ -91,6 +96,8 @@ export function CartaoForm({ id }: { id?: string }) {
         diaVencimento,
         arquivado: false,
         programa: montarPrograma(),
+        donoID: existente?.donoID ?? usuarioID,
+        visibilidade,
       });
       voltar();
     } catch {
@@ -115,6 +122,7 @@ export function CartaoForm({ id }: { id?: string }) {
           inputMode="numeric"
           onChange={(v) => setUltimos4(v.replace(/\D/g, "").slice(0, 4))}
         />
+        <SeletorVisibilidade valor={visibilidade} onChange={setVisibilidade} />
 
         <div className="mt-4">
           <Rotulo>bandeira</Rotulo>

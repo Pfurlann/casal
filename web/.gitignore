@@ -42,3 +42,6 @@ next-env.d.ts
 
 # scratch de verificacao visual
 /.tmp-ui/
+
+# dump temporário da troca de conta Supabase
+/.tmp-migrate/

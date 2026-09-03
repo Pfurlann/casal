@@ -48,6 +48,7 @@ function montar(id?: string) {
         ]
       : [],
     carteira: CARTEIRA,
+    usuarioID: "u1",
     salvarCartao: salvarCartao.fn,
   };
   return render(
@@ -56,6 +57,22 @@ function montar(id?: string) {
     </ProvedorAviso>,
   );
 }
+
+describe("CartaoForm — visibilidade", () => {
+  it("na carteira pessoal começa em Pessoal e grava o dono", async () => {
+    montar();
+    expect(screen.getByRole("button", { name: "Pessoal" })).toHaveAttribute("aria-pressed", "true");
+    const user = userEvent.setup({ delay: null });
+    await user.type(screen.getByLabelText("Apelido"), "Roxinho");
+    await user.type(screen.getByLabelText("Banco"), "Nubank");
+    await user.type(screen.getByLabelText("Últimos 4 dígitos"), "1234");
+    await user.click(screen.getByRole("button", { name: "1" }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(salvarCartao.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ visibilidade: "pessoal", donoID: "u1" }),
+    );
+  });
+});
 
 describe("CartaoForm — programa de pontos", () => {
   it("salva programa, saldo e pts por US$ 1", async () => {

@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Conta, TipoConta } from "@/lib/domain";
+import type { Conta, TipoConta, VisibilidadeOrigem } from "@/lib/domain";
 import { ROTULO_TIPO_CONTA } from "@/lib/domain";
 import { EntradaValor } from "@/lib/money";
 import { useLoja } from "@/lib/store";
+import { visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { useAviso } from "../ui/Aviso";
 import { Botao } from "../ui/Botao";
 import { Cabecalho } from "../ui/Cabecalho";
@@ -13,18 +14,22 @@ import { Campo } from "../ui/Campo";
 import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { SeletorVisibilidade } from "../ui/SeletorVisibilidade";
 import { Teclado } from "../ui/Teclado";
 
 const TIPOS: TipoConta[] = ["corrente", "poupanca", "dinheiro"];
 
 export function ContaForm({ id }: { id?: string }) {
-  const { contas, carteira, salvarConta } = useLoja();
+  const { contas, contasTodas, carteira, salvarConta, usuarioID } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
-  const existente = contas.find((c) => c.id === id);
+  const existente = (contasTodas ?? contas).find((c) => c.id === id);
 
   const [nome, setNome] = useState(existente?.nome ?? "");
   const [tipo, setTipo] = useState<TipoConta>(existente?.tipo ?? "corrente");
+  const [visibilidade, setVisibilidade] = useState<VisibilidadeOrigem>(
+    existente?.visibilidade ?? visibilidadePadraoDaCarteira(carteira),
+  );
   const [entrada] = useState(() => EntradaValor.deCentavos(existente?.saldoInicial ?? 0));
   const [, tick] = useState(0);
   const [salvando, setSalvando] = useState(false);
@@ -35,11 +40,13 @@ export function ContaForm({ id }: { id?: string }) {
   function montar(arquivada: boolean): Conta {
     return {
       id: existente?.id ?? crypto.randomUUID(),
-      carteiraID: carteira.id,
+      carteiraID: existente?.carteiraID ?? carteira.id,
       nome: nome.trim() || existente?.nome || "",
       tipo,
       saldoInicial: entrada.centavos,
       arquivada,
+      donoID: existente?.donoID ?? usuarioID,
+      visibilidade,
     };
   }
 
@@ -93,6 +100,8 @@ export function ContaForm({ id }: { id?: string }) {
             ))}
           </div>
         </div>
+
+        <SeletorVisibilidade valor={visibilidade} onChange={setVisibilidade} />
 
         <div className="mt-6">
           <Rotulo>saldo inicial</Rotulo>

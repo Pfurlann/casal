@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { categoriaPorId, categoriasVisiveis } from "@/lib/categorias";
 import {
   ROTULO_TIPO_CONTA,
@@ -16,6 +16,7 @@ import { fraseTeto, gastoDaCategoria, progressoTeto, tetoDaCategoria } from "@/l
 import { dividir, EntradaValor, formatarBRL } from "@/lib/money";
 import { carteiraMostraPagador } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
+import { origensDoPagador } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Campo } from "../ui/Campo";
 import { SeletorPagador } from "../ui/SeletorPagador";
@@ -38,7 +39,9 @@ function classeSelect() {
 export function Lancar() {
   const {
     cartoes,
+    cartoesTodos,
     contas,
+    contasTodas,
     lancar,
     carteira,
     membros,
@@ -66,6 +69,14 @@ export function Lancar() {
   const [salvando, setSalvando] = useState(false);
   const mostraPagador = carteiraMostraPagador(carteira);
   const pagadorID = pagadorEscolhido ?? usuarioID ?? "";
+  const contasPagador = useMemo(
+    () => origensDoPagador(contasTodas ?? contas, carteira, pagadorID, usuarioID),
+    [contasTodas, contas, carteira, pagadorID, usuarioID],
+  );
+  const cartoesPagador = useMemo(
+    () => origensDoPagador(cartoesTodos ?? cartoes, carteira, pagadorID, usuarioID),
+    [cartoesTodos, cartoes, carteira, pagadorID, usuarioID],
+  );
   const ehReceita = tipo === "receita";
   const origemCartao = !ehReceita && Boolean(cartaoID);
   const temOrigem = origemCartao || Boolean(contaID);
@@ -88,8 +99,19 @@ export function Lancar() {
     : "";
   const primeiraParcela = parcelas > 1 ? (dividir(entrada.centavos, parcelas)[0] ?? 0) : 0;
   const pagoCom = origemCartao ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
-  const mostraCartoes = !ehReceita && cartoes.length > 0;
-  const mostraSelect = contas.length > 0 || mostraCartoes;
+  const mostraCartoes = !ehReceita && cartoesPagador.length > 0;
+  const mostraSelect = contasPagador.length > 0 || mostraCartoes;
+
+  useEffect(() => {
+    const contaVale = contasPagador.some((c) => c.id === contaID);
+    const cartaoVale = cartoesPagador.some((c) => c.id === cartaoID);
+    if (contaID && !contaVale) setContaID("");
+    if (cartaoID && !cartaoVale) setCartaoID("");
+    if ((!contaID || !contaVale) && (!cartaoID || !cartaoVale)) {
+      const primeira = contasPagador[0];
+      if (primeira) setContaID(primeira.id);
+    }
+  }, [pagadorID, contasPagador, cartoesPagador, contaID, cartaoID]);
 
   function escolherTipo(proximo: "despesa" | "receita") {
     if (proximo === tipo) return;
@@ -98,7 +120,7 @@ export function Lancar() {
     if (proximo === "receita") {
       setCartaoID("");
       setParcelas(1);
-      if (!contaID) setContaID(contas[0]?.id ?? "");
+      if (!contaID) setContaID(contasPagador[0]?.id ?? "");
     }
   }
 
@@ -145,7 +167,7 @@ export function Lancar() {
 
   const seletorOrigem = (
     <div className="relative z-10">
-      {contas.length === 0 && (
+      {contasPagador.length === 0 && (
         <div className="mt-3">
           <p className="text-[14px] text-cinza">
             {ehReceita
@@ -174,9 +196,9 @@ export function Lancar() {
                 {ehReceita ? "Escolha a conta que recebe" : "Escolha de onde sai"}
               </option>
             )}
-            {contas.length > 0 && (
+            {contasPagador.length > 0 && (
               <optgroup label="Contas">
-                {contas.map((c) => (
+                {contasPagador.map((c) => (
                   <option key={c.id} value={`conta:${c.id}`}>
                     {c.nome} · {ROTULO_TIPO_CONTA[c.tipo]}
                   </option>
@@ -185,7 +207,7 @@ export function Lancar() {
             )}
             {mostraCartoes && (
               <optgroup label="Cartões">
-                {cartoes.map((c) => (
+                {cartoesPagador.map((c) => (
                   <option key={c.id} value={`cartao:${c.id}`}>
                     {c.banco} · final {c.ultimos4}
                   </option>

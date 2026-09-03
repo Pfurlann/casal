@@ -10,6 +10,7 @@ import {
   useLoja,
 } from "@/lib/store";
 import { formatarBRL } from "@/lib/money";
+import { ROTULO_VISIBILIDADE_ORIGEM } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Curva } from "../ui/Curva";
 import { LinhaLista } from "../ui/LinhaLista";
@@ -93,7 +94,7 @@ export function Cartoes() {
           <LinhaLista
             key={t.cartao.id}
             titulo={`${t.cartao.banco} · ${t.cartao.apelido}`}
-            subtitulo={`fecha ${t.fecha} · vence ${t.vence} · próx. ${formatarBRL(t.proxima)}`}
+            subtitulo={`${t.cartao.visibilidade ? `${ROTULO_VISIBILIDADE_ORIGEM[t.cartao.visibilidade]} · ` : ""}fecha ${t.fecha} · vence ${t.vence} · próx. ${formatarBRL(t.proxima)}`}
             valor={t.total}
             href={`/cartoes/${t.cartao.id}`}
           />

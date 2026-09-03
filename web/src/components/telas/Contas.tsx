@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { ROTULO_TIPO_CONTA } from "@/lib/domain";
 import { useLoja } from "@/lib/store";
+import { ROTULO_VISIBILIDADE_ORIGEM, visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { LinhaLista } from "../ui/LinhaLista";
 import { Vazio } from "../ui/Vazio";
 
 export function Contas() {
-  const { contas } = useLoja();
+  const { contas, carteira } = useLoja();
 
   return (
     <div>
@@ -47,7 +48,7 @@ export function Contas() {
               <LinhaLista
                 key={c.id}
                 titulo={c.nome}
-                subtitulo={ROTULO_TIPO_CONTA[c.tipo]}
+                subtitulo={`${ROTULO_TIPO_CONTA[c.tipo]} · ${ROTULO_VISIBILIDADE_ORIGEM[c.visibilidade ?? visibilidadePadraoDaCarteira(carteira)]}`}
                 valor={c.saldoInicial}
                 href={`/mais/contas/${c.id}`}
               />

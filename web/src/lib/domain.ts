@@ -17,6 +17,8 @@ export type Categoria = {
 
 export type RotuloCarteira = "pessoal" | "compartilhada" | "pj";
 export type VisibilidadeCarteira = "aberta" | "resumo" | "fechada";
+/** Quem vê esta conta/cartão: só o dono, a conjunta, ou as duas carteiras dele. */
+export type VisibilidadeOrigem = "pessoal" | "conjunta" | "ambas";
 
 export type Carteira = {
   id: string;
@@ -33,6 +35,8 @@ export type Conta = {
   tipo: TipoConta;
   saldoInicial: Centavos;
   arquivada: boolean;
+  donoID?: string;
+  visibilidade?: VisibilidadeOrigem;
 };
 
 /** usd = pontos por US$ 1 da fatura (IOF). brl = pontos por R$ 1 gasto. */
@@ -64,6 +68,8 @@ export type Cartao = {
   diaVencimento: number;
   arquivado: boolean;
   programa?: ProgramaPontos;
+  donoID?: string;
+  visibilidade?: VisibilidadeOrigem;
 };
 
 export type Fatura = {

@@ -40,6 +40,7 @@ import { pagadorPadrao } from "./pagador";
 import { clienteSupabase } from "./supabase";
 import { colunasDoPrograma, programaDeColunas } from "./pontos";
 import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
+import { filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
 
 export type MembroCarteira = {
   userId: string;
@@ -114,6 +115,8 @@ function mapearConta(a: {
   tipo: string;
   saldo_inicial_centavos: number;
   arquivada?: boolean | null;
+  dono_id?: string | null;
+  visibilidade?: string | null;
 }): Conta {
   return {
     id: a.id,
@@ -122,6 +125,8 @@ function mapearConta(a: {
     tipo: a.tipo as Conta["tipo"],
     saldoInicial: a.saldo_inicial_centavos,
     arquivada: Boolean(a.arquivada),
+    donoID: a.dono_id ?? undefined,
+    visibilidade: normalizarVisibilidadeOrigem(a.visibilidade),
   };
 }
 
@@ -142,6 +147,8 @@ function mapearCartao(c: {
   pontos_por_unidade_x100?: number | null;
   moeda_acumulo?: string | null;
   valor_ponto_centavos?: number | null;
+  dono_id?: string | null;
+  visibilidade?: string | null;
 }): Cartao {
   return {
     id: c.id,
@@ -156,6 +163,8 @@ function mapearCartao(c: {
     diaVencimento: c.dia_vencimento,
     arquivado: Boolean(c.arquivado),
     programa: programaDeColunas(c),
+    donoID: c.dono_id ?? undefined,
+    visibilidade: normalizarVisibilidadeOrigem(c.visibilidade),
   };
 }
 
@@ -279,6 +288,7 @@ function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
       tipo: "corrente",
       saldoInicial: 0,
       arquivada: false,
+      visibilidade: visibilidadePadraoDaCarteira(carteira),
     },
   ];
   return {
@@ -446,8 +456,16 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           carteira: carteiraPadrao(parsed.carteira),
           contasTodas,
           cartoesTodos,
-          contas: parsed.contas ?? contasTodas.filter((c) => c.carteiraID === parsed.carteira?.id && !c.arquivada),
-          cartoes: parsed.cartoes ?? cartoesTodos.filter((c) => c.carteiraID === parsed.carteira?.id && !c.arquivado),
+          contas: filtrarOrigensDaCarteira(
+            contasTodas.filter((c) => !c.arquivada),
+            parsed.carteira,
+            usuario?.id,
+          ),
+          cartoes: filtrarOrigensDaCarteira(
+            cartoesTodos.filter((c) => !c.arquivado),
+            parsed.carteira,
+            usuario?.id,
+          ),
           despesasFixasTodas,
           despesasFixas: parsed.despesasFixas ?? despesasFixasTodas.filter((f) => f.carteiraID === parsed.carteira?.id),
           categoriasTodas,
@@ -502,6 +520,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         nome: inicial.contas[0].nome,
         tipo: inicial.contas[0].tipo,
         saldo_inicial_centavos: 0,
+        dono_id: usuario?.id,
+        visibilidade: visibilidadePadraoDaCarteira(inicial.carteira),
       });
       const comMembros: Estado = {
         ...inicial,
@@ -547,7 +567,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     const cartoesTodos = (cards.data ?? [])
       .filter((c) => !c.arquivado)
       .map((c) => mapearCartao(c as Parameters<typeof mapearCartao>[0]));
-    const cartoes = cartoesTodos.filter((c) => c.carteiraID === walletId);
+    const cartoes = filtrarOrigensDaCarteira(cartoesTodos, linhaCarteira, usuario?.id);
     const idsCartoes = new Set(cartoes.map((c) => c.id));
     const localFallback = (): Estado | null => {
       try {
@@ -582,7 +602,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       },
       carteiras,
       contasTodas,
-      contas: contasTodas.filter((a) => a.carteiraID === walletId),
+      contas: filtrarOrigensDaCarteira(contasTodas, linhaCarteira, usuario?.id),
       cartoesTodos,
       cartoes,
       faturas: (invoices.data ?? [])
@@ -642,40 +662,54 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   };
 
   const salvarCartao = async (c: Cartao) => {
-    const cartoesTodos = mesclarPorId(estado.cartoesTodos ?? estado.cartoes, c).filter((x) => !x.arquivado);
-    const cartoes = cartoesTodos.filter((x) => x.carteiraID === estado.carteira.id);
+    const gravado: Cartao = {
+      ...c,
+      donoID: c.donoID ?? usuario?.id,
+      visibilidade: c.visibilidade ?? visibilidadePadraoDaCarteira(estado.carteira),
+    };
+    const cartoesTodos = mesclarPorId(estado.cartoesTodos ?? estado.cartoes, gravado).filter((x) => !x.arquivado);
+    const cartoes = filtrarOrigensDaCarteira(cartoesTodos, estado.carteira, usuario?.id);
     await commit({ ...estado, cartoesTodos, cartoes });
     if (sb) {
       await sb.from("cards").upsert({
-        id: c.id,
-        wallet_id: c.carteiraID,
-        apelido: c.apelido,
-        banco: c.banco,
-        ultimos4: c.ultimos4,
-        bandeira: c.bandeira,
-        cor: c.cor,
-        limite_centavos: c.limite,
-        dia_fechamento: c.diaFechamento,
-        dia_vencimento: c.diaVencimento,
-        arquivado: c.arquivado,
+        id: gravado.id,
+        wallet_id: gravado.carteiraID,
+        apelido: gravado.apelido,
+        banco: gravado.banco,
+        ultimos4: gravado.ultimos4,
+        bandeira: gravado.bandeira,
+        cor: gravado.cor,
+        limite_centavos: gravado.limite,
+        dia_fechamento: gravado.diaFechamento,
+        dia_vencimento: gravado.diaVencimento,
+        arquivado: gravado.arquivado,
+        dono_id: gravado.donoID,
+        visibilidade: gravado.visibilidade,
         updated_at: new Date().toISOString(),
-        ...colunasDoPrograma(c.programa),
+        ...colunasDoPrograma(gravado.programa),
       });
     }
   };
 
   const salvarConta = async (c: Conta) => {
-    const contasTodas = mesclarPorId(estado.contasTodas ?? estado.contas, c).filter((x) => !x.arquivada);
-    const contas = contasTodas.filter((x) => x.carteiraID === estado.carteira.id);
+    const gravada: Conta = {
+      ...c,
+      donoID: c.donoID ?? usuario?.id,
+      visibilidade: c.visibilidade ?? visibilidadePadraoDaCarteira(estado.carteira),
+    };
+    const contasTodas = mesclarPorId(estado.contasTodas ?? estado.contas, gravada).filter((x) => !x.arquivada);
+    const contas = filtrarOrigensDaCarteira(contasTodas, estado.carteira, usuario?.id);
     await commit({ ...estado, contasTodas, contas });
     if (sb) {
       await sb.from("accounts").upsert({
-        id: c.id,
-        wallet_id: c.carteiraID,
-        nome: c.nome,
-        tipo: c.tipo,
-        saldo_inicial_centavos: c.saldoInicial,
-        arquivada: c.arquivada,
+        id: gravada.id,
+        wallet_id: gravada.carteiraID,
+        nome: gravada.nome,
+        tipo: gravada.tipo,
+        saldo_inicial_centavos: gravada.saldoInicial,
+        arquivada: gravada.arquivada,
+        dono_id: gravada.donoID,
+        visibilidade: gravada.visibilidade,
         updated_at: new Date().toISOString(),
       });
     }
@@ -827,7 +861,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     pagadorID,
     tipo,
   }) => {
-    const cartao = tipo === "receita" ? undefined : estado.cartoes.find((c) => c.id === cartaoID);
+    const cartao = tipo === "receita"
+      ? undefined
+      : (estado.cartoesTodos ?? estado.cartoes).find((c) => c.id === cartaoID);
     const novas = transacoesDoLancamento({
       valor,
       categoriaID,
@@ -1006,6 +1042,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         tipo: "corrente",
         saldoInicial: 0,
         arquivada: false,
+        donoID: usuario?.id,
+        visibilidade: visibilidadePadraoDaCarteira(nova),
       };
       lembrarCarteira(id);
       await commit({
@@ -1042,6 +1080,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       nome: "Corrente",
       tipo: "corrente",
       saldo_inicial_centavos: 0,
+      dono_id: usuario?.id,
+      visibilidade: visibilidadePadraoDaCarteira({ rotulo: p.rotulo, visibilidade }),
     });
     lembrarCarteira(id);
     await recarregar();
@@ -1110,6 +1150,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           tipo: "corrente",
           saldoInicial: 0,
           arquivada: false,
+          donoID: usuario?.id,
+          visibilidade: visibilidadePadraoDaCarteira(nova),
         };
         lembrarCarteira(novaId);
         await commit({
@@ -1153,8 +1195,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         carteiras: restantes,
         contasTodas,
         cartoesTodos,
-        contas: proxima ? contasTodas.filter((c) => c.carteiraID === proxima.id) : estado.contas,
-        cartoes: proxima ? cartoesTodos.filter((c) => c.carteiraID === proxima.id) : estado.cartoes,
+        contas: proxima ? filtrarOrigensDaCarteira(contasTodas, proxima, usuario?.id) : estado.contas,
+        cartoes: proxima ? filtrarOrigensDaCarteira(cartoesTodos, proxima, usuario?.id) : estado.cartoes,
         despesasFixasTodas,
         despesasFixas: proxima ? despesasFixasTodas.filter((f) => f.carteiraID === proxima.id) : estado.despesasFixas,
         categoriasTodas,

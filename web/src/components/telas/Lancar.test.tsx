@@ -54,7 +54,9 @@ const PET = {
 
 function montar(opts?: {
   cartoes?: typeof CARTAO[];
+  cartoesTodos?: (typeof CARTAO & { donoID?: string; visibilidade?: string })[];
   contas?: typeof CONTA[];
+  contasTodas?: (typeof CONTA & { donoID?: string; visibilidade?: string })[];
   carteira?: Record<string, unknown>;
   membros?: typeof MEMBROS;
   usuarioID?: string;
@@ -67,7 +69,9 @@ function montar(opts?: {
   loja.valor = {
     carteira: opts?.carteira ?? { id: "c1", nome: "Nosso" },
     cartoes: opts?.cartoes ?? [],
+    cartoesTodos: opts?.cartoesTodos ?? opts?.cartoes ?? [],
     contas: opts?.contas ?? [CONTA],
+    contasTodas: opts?.contasTodas ?? opts?.contas ?? [CONTA],
     membros: opts?.membros ?? [],
     usuarioID: opts?.usuarioID,
     categorias: opts?.categorias ?? [],
@@ -292,6 +296,53 @@ describe("Lancar", () => {
     await userEvent.keyboard("1000");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(lancar.fn).toHaveBeenCalledWith(expect.objectContaining({ pagadorID: "u1" }));
+  });
+
+  it("lista só contas e cartões de quem pagou; nunca a pessoal do parceiro", async () => {
+    montar({
+      carteira: { id: "c1", nome: "Nosso", visibilidade: "aberta", rotulo: "compartilhada" },
+      membros: MEMBROS,
+      usuarioID: "u1",
+      contas: [],
+      cartoes: [],
+      contasTodas: [
+        { ...CONTA, id: "a-eu", nome: "Nubank Pedro", donoID: "u1", visibilidade: "conjunta" },
+        { ...CONTA, id: "a-ela", nome: "Nubank Ana", donoID: "u2", visibilidade: "conjunta" },
+        { ...CONTA, id: "a-ela-p", nome: "Caixa Ana", donoID: "u2", visibilidade: "pessoal" },
+      ],
+      cartoesTodos: [
+        { ...CARTAO, id: "k-eu", ultimos4: "1111", donoID: "u1", visibilidade: "ambas" },
+        { ...CARTAO, id: "k-ela-p", ultimos4: "9999", donoID: "u2", visibilidade: "pessoal" },
+      ],
+    });
+    const select = screen.getByLabelText("Forma de pagamento");
+    expect(select).toHaveTextContent("Nubank Pedro");
+    expect(select).toHaveTextContent("final 1111");
+    expect(select).not.toHaveTextContent("Nubank Ana");
+    expect(select).not.toHaveTextContent("Caixa Ana");
+    expect(select).not.toHaveTextContent("9999");
+
+    await userEvent.selectOptions(screen.getByLabelText("Quem pagou"), "u2");
+    expect(screen.getByLabelText("Forma de pagamento")).toHaveTextContent("Nubank Ana");
+    expect(screen.getByLabelText("Forma de pagamento")).not.toHaveTextContent("Caixa Ana");
+    expect(screen.getByLabelText("Forma de pagamento")).not.toHaveTextContent("9999");
+    expect(screen.getByLabelText("Forma de pagamento")).not.toHaveTextContent("Nubank Pedro");
+  });
+
+  it("se o pagador não tem origem na conjunta, volta para as do logado", async () => {
+    montar({
+      carteira: { id: "c1", nome: "Nosso", visibilidade: "aberta", rotulo: "compartilhada" },
+      membros: MEMBROS,
+      usuarioID: "u1",
+      contas: [],
+      contasTodas: [
+        { ...CONTA, id: "a-eu", nome: "PagBank", donoID: "u1", visibilidade: "conjunta" },
+        { ...CONTA, id: "a-ela-p", nome: "Caixa Ana", donoID: "u2", visibilidade: "pessoal" },
+      ],
+    });
+    await userEvent.selectOptions(screen.getByLabelText("Quem pagou"), "u2");
+    expect(screen.getByLabelText("Forma de pagamento")).toHaveTextContent("PagBank");
+    expect(screen.getByLabelText("Forma de pagamento")).not.toHaveTextContent("Caixa Ana");
   });
 
   it("troca o pagador para o parceiro", async () => {

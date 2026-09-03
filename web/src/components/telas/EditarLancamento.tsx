@@ -8,6 +8,7 @@ import { EntradaValor } from "@/lib/money";
 import { carteiraMostraPagador, membroPodeEditarLancamento } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
 import { ehGrupoParcela } from "@/lib/transacoes";
+import { origensDoPagador } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { SeletorPagador } from "../ui/SeletorPagador";
 import { Campo } from "../ui/Campo";
@@ -63,8 +64,18 @@ export function EditarLancamento({ id }: { id: string }) {
 
   const grupo = ehGrupoParcela(tx);
   const valorLivre = tx.parcelaTotal === 1;
-  const contasDest = contasTodas.filter((c) => c.carteiraID === carteiraID || c.id === contaID);
-  const cartoesDest = cartoesTodos.filter((c) => c.carteiraID === carteiraID || c.id === cartaoID);
+  const destCarteira = carteiras.find((c) => c.id === carteiraID) ?? loja.carteira;
+  const pagadorID = pagadorEscolhido ?? tx.pagadorID ?? loja.usuarioID ?? "";
+  const contasPorRegra = origensDoPagador(contasTodas, destCarteira, pagadorID, loja.usuarioID);
+  const cartoesPorRegra = origensDoPagador(cartoesTodos, destCarteira, pagadorID, loja.usuarioID);
+  const contasDest =
+    contaID && !contasPorRegra.some((c) => c.id === contaID)
+      ? [...contasPorRegra, ...contasTodas.filter((c) => c.id === contaID)]
+      : contasPorRegra;
+  const cartoesDest =
+    cartaoID && !cartoesPorRegra.some((c) => c.id === cartaoID)
+      ? [...cartoesPorRegra, ...cartoesTodos.filter((c) => c.id === cartaoID)]
+      : cartoesPorRegra;
   const pagoCom = cartaoID ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
   const cartao = cartoesDest.find((c) => c.id === cartaoID) ?? cartoesTodos.find((c) => c.id === tx.cartaoID);
   const conta = contasDest.find((c) => c.id === contaID) ?? contasTodas.find((c) => c.id === tx.contaID);
@@ -76,9 +87,7 @@ export function EditarLancamento({ id }: { id: string }) {
   const mudouCarteira = carteiraID !== tx.carteiraID;
   const temOrigem = Boolean(cartaoID || contaID);
   const destSemOrigem = mudouCarteira && contasDest.length === 0 && cartoesDest.length === 0;
-  const destCarteira = carteiras.find((c) => c.id === carteiraID) ?? loja.carteira;
   const mostraPagador = carteiraMostraPagador(destCarteira);
-  const pagadorID = pagadorEscolhido ?? tx.pagadorID ?? loja.usuarioID ?? "";
   const mudouPagador = pagadorID !== (tx.pagadorID ?? "");
   const podeMembro = membroPodeEditarLancamento(loja.membros ?? [], loja.usuarioID);
   const pode =
@@ -92,8 +101,9 @@ export function EditarLancamento({ id }: { id: string }) {
 
   function escolherCarteira(idNovo: string) {
     setCarteiraID(idNovo);
-    const contas = contasTodas.filter((c) => c.carteiraID === idNovo);
-    const cartoes = cartoesTodos.filter((c) => c.carteiraID === idNovo);
+    const dest = carteiras.find((c) => c.id === idNovo) ?? loja.carteira;
+    const contas = origensDoPagador(contasTodas, dest, pagadorID, loja.usuarioID);
+    const cartoes = origensDoPagador(cartoesTodos, dest, pagadorID, loja.usuarioID);
     const origemVale =
       (cartaoID && cartoes.some((c) => c.id === cartaoID)) ||
       (contaID && contas.some((c) => c.id === contaID));

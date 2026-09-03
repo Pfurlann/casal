@@ -36,6 +36,7 @@ function montar(id?: string) {
         ]
       : [],
     carteira: CARTEIRA,
+    usuarioID: "u1",
     salvarConta: salvarConta.fn,
   };
   return render(
@@ -52,6 +53,41 @@ async function digitarCentavos(digitos: string) {
   }
   return user;
 }
+
+describe("ContaForm — visibilidade", () => {
+  it("na carteira pessoal começa em Pessoal e grava o dono", async () => {
+    montar();
+    expect(screen.getByRole("button", { name: "Pessoal" })).toHaveAttribute("aria-pressed", "true");
+    const user = userEvent.setup({ delay: null });
+    await user.type(screen.getByLabelText("Nome"), "Nubank");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(salvarConta.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ visibilidade: "pessoal", donoID: "u1" }),
+    );
+  });
+
+  it("na conjunta começa em Conjunta e aceita Ambas", async () => {
+    loja.valor = {
+      contas: [],
+      carteira: { ...CARTEIRA, rotulo: "compartilhada", visibilidade: "aberta" },
+      usuarioID: "u1",
+      salvarConta: salvarConta.fn,
+    };
+    render(
+      <ProvedorAviso>
+        <ContaForm />
+      </ProvedorAviso>,
+    );
+    expect(screen.getByRole("button", { name: "Conjunta" })).toHaveAttribute("aria-pressed", "true");
+    const user = userEvent.setup({ delay: null });
+    await user.type(screen.getByLabelText("Nome"), "Itaú");
+    await user.click(screen.getByRole("button", { name: "Ambas" }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(salvarConta.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ visibilidade: "ambas", donoID: "u1" }),
+    );
+  });
+});
 
 describe("ContaForm — saldo inicial", () => {
   it("grava saldo inicial negativo em centavos", async () => {

@@ -14,8 +14,11 @@ vi.mock("@/lib/store", async (original) => {
 
 function montar() {
   loja.valor = {
+    carteira: { id: "c1", nome: "Nosso" },
     cartoes: [],
     contas: [{ id: "a1", nome: "Corrente", tipo: "corrente" }],
+    categorias: [],
+    salvarCategoria: vi.fn(),
     lancar: vi.fn(),
   };
   return render(
@@ -35,7 +38,7 @@ describe("Lancar — acessibilidade", () => {
     montar();
     await userEvent.keyboard("1000");
     const salvar = screen.getByRole("button", { name: "Salvar" });
-    for (let i = 0; i < 40 && document.activeElement !== salvar; i++) {
+    for (let i = 0; i < 80 && document.activeElement !== salvar; i++) {
       await userEvent.tab();
     }
     expect(document.activeElement).toBe(salvar);
@@ -52,5 +55,6 @@ describe("Lancar — acessibilidade", () => {
     expect(screen.getByLabelText("Forma de pagamento")).toBeInTheDocument();
     expect(screen.getByLabelText("Data do lançamento")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Tipo de lançamento" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();
   });
 });

@@ -59,6 +59,7 @@ function montar(opts?: {
   membros?: typeof MEMBROS;
   usuarioID?: string;
   categorias?: typeof PET[];
+  salvarCategoria?: (c: unknown) => Promise<void>;
 }) {
   empurrar.mockClear();
   loja.valor = {
@@ -68,6 +69,7 @@ function montar(opts?: {
     membros: opts?.membros ?? [],
     usuarioID: opts?.usuarioID,
     categorias: opts?.categorias ?? [],
+    salvarCategoria: opts?.salvarCategoria ?? vi.fn().mockResolvedValue(undefined),
     lancar: lancar.fn,
   };
   return render(
@@ -286,5 +288,25 @@ describe("Lancar", () => {
     expect(lancar.fn).toHaveBeenCalledWith(
       expect.objectContaining({ categoriaID: "cat-pet", tipo: "despesa", valor: 1000 }),
     );
+  });
+
+  it("mostra o + para criar categoria além das sugeridas", () => {
+    montar();
+    expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();
+  });
+
+  it("cria categoria na folha, mostra o chip e deixa selecionada", async () => {
+    const salvarCategoria = vi.fn().mockResolvedValue(undefined);
+    montar({ salvarCategoria });
+    await userEvent.click(screen.getByRole("button", { name: "Nova categoria" }));
+    const dialog = screen.getByRole("dialog", { name: "Nova categoria" });
+    expect(dialog).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Nome"), "Pet");
+    await userEvent.click(screen.getByRole("button", { name: "Criar categoria" }));
+    expect(salvarCategoria).toHaveBeenCalledWith(
+      expect.objectContaining({ nome: "Pet", tipo: "despesa", carteiraID: "c1" }),
+    );
+    const chip = await screen.findByRole("button", { name: /Pet/ });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
   });
 });

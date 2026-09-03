@@ -11,13 +11,12 @@ import { ehGrupoParcela } from "@/lib/transacoes";
 import { Cabecalho } from "../ui/Cabecalho";
 import { SeletorPagador } from "../ui/SeletorPagador";
 import { Campo } from "../ui/Campo";
-import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { SeletorCategoria } from "../ui/SeletorCategoria";
 import { Teclado } from "../ui/Teclado";
 import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
-import { IconeCategoria } from "../Icones";
 
 const SELECT =
   "mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
@@ -220,18 +219,13 @@ export function EditarLancamento({ id }: { id: string }) {
 
         <div className="mt-4">
           <Rotulo>categoria</Rotulo>
-          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-            {catsEdicao.map((c) => (
-              <Etiqueta
-                key={c.id}
-                ativa={categoriaID === c.id}
-                aoClicar={() => setCategoriaID(c.id)}
-                className="shrink-0"
-              >
-                <IconeCategoria nome={c.icone} size={14} />
-                {c.nome}
-              </Etiqueta>
-            ))}
+          <div className="mt-2">
+            <SeletorCategoria
+              tipo={tx.tipo === "receita" ? "receita" : "despesa"}
+              custom={loja.categorias}
+              valor={categoriaID}
+              onChange={setCategoriaID}
+            />
           </div>
         </div>
 

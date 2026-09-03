@@ -55,8 +55,11 @@ function montar(tx = AVISTA) {
   editar.fn.mockClear();
   apagar.fn.mockClear();
   loja.valor = {
+    carteira: { id: "c1", nome: "Nosso" },
     transacoes: [tx],
     cartoes: tx.cartaoID ? [CARTAO] : [],
+    categorias: [],
+    salvarCategoria: vi.fn().mockResolvedValue(undefined),
     editar: editar.fn,
     apagar: apagar.fn,
   };
@@ -251,5 +254,10 @@ describe("EditarLancamento", () => {
     expect(editar.fn).toHaveBeenCalledWith(
       expect.objectContaining({ id: "t1", pagadorID: "u1" }),
     );
+  });
+
+  it("mostra o + para criar categoria além das sugeridas", () => {
+    montar();
+    expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();
   });
 });

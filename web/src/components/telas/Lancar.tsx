@@ -20,10 +20,10 @@ import { SeletorPagador } from "../ui/SeletorPagador";
 import { Etiqueta } from "../ui/Etiqueta";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { SeletorCategoria } from "../ui/SeletorCategoria";
 import { Teclado } from "../ui/Teclado";
 import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
-import { IconeCategoria } from "../Icones";
 
 function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
   return categoriasVisiveis(custom, tipo);
@@ -54,7 +54,6 @@ export function Lancar() {
   const [salvando, setSalvando] = useState(false);
   const mostraPagador = carteiraMostraPagador(carteira);
   const pagadorID = pagadorEscolhido ?? usuarioID ?? "";
-  const categorias = categoriasDoTipo(tipo, categoriasCustom);
   const ehReceita = tipo === "receita";
   const origemCartao = !ehReceita && Boolean(cartaoID);
   const temOrigem = origemCartao || Boolean(contaID);
@@ -242,20 +241,13 @@ export function Lancar() {
             >
               <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
             </div>
-            <div className="mt-5 flex flex-wrap justify-center gap-2 px-4">
-              {[
-                ...categorias.filter((c) => !c.carteiraID).slice(0, ehReceita ? categorias.length : 6),
-                ...categorias.filter((c) => Boolean(c.carteiraID)),
-              ].map((c) => (
-                <Etiqueta
-                  key={c.id}
-                  ativa={categoriaID === c.id}
-                  aoClicar={() => setCategoriaID(c.id)}
-                >
-                  <IconeCategoria nome={c.icone} size={14} />
-                  {c.nome}
-                </Etiqueta>
-              ))}
+            <div className="mt-5 px-4">
+              <SeletorCategoria
+                tipo={tipo}
+                custom={categoriasCustom}
+                valor={categoriaID}
+                onChange={setCategoriaID}
+              />
             </div>
             {mostraPagador && (
               <div className="mt-4 px-4">

@@ -14,6 +14,7 @@ import {
 import {
   ACCEPT_ARQUIVO_OFX,
   classificarCategoria,
+  creditoRelevanteNaFatura,
   erroSeNaoForOfx,
   fraseParcelaOfx,
   hashDedupOfx,
@@ -36,6 +37,11 @@ const SELECT =
 function dataBr(iso: string): string {
   const [ano, mes, dia] = iso.split("-");
   return `${dia}/${mes}/${ano}`;
+}
+
+function marcarPorPadrao(linha: LinhaOfx): boolean {
+  if (linha.tipo === "gasto") return true;
+  return creditoRelevanteNaFatura(linha.descricao);
 }
 
 export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
@@ -70,7 +76,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
               hashDedup: hash,
               categoriaID: escolhas[hash] ?? classificarCategoria(g.descricao, categorias),
               jaTem,
-              lancar: jaTem ? false : (marcar[hash] ?? g.tipo === "gasto"),
+              lancar: jaTem ? false : (marcar[hash] ?? marcarPorPadrao(g)),
             };
           })
         : [],
@@ -104,7 +110,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         for (const g of [...parsed.gastos, ...parsed.creditos]) {
           const hash = hashDedupOfx(cartao.id, g.fitId);
           iniciais[hash] = classificarCategoria(g.descricao, categorias);
-          marcas[hash] = g.tipo === "gasto";
+          marcas[hash] = marcarPorPadrao(g);
         }
       }
       setEscolhas(iniciais);
@@ -128,6 +134,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           data: l.data,
           categoriaID: l.categoriaID,
           hashDedup: l.hashDedup,
+          tipo: l.tipo,
           parcelaN: l.parcelaN,
           parcelaTotal: l.parcelaTotal,
         })),

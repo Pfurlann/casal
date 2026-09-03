@@ -32,6 +32,7 @@ export type LinhaImportacaoOfx = {
   data: string;
   categoriaID: string;
   hashDedup: string;
+  tipo?: TipoLinhaOfx;
   parcelaN?: number;
   parcelaTotal?: number;
 };
@@ -200,6 +201,13 @@ export function pareceCredito(memo: string): boolean {
   return /pagamento\b|pagto\b|\bpgto\b|\bpayment\b|pgto\s*fatura|fatura\s+paga|\bestorno\b|devolu[cç]|ajuste\s*cred|ajuste\s*cr[eé]dito|cred\s+parc/i.test(
     memo,
   );
+}
+
+/** Crédito que deve entrar na fatura abatendo total (ex.: estorno/ajuste). */
+export function creditoRelevanteNaFatura(memo: string): boolean {
+  const t = memo.toLowerCase();
+  if (/\bpagamento\b|\bpagto\b|\bpgto\b|\bpayment\b|pgto\s*fatura|fatura\s+paga/.test(t)) return false;
+  return /\bestorno\b|devolu[cç]|ajuste\s*cred|ajuste\s*cr[eé]dito|cred\s+parc/.test(t);
 }
 
 /**
@@ -389,11 +397,12 @@ export function transacoesDoOfx(p: {
       const hash = hashDedupOfxParcela(linha.hashDedup, atual, parte.numero, total);
       if (hashes.has(hash)) continue;
       hashes.add(hash);
+      const valor = linha.tipo === "credito" ? -linha.valor : linha.valor;
       novas.push({
         id: uuid(),
         carteiraID: p.carteiraID,
         tipo: "despesa",
-        valor: linha.valor,
+        valor,
         data: dataDeLocalISO(parte.data).toISOString(),
         categoriaID: linha.categoriaID,
         descricao: linha.descricao,

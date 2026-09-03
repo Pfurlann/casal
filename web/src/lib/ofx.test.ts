@@ -9,6 +9,7 @@ import {
   centavosDeOfx,
   classificarCategoria,
   classificarTipoOfx,
+  creditoRelevanteNaFatura,
   eConteudoOfx,
   eNomeOfx,
   erroSeNaoForOfx,
@@ -138,6 +139,14 @@ describe("classificarTipoOfx", () => {
     expect(classificarTipoOfx("CREDIT", 10000, "ESTORNO IFOOD")).toBe("credito");
     expect(pareceCredito("DELICIAS DO PADEIRO C")).toBe(false);
     expect(pareceCredito("AJUSTE CRED PARC S JUROS")).toBe(true);
+  });
+});
+
+describe("creditoRelevanteNaFatura", () => {
+  it("inclui estorno/ajuste e exclui pagamento", () => {
+    expect(creditoRelevanteNaFatura("AJUSTE CRED PARC S JUROS")).toBe(true);
+    expect(creditoRelevanteNaFatura("ESTORNO IFOOD")).toBe(true);
+    expect(creditoRelevanteNaFatura("PAGAMENTO RECEBIDO")).toBe(false);
   });
 });
 
@@ -323,6 +332,25 @@ describe("transacoesDoOfx", () => {
       cartao: CARTAO,
       existentes,
     })).toHaveLength(0);
+  });
+
+  it("crédito de OFX vira abatimento da fatura", () => {
+    const txs = transacoesDoOfx({
+      linhas: [{
+        descricao: "AJUSTE CRED PARC S JUROS",
+        valor: 4,
+        data: "2026-09-02",
+        categoriaID: CATEGORIA_OUTROS_ID,
+        hashDedup: hashDedupOfx("k1", "FIT-AJUSTE"),
+        tipo: "credito",
+      }],
+      carteiraID: "w1",
+      cartaoID: "k1",
+      cartao: CARTAO,
+    });
+    expect(txs).toHaveLength(1);
+    expect(txs[0]?.tipo).toBe("despesa");
+    expect(txs[0]?.valor).toBe(-4);
   });
 
   it("compra CREDIT do OFX com categoria custom entra no mês da fatura", () => {

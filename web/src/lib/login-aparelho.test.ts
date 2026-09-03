@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHAVE_EMAIL,
   apagarEmailLembrado,
+  avisoOrigemPasskey,
   biometriaDoAparelhoDisponivel,
   gravarEmailLembrado,
   guardarSenhaNoAparelho,
@@ -37,6 +38,19 @@ describe("e-mail lembrado", () => {
     expect(lerEmailLembrado()).toBe("eu@casa.br");
     apagarEmailLembrado();
     expect(lerEmailLembrado()).toBe("");
+  });
+});
+
+describe("avisoOrigemPasskey", () => {
+  it("aceita o domínio de produção e o localhost", () => {
+    expect(avisoOrigemPasskey("casal-liard.vercel.app")).toBeNull();
+    expect(avisoOrigemPasskey("localhost")).toBeNull();
+  });
+
+  it("recusa preview de outro host", () => {
+    expect(avisoOrigemPasskey("casal-4o9a4vi8a-pedrohcfurlan98-6470s-projects.vercel.app")).toMatch(
+      /casal-liard\.vercel\.app/,
+    );
   });
 });
 

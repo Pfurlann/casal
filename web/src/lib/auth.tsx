@@ -10,7 +10,10 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { textoFalha, traduzirErroAuth } from "./login-erros";
 import { clienteSupabase } from "./supabase";
+
+export { traduzirErroAuth } from "./login-erros";
 
 type Auth = {
   pronto: boolean;
@@ -31,31 +34,6 @@ export function useAuth(): Auth {
   const v = useContext(Ctx);
   if (!v) throw new Error("useAuth fora do provider");
   return v;
-}
-
-export function traduzirErroAuth(msg: string): string {
-  const m = msg.toLowerCase();
-  if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("network request")) {
-    return "Sem conexão com o servidor. Confira a internet e tente de novo.";
-  }
-  if (m.includes("supabase não configurado") || m.includes("supabase nao configurado")) {
-    return "Não foi possível conectar. Tente de novo em instantes.";
-  }
-  if (m.includes("invalid login")) return "E-mail ou senha incorretos.";
-  if (m.includes("already registered") || m.includes("user already")) return "Esse e-mail já tem conta. Entre com a senha.";
-  if (m.includes("password") && m.includes("6")) return "A senha precisa ter pelo menos 6 caracteres.";
-  if (m.includes("email") && m.includes("invalid")) return "E-mail inválido.";
-  if (m.includes("rate limit") || m.includes("too many")) return "Muitas tentativas. Espere um minuto.";
-  if (m.includes("notallowed") || m.includes("the operation either timed out or was not allowed") || m.includes("aborted")) {
-    return "A biometria foi cancelada.";
-  }
-  if (m.includes("passkey_disabled")) {
-    return "A biometria deste aparelho ainda não está disponível. Entre com e-mail e senha.";
-  }
-  if (m.includes("webauthn") || m.includes("passkey") || m.includes("does not support webauthn")) {
-    return "Não deu para usar a biometria deste aparelho. Entre com e-mail e senha.";
-  }
-  return msg;
 }
 
 async function comFalha<T>(fn: () => Promise<T>): Promise<T | string> {
@@ -97,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!sb) return "Não foi possível conectar. Tente de novo em instantes.";
       const resultado = await comFalha(async () => {
         const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: senha });
-        return error ? traduzirErroAuth(error.message) : null;
+        return textoFalha(error);
       });
       return typeof resultado === "string" ? resultado : resultado;
     },
@@ -109,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!sb) return "Não foi possível conectar. Tente de novo em instantes.";
       const resultado = await comFalha(async () => {
         const { data, error } = await sb.auth.signUp({ email: email.trim(), password: senha });
-        if (error) return traduzirErroAuth(error.message);
+        if (error) return textoFalha(error);
         if (!data.session) {
           const { error: errEntrar } = await sb.auth.signInWithPassword({
             email: email.trim(),
@@ -130,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!sb) return "Não foi possível conectar. Tente de novo em instantes.";
     const resultado = await comFalha(async () => {
       const { error } = await sb.auth.signInWithPasskey();
-      return error ? traduzirErroAuth(error.message) : null;
+      return textoFalha(error);
     });
     return typeof resultado === "string" ? resultado : resultado;
   }, [sb]);
@@ -139,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!sb) return "Não foi possível conectar. Tente de novo em instantes.";
     const resultado = await comFalha(async () => {
       const { error } = await sb.auth.registerPasskey();
-      return error ? traduzirErroAuth(error.message) : null;
+      return textoFalha(error);
     });
     return typeof resultado === "string" ? resultado : resultado;
   }, [sb]);

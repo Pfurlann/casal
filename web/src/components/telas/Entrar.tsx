@@ -3,8 +3,10 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { traduzirErroAuth } from "@/lib/login-erros";
 import {
   apagarEmailLembrado,
+  avisoOrigemPasskey,
   biometriaDoAparelhoDisponivel,
   gravarEmailLembrado,
   guardarSenhaNoAparelho,
@@ -84,6 +86,11 @@ export function Entrar() {
   }
 
   async function ativarBiometria() {
+    const origem = avisoOrigemPasskey();
+    if (origem) {
+      setErro(origem);
+      return;
+    }
     setEnviando(true);
     setErro(null);
     try {
@@ -93,14 +100,21 @@ export function Entrar() {
         return;
       }
       router.replace("/mes");
-    } catch {
-      setErro("Não deu para ativar a biometria deste aparelho. Você já está dentro — pode seguir.");
+    } catch (err) {
+      setErro(
+        traduzirErroAuth(err instanceof Error ? err.message : "Falha ao ativar o Face ID."),
+      );
     } finally {
       setEnviando(false);
     }
   }
 
   async function entrarBiometria() {
+    const origem = avisoOrigemPasskey();
+    if (origem) {
+      setErro(origem);
+      return;
+    }
     setEnviando(true);
     setErro(null);
     try {
@@ -110,8 +124,10 @@ export function Entrar() {
         return;
       }
       router.replace("/mes");
-    } catch {
-      setErro("Não deu para usar a biometria deste aparelho. Entre com e-mail e senha.");
+    } catch (err) {
+      setErro(
+        traduzirErroAuth(err instanceof Error ? err.message : "Falha ao entrar com a biometria."),
+      );
     } finally {
       setEnviando(false);
     }

@@ -108,6 +108,24 @@ describe("Entrar", () => {
     expect(screen.queryByRole("button", { name: /Entrar com / })).toBeNull();
   });
 
+  it("mostra o erro real se Ativar Face ID falhar", async () => {
+    vi.stubGlobal("PublicKeyCredential", {
+      isUserVerifyingPlatformAuthenticatorAvailable: () => Promise.resolve(true),
+    });
+    registrarPasskey.mockResolvedValueOnce(
+      "Passkeys não estão ligadas neste projeto. No Supabase: Authentication → Passkeys, ligue com o domínio casal-liard.vercel.app. Enquanto isso, entre com e-mail e senha.",
+    );
+    render(<Entrar />);
+    await userEvent.type(screen.getByLabelText("E-mail"), "eu@casa.br");
+    await userEvent.type(screen.getByLabelText("Senha"), "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    const ativar = await screen.findByRole("button", { name: /Ativar / });
+    await userEvent.click(ativar);
+    expect(registrarPasskey).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Passkeys não estão ligadas neste projeto");
+    expect(replace).not.toHaveBeenCalledWith("/mes");
+  });
+
   it("mostra o botão biométrico só quando o aparelho oferece", async () => {
     vi.stubGlobal("PublicKeyCredential", {
       isUserVerifyingPlatformAuthenticatorAvailable: () => Promise.resolve(true),

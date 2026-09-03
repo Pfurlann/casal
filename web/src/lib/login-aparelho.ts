@@ -1,4 +1,12 @@
 export const CHAVE_EMAIL = "casal-email";
+export const HOST_PASSKEY = "casal-liard.vercel.app";
+
+export function avisoOrigemPasskey(
+  host = typeof location === "undefined" ? "" : location.hostname,
+): string | null {
+  if (!host || host === HOST_PASSKEY || host === "localhost" || host === "127.0.0.1") return null;
+  return `Abra pelo site ${HOST_PASSKEY}. Este endereço (${host}) não pode usar o Face ID.`;
+}
 
 export function validarLogin(email: string, senha: string): string | null {
   if (!email.trim().includes("@")) return "Informe um e-mail válido.";

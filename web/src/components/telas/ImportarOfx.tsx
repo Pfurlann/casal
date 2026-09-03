@@ -10,7 +10,9 @@ import {
   type Cartao,
 } from "@/lib/domain";
 import {
+  ACCEPT_ARQUIVO_OFX,
   classificarCategoria,
+  erroSeNaoForOfx,
   fraseParcelaOfx,
   hashDedupOfx,
   jaImportada,
@@ -75,13 +77,14 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
   async function lerArquivo(file: File | undefined) {
     setErroArquivo(null);
     if (!file) return;
-    const nome = file.name.toLowerCase();
-    if (!nome.endsWith(".ofx") && !nome.endsWith(".ofc")) {
-      setErroArquivo("Escolha um arquivo .ofx ou .ofc.");
-      return;
-    }
     try {
       const raw = await lerTextoDoArquivo(file);
+      const recusa = erroSeNaoForOfx(file.name, raw);
+      if (recusa) {
+        setErroArquivo(recusa);
+        setTexto(null);
+        return;
+      }
       const parsed = parseOfx(raw);
       if (parsed.gastos.length === 0 && parsed.creditos.length === 0) {
         setErroArquivo("Não achei lançamentos nesse arquivo.");
@@ -154,7 +157,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           Escolher arquivo OFX
           <input
             type="file"
-            accept=".ofx,.ofc,application/x-ofx,application/ofx,text/xml"
+            {...(ACCEPT_ARQUIVO_OFX ? { accept: ACCEPT_ARQUIVO_OFX } : {})}
             className="sr-only"
             onChange={(e) => void lerArquivo(e.target.files?.[0])}
           />

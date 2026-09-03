@@ -3,9 +3,13 @@ import type { Cartao, Categoria, Transacao } from "./domain";
 import { competenciaDaCompra } from "./domain";
 import { FIXTURE_FATURA_OFX, FIXTURE_PARCELA_OFX } from "./ofx-fixture";
 import {
+  ACCEPT_ARQUIVO_OFX,
   CATEGORIA_OUTROS_ID,
   centavosDeOfx,
   classificarCategoria,
+  eConteudoOfx,
+  eNomeOfx,
+  erroSeNaoForOfx,
   expansaoParcelasOfx,
   fraseParcelaOfx,
   hashDedupOfx,
@@ -37,6 +41,26 @@ const PET: Categoria = {
   tipo: "despesa",
   carteiraID: "w1",
 };
+
+describe("accept e validador OFX", () => {
+  it("usa accept amplo para o iPhone não esconder .ofx", () => {
+    expect(ACCEPT_ARQUIVO_OFX).toBe("");
+    expect(ACCEPT_ARQUIVO_OFX).not.toMatch(/ofx/i);
+  });
+
+  it("aceita extensão e OFXHEADER / <OFX, recusa o resto", () => {
+    expect(eNomeOfx("fatura.ofx")).toBe(true);
+    expect(eNomeOfx("FATURA.OFC")).toBe(true);
+    expect(eNomeOfx("extrato.qfx")).toBe(true);
+    expect(eNomeOfx("foto.jpg")).toBe(false);
+    expect(eConteudoOfx(FIXTURE_FATURA_OFX)).toBe(true);
+    expect(eConteudoOfx("<OFX><STMTTRN>")).toBe(true);
+    expect(eConteudoOfx("not a bank file")).toBe(false);
+    expect(erroSeNaoForOfx("sem-extensao", FIXTURE_FATURA_OFX)).toBeNull();
+    expect(erroSeNaoForOfx("fatura.ofx", "lixo")).toMatch(/OFX válido/);
+    expect(erroSeNaoForOfx("IMG_001.JPG", "JFIF")).toMatch(/não parece/);
+  });
+});
 
 describe("centavosDeOfx", () => {
   it("converte string decimal sem float", () => {

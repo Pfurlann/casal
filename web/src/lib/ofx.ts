@@ -255,6 +255,29 @@ function fitIdDaLinha(bloco: string, data: string, centavos: number, descricao: 
   return `${data}|${centavos}|${memo}`;
 }
 
+/**
+ * iOS Safari/PWA some .ofx se o accept for estreito (UTI desconhecido).
+ * Vazio = sem atributo accept: o iPhone mostra Arquivos/iCloud.
+ */
+export const ACCEPT_ARQUIVO_OFX = "";
+
+export function eNomeOfx(nome: string): boolean {
+  return /\.(ofx|ofc|qfx)$/i.test(nome.trim());
+}
+
+export function eConteudoOfx(texto: string): boolean {
+  const cabeca = texto.slice(0, 8000);
+  return /OFXHEADER\s*:/i.test(cabeca) || /<OFX\b/i.test(cabeca);
+}
+
+/** null = segue; senão, frase para a pessoa. Exige OFXHEADER ou `<OFX`. */
+export function erroSeNaoForOfx(nome: string, texto: string): string | null {
+  if (eConteudoOfx(texto)) return null;
+  return eNomeOfx(nome)
+    ? "Esse arquivo não tem um OFX válido."
+    : "Isso não parece um arquivo OFX. No app do banco, exporte a fatura em OFX.";
+}
+
 export function lerTextoDoArquivo(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();

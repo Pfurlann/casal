@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ACCEPT_ARQUIVO_OFX } from "@/lib/ofx";
 import { FIXTURE_FATURA_OFX, FIXTURE_PARCELA_OFX } from "@/lib/ofx-fixture";
 import { ImportarOfx } from "./ImportarOfx";
 import { ProvedorAviso } from "../ui/Aviso";
@@ -67,6 +68,30 @@ async function enviarFixture() {
 }
 
 describe("ImportarOfx", () => {
+  it("abre o picker sem filtrar .ofx e sem câmera", () => {
+    montar();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.accept).toBe(ACCEPT_ARQUIVO_OFX);
+    expect(input.hasAttribute("accept")).toBe(false);
+    expect(input.hasAttribute("capture")).toBe(false);
+    expect(input.closest("label")?.className).toMatch(/min-h-\[44px\]/);
+  });
+
+  it("aceita OFX sem extensão e recusa foto", async () => {
+    montar();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(
+      input,
+      new File([FIXTURE_FATURA_OFX], "documento", { type: "application/octet-stream" }),
+    );
+    expect(await screen.findByText("IFOOD *PIZZA NAPOLI")).toBeInTheDocument();
+    await userEvent.upload(
+      input,
+      new File(["JFIF"], "IMG_001.JPG", { type: "image/jpeg" }),
+    );
+    expect(await screen.findByText(/não parece um arquivo OFX/)).toBeInTheDocument();
+  });
+
   it("lista os gastos da fixture com categoria sugerida", async () => {
     montar();
     await enviarFixture();

@@ -16,13 +16,13 @@ describe("Curva", () => {
     }
   });
 
-  it("dimensiona as barras contra o maior valor", () => {
+  it("dimensiona as barras em pixels contra o maior valor", () => {
     const { container } = render(<Curva pontos={PONTOS} />);
     const alturas = [...container.querySelectorAll("[data-barra]")].map(
       (b) => (b as HTMLElement).style.height,
     );
-    expect(alturas[0]).toBe("100%");
-    expect(alturas[1]).toBe("50%");
+    expect(alturas[0]).toBe("40px");
+    expect(alturas[1]).toBe("20px");
   });
 
   it("dá altura mínima visível ao mês sem fatura", () => {
@@ -38,11 +38,12 @@ describe("Curva", () => {
     expect(container.innerHTML).not.toContain("gradient");
   });
 
-  it("distingue mês sem fatura com barra em névoa", () => {
+  it("pinta barras com tokens, não currentColor", () => {
     const { container } = render(<Curva pontos={PONTOS} />);
-    const barras = [...container.querySelectorAll("[data-barra]")];
-    expect(barras[0].className).toContain("bg-grafite");
-    expect(barras[2].className).toContain("bg-nevoa");
+    const barras = [...container.querySelectorAll("[data-barra]")] as HTMLElement[];
+    expect(barras[0].style.backgroundColor).toBe("var(--grafite)");
+    expect(barras[2].style.backgroundColor).toBe("var(--nevoa)");
+    expect(container.innerHTML).not.toContain("currentColor");
   });
 
   it("aguenta todos os meses zerados sem dividir por zero", () => {

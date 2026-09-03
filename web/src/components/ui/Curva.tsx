@@ -1,3 +1,5 @@
+const ALTURA_MAXIMA = 40;
+
 export function Curva({
   pontos,
 }: {
@@ -5,18 +7,20 @@ export function Curva({
 }) {
   const maior = Math.max(...pontos.map((p) => p.total), 0);
   return (
-    <div className="flex h-[56px] items-end gap-2">
+    <div className="flex items-end gap-2">
       {pontos.map((p, i) => {
         const preenchida = maior > 0 && p.total > 0;
+        const altura = preenchida ? Math.max((p.total / maior) * ALTURA_MAXIMA, 2) : 2;
         return (
           <div key={`${p.rotulo}-${i}`} className="flex flex-1 flex-col items-center gap-1">
-            <div className="flex w-3 flex-1 items-end justify-center">
-              <div
-                data-barra
-                className={`w-full ${preenchida ? "bg-grafite" : "bg-nevoa"}`}
-                style={{ height: preenchida ? `${(p.total / maior) * 100}%` : "2px" }}
-              />
-            </div>
+            <div
+              data-barra
+              className="w-3"
+              style={{
+                height: `${altura}px`,
+                backgroundColor: preenchida ? "var(--grafite)" : "var(--nevoa)",
+              }}
+            />
             <span className="font-numero text-[12px] tabular-nums text-grafite">
               {p.rotulo}
             </span>

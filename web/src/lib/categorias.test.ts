@@ -58,6 +58,13 @@ describe("categoriaPorId / eCategoriaSistema", () => {
     expect(eCategoriaSistema("00000000-0000-0000-0000-000000000001")).toBe(true);
     expect(eCategoriaSistema("cat-pet")).toBe(false);
   });
+
+  it("resolve custom pelo id, não pelo nome (Bem estar ≠ Bem-estar)", () => {
+    const a: Categoria = { ...PET, id: "id-a", nome: "Bem estar" };
+    const b: Categoria = { ...PET, id: "id-b", nome: "Bem-estar" };
+    expect(categoriaPorId("id-a", [a, b])?.nome).toBe("Bem estar");
+    expect(categoriaPorId("id-b", [a, b])?.nome).toBe("Bem-estar");
+  });
 });
 
 describe("validarCategoria", () => {

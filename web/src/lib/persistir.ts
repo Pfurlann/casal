@@ -80,5 +80,5 @@ export function transacoesDoGastoNoCartao(p: {
     categoriaID: p.categoriaID,
     pagadorID: p.pagadorID,
     tipo: "despesa",
-  }).map((t) => ({ ...t, status: "a_pagar" as const }));
+  }).map((t) => ({ ...t, status: "liquidado" as const }));
 }

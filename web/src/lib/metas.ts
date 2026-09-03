@@ -2,6 +2,7 @@ import { categoriaPorId } from "./categorias";
 import {
   competenciaDe,
   ROTULO_TIPO_CONTA,
+  type Cartao,
   type Categoria,
   type Competencia,
   type Conta,
@@ -9,6 +10,7 @@ import {
   type TipoMeta,
   type Transacao,
 } from "./domain";
+import { competenciaDaTransacao } from "./faturas";
 import { formatarBRL, type Centavos } from "./money";
 
 export const ALERTA_TETO = 0.8;
@@ -23,23 +25,45 @@ export type ProgressoTeto = {
   faixa: FaixaTeto;
 };
 
-export function noMes(t: Transacao, c: Competencia): boolean {
-  const d = new Date(t.data);
-  return d.getFullYear() === c.ano && d.getMonth() + 1 === c.mes;
+export function noMes(t: Transacao, c: Competencia, cartoes: Cartao[] = []): boolean {
+  const da = competenciaDaTransacao(t, cartoes);
+  return da.ano === c.ano && da.mes === c.mes;
+}
+
+/** Despesa e receita do mês — cartão pela competência da fatura; inclui categoria custom. */
+export function transacoesDoMes(
+  transacoes: Transacao[],
+  c: Competencia,
+  cartoes: Cartao[] = [],
+): Transacao[] {
+  return transacoes.filter((t) => {
+    switch (t.tipo) {
+      case "despesa":
+      case "receita":
+        return noMes(t, c, cartoes);
+      case "transferencia":
+        return false;
+      default: {
+        const _nunca: never = t.tipo;
+        throw new Error(`tipo não tratado: ${_nunca}`);
+      }
+    }
+  });
 }
 
 export function gastoDaCategoria(
   transacoes: Transacao[],
   categoriaID: string,
   c: Competencia,
+  cartoes: Cartao[] = [],
 ): Centavos {
   return transacoes
-    .filter((t) => t.tipo === "despesa" && t.categoriaID === categoriaID && noMes(t, c))
+    .filter((t) => t.tipo === "despesa" && t.categoriaID === categoriaID && noMes(t, c, cartoes))
     .reduce((s, t) => s + t.valor, 0);
 }
 
-export function economiaDoMes(transacoes: Transacao[], c: Competencia): Centavos {
-  return transacoes.filter((t) => noMes(t, c)).reduce((s, t) => {
+export function economiaDoMes(transacoes: Transacao[], c: Competencia, cartoes: Cartao[] = []): Centavos {
+  return transacoes.filter((t) => noMes(t, c, cartoes)).reduce((s, t) => {
     switch (t.tipo) {
       case "receita":
         return s + t.valor;
@@ -105,13 +129,14 @@ export function folgaDoPeriodo(
   metas: Meta[] | undefined,
   transacoes: Transacao[],
   c: Competencia = competenciaDe(new Date()),
+  cartoes: Cartao[] = [],
 ): number | undefined {
   const tetos = metasAtivas(metas).filter((m) => m.tipo === "teto_categoria" && m.categoriaID);
   if (tetos.length > 0) {
     const alvo = tetos.reduce((s, m) => s + m.valorAlvo, 0);
     if (alvo <= 0) return undefined;
     const gasto = tetos.reduce(
-      (s, m) => s + gastoDaCategoria(transacoes, m.categoriaID ?? "", c),
+      (s, m) => s + gastoDaCategoria(transacoes, m.categoriaID ?? "", c, cartoes),
       0,
     );
     return (alvo - gasto) / alvo;
@@ -120,7 +145,7 @@ export function folgaDoPeriodo(
   if (economias.length === 0) return undefined;
   const alvo = economias.reduce((s, m) => s + m.valorAlvo, 0);
   if (alvo <= 0) return undefined;
-  return economiaDoMes(transacoes, c) / alvo;
+  return economiaDoMes(transacoes, c, cartoes) / alvo;
 }
 
 export function nomeDaMeta(meta: Meta, categorias?: Categoria[]): string {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ROTULO_TIPO_CONTA } from "@/lib/domain";
+import { saldoDaConta } from "@/lib/contas";
 import { alocadoNaConta, saldoLivre } from "@/lib/metas";
 import { formatarBRL } from "@/lib/money";
 import { useLoja } from "@/lib/store";
@@ -12,7 +13,7 @@ import { BolinhaCor } from "../ui/SeletorCor";
 import { Vazio } from "../ui/Vazio";
 
 export function Contas() {
-  const { contas, carteira, metas } = useLoja();
+  const { contas, carteira, metas, transacoes } = useLoja();
 
   return (
     <div>
@@ -48,8 +49,9 @@ export function Contas() {
         ) : (
           <div className="mt-4">
             {contas.map((c) => {
+              const saldo = saldoDaConta(c, transacoes ?? []);
               const alocado = alocadoNaConta(metas, c.id);
-              const livre = saldoLivre(c.saldoInicial, metas, c.id);
+              const livre = saldoLivre(saldo, metas, c.id);
               const vis = ROTULO_VISIBILIDADE_ORIGEM[c.visibilidade ?? visibilidadePadraoDaCarteira(carteira)];
               return (
                 <LinhaLista
@@ -61,7 +63,7 @@ export function Contas() {
                       ? `${ROTULO_TIPO_CONTA[c.tipo]} · livre ${formatarBRL(livre)} · ${vis}`
                       : `${ROTULO_TIPO_CONTA[c.tipo]} · ${vis}`
                   }
-                  valor={livre}
+                  valor={saldo}
                   href={`/mais/contas/${c.id}`}
                 />
               );

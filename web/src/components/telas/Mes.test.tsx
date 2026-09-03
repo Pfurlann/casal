@@ -41,17 +41,18 @@ function despesa(valor: number, descricao: string, categoriaID: string, id = cry
 }
 
 function montar(extra: Record<string, unknown> = {}) {
+  const { competenciaRota, ...lojaExtra } = extra;
   loja.valor = {
     carteira: CARTEIRA,
     cartoes: [],
     contas: [CONTA],
     faturas: [],
     transacoes: [],
-    ...extra,
+    ...lojaExtra,
   };
   return render(
     <ProvedorAviso>
-      <Mes />
+      <Mes competenciaRota={typeof competenciaRota === "string" ? competenciaRota : undefined} />
     </ProvedorAviso>,
   );
 }
@@ -182,7 +183,7 @@ describe("Mes", () => {
     );
   });
 
-  it("compra no cartão mostra o método sem check", () => {
+  it("compra no cartão mostra o método com check, sem swipe", () => {
     const { container } = montar({
       cartoes: [{
         id: "k1",
@@ -208,7 +209,7 @@ describe("Mes", () => {
     });
     expect(screen.getByText(/Roxinho/)).toBeInTheDocument();
     expect(container.querySelector("[data-cor-origem]")).toBeTruthy();
-    expect(screen.queryByLabelText("pago")).toBeNull();
+    expect(screen.getByLabelText("pago")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Pago" })).toBeNull();
   });
 
@@ -250,10 +251,10 @@ describe("Mes", () => {
       ],
     });
     expect(screen.getByText("Fatura Roxinho")).toBeInTheDocument();
-    expect(screen.queryByLabelText("pago")).toBeNull();
+    expect(screen.getByLabelText("pago")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "A pagar" }));
     expect(screen.getByText("Fatura Roxinho")).toBeInTheDocument();
-    expect(screen.getByText("Padaria")).toBeInTheDocument();
+    expect(screen.queryByText("Padaria")).toBeNull();
   });
 
   it("sinaliza a cor da conta na linha", () => {
@@ -284,6 +285,56 @@ describe("Mes", () => {
       ],
     });
     expect(screen.getByText("Sobram R$ 50,00 no teto de Mercado.")).toBeInTheDocument();
+  });
+
+  it("mostra gasto em categoria custom e não some no filtro Todos", () => {
+    const bemEstar = {
+      id: "966ee5dd-4382-42fe-bd8c-1c009faddac0",
+      nome: "Bem Estar",
+      icone: "outros",
+      cor: "grafite",
+      tipo: "despesa" as const,
+      carteiraID: "c1",
+    };
+    montar({
+      categorias: [bemEstar],
+      transacoes: [
+        {
+          ...despesa(10_500, "Barbearia do Kelvin", bemEstar.id, "tx-be"),
+          status: "a_pagar",
+          cartaoID: "k1",
+          contaID: undefined,
+        },
+      ],
+    });
+    expect(screen.getByRole("link", { name: /Barbearia do Kelvin/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Bem Estar/).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("pago")).toBeInTheDocument();
+  });
+
+  it("no mês da rota lista custom de agosto que o mês atual omitiria", () => {
+    const bemEstar = {
+      id: "966ee5dd-4382-42fe-bd8c-1c009faddac0",
+      nome: "Bem Estar",
+      icone: "outros",
+      cor: "grafite",
+      tipo: "despesa" as const,
+      carteiraID: "c1",
+    };
+    montar({
+      competenciaRota: "2026-08",
+      categorias: [bemEstar],
+      transacoes: [
+        {
+          ...despesa(10_500, "Barbearia do Kelvin", bemEstar.id, "tx-be"),
+          data: "2026-08-05T15:00:00.000Z",
+          status: "a_pagar",
+        },
+      ],
+    });
+    expect(screen.getByText(/agosto/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Barbearia do Kelvin/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Bem Estar/).length).toBeGreaterThan(0);
   });
 
   it("hex só na bolinha da origem", () => {

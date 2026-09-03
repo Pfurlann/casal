@@ -40,7 +40,7 @@ describe("gasto manual no cartão", () => {
     });
     expect(txs).toHaveLength(1);
     expect(txs[0]?.cartaoID).toBe("k1");
-    expect(txs[0]?.status).toBe("a_pagar");
+    expect(txs[0]?.status).toBe("liquidado");
     expect(txs[0]?.contaID).toBeUndefined();
     expect(txs[0]?.carteiraID).toBe("c1");
     expect(linhaDaTransacao(txs[0]!)).toMatchObject({
@@ -48,7 +48,7 @@ describe("gasto manual no cartão", () => {
       card_id: "k1",
       account_id: null,
       descricao: "Padaria",
-      status: "a_pagar",
+      status: "liquidado",
       goal_id: null,
     });
     expect(transacoesDaCarteira(txs, "c1")).toHaveLength(1);

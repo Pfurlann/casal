@@ -1,5 +1,6 @@
 import {
   competenciaDaCompra,
+  competenciaDe,
   chaveCompetencia,
   fechamento,
   rotuloDaCompetencia,
@@ -24,6 +25,17 @@ export function eCompraNoCartao(t: Transacao): boolean {
   return Boolean(t.cartaoID) && !eLancamentoDeFatura(t);
 }
 
+/** Compra no cartão e total da fatura: competência do fechamento, não o dia da compra. */
+export function competenciaDaTransacao(t: Transacao, cartoes: Cartao[] = []): Competencia {
+  if (eLancamentoDeFatura(t)) {
+    const parsed = competenciaDoHashFatura(t.hashDedup);
+    if (parsed) return parsed.competencia;
+  }
+  const cartao = t.cartaoID ? cartoes.find((c) => c.id === t.cartaoID) : undefined;
+  if (cartao && eCompraNoCartao(t)) return competenciaDaCompra(new Date(t.data), cartao);
+  return competenciaDe(new Date(t.data));
+}
+
 export function competenciaDoHashFatura(
   hash: string,
 ): { cartaoID: string; competencia: Competencia } | null {
@@ -33,7 +45,7 @@ export function competenciaDoHashFatura(
 }
 
 export function eLancamentoPago(t: Transacao, faturas: Fatura[] = []): boolean {
-  if (eCompraNoCartao(t)) return false;
+  if (eCompraNoCartao(t)) return true;
   if (eLancamentoDeFatura(t)) {
     if (t.status === "liquidado") return true;
     const parsed = competenciaDoHashFatura(t.hashDedup);

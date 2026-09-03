@@ -15,6 +15,7 @@ import {
   rotuloContaComReserva,
   saldoLivre,
   tetoDaCategoria,
+  transacoesDoMes,
   validarAlocacao,
   validarMeta,
 } from "./metas";
@@ -47,6 +48,32 @@ function tx(parcial: Partial<Transacao> = {}): Transacao {
     ...parcial,
   };
 }
+
+describe("transacoesDoMes", () => {
+  it("inclui gasto em categoria custom do mês e omite outro mês", () => {
+    const lista = [
+      tx({
+        id: "be",
+        valor: 10_500,
+        categoriaID: "966ee5dd-4382-42fe-bd8c-1c009faddac0",
+        descricao: "Barbearia do Kelvin",
+        data: "2026-09-03T15:00:00.000Z",
+      }),
+      tx({
+        id: "ago",
+        valor: 10_500,
+        categoriaID: "966ee5dd-4382-42fe-bd8c-1c009faddac0",
+        descricao: "Barbearia agosto",
+        data: "2026-08-05T15:00:00.000Z",
+      }),
+      tx({ id: "x", tipo: "transferencia", valor: 1_000 }),
+    ];
+    const doMes = transacoesDoMes(lista, C);
+    expect(doMes.map((t) => t.id)).toEqual(["be"]);
+    expect(doMes[0]?.categoriaID).toBe("966ee5dd-4382-42fe-bd8c-1c009faddac0");
+    expect(transacoesDoMes(lista, { ano: 2026, mes: 8 }).map((t) => t.id)).toEqual(["ago"]);
+  });
+});
 
 describe("gastoDaCategoria", () => {
   it("soma só despesa da categoria no mês", () => {

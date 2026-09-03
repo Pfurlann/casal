@@ -6,9 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import { categoriaPorId, categoriasVisiveis } from "@/lib/categorias";
 import {
   ROTULO_TIPO_CONTA,
+  competenciaDaCompra,
   competenciaDe,
   dataDeLocalISO,
   dataLocalISO,
+  hrefDoMes,
   type Categoria,
   type TipoTransacao,
 } from "@/lib/domain";
@@ -189,11 +191,12 @@ export function Lancar() {
     setSalvando(true);
     try {
       const tipoLancamento: TipoTransacao = tipo;
+      const data = dataDeLocalISO(dataISO);
       await lancar({
         valor: entrada.centavos,
         categoriaID,
         descricao: descricao.trim(),
-        data: dataDeLocalISO(dataISO),
+        data,
         cartaoID: origemCartao ? cartaoID : undefined,
         contaID: origemCartao ? undefined : contaID || undefined,
         parcelas: origemCartao ? parcelas : 1,
@@ -201,7 +204,10 @@ export function Lancar() {
         tipo: tipoLancamento,
         metaID: origemCartao || ehReceita ? undefined : metaID || undefined,
       });
-      voltar();
+      const destino = origemCartao && cartaoEscolhido
+        ? competenciaDaCompra(data, cartaoEscolhido)
+        : competenciaDe(data);
+      router.push(hrefDoMes(destino));
     } catch {
       avisar("erro", "Não deu para salvar o lançamento. Tente de novo.");
     } finally {

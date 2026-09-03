@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  competenciaDaConsulta,
   competenciaDaRota,
   dataDeLocalISO,
   dataLocalISO,
+  hrefDoMes,
   planejarParcelas,
   rotuloDaCompetencia,
   transacoesDoLancamento,
@@ -47,6 +49,17 @@ describe("rotuloDaCompetencia", () => {
   it("devolve o segmento de rota a partir da competência", () => {
     expect(rotuloDaCompetencia({ ano: 2026, mes: 9 })).toBe("2026-09");
     expect(rotuloDaCompetencia({ ano: 2026, mes: 12 })).toBe("2026-12");
+  });
+});
+
+describe("competenciaDaConsulta / hrefDoMes", () => {
+  it("lê ?c= ou cai no mês atual, e monta o href", () => {
+    expect(competenciaDaConsulta("2026-08")).toEqual({ ano: 2026, mes: 8 });
+    expect(competenciaDaConsulta("setembro")).toEqual(expect.objectContaining({
+      ano: new Date().getFullYear(),
+      mes: new Date().getMonth() + 1,
+    }));
+    expect(hrefDoMes({ ano: 2026, mes: 8 })).toBe("/mes?c=2026-08");
   });
 });
 
@@ -115,7 +128,7 @@ describe("transacoesDoLancamento", () => {
       carteiraID: "c1",
     });
     expect(txs).toHaveLength(1);
-    expect(txs[0]).toMatchObject({ cartaoID: "k1", valor: 4200, parcelaTotal: 1 });
+    expect(txs[0]).toMatchObject({ cartaoID: "k1", valor: 4200, parcelaTotal: 1, status: "liquidado" });
     expect(txs[0]?.contaID).toBeUndefined();
   });
 

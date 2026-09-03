@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoriaPorId } from "@/lib/categorias";
-import { competenciaDe, rotuloDaCompetencia, type Transacao } from "@/lib/domain";
+import { avancando, competenciaDaConsulta, hrefDoMes, rotuloDaCompetencia, type Transacao } from "@/lib/domain";
 import { compromissosAPagar } from "@/lib/compromissos";
 import {
   competenciaDoHashFatura,
@@ -20,11 +20,12 @@ import {
   metasAtivas,
   nomeDaMeta,
   progressoTeto,
+  transacoesDoMes,
 } from "@/lib/metas";
 import { origemDaTransacao } from "@/lib/origem";
 import { carteiraMostraPagador, indicadorPagador } from "@/lib/pagador";
 import {
-  faturaAtualOuRascunho,
+  faturaDaCompetencia,
   saldoDevedor,
   totalDaFatura,
   useLoja,
@@ -47,7 +48,7 @@ const MESES = [
 
 type FiltroMes = "todos" | "pagos" | "a_pagar";
 
-export function Mes() {
+export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
   const {
     transacoes,
     cartoes,
@@ -62,20 +63,14 @@ export function Mes() {
     liquidarLancamento,
   } = useLoja();
   const mostraPagador = carteiraMostraPagador(carteira) && (membros?.length ?? 0) > 1;
-  const agora = new Date();
-  const inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
-  const fim = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
-  const competencia = competenciaDe(agora);
+  const competencia = competenciaDaConsulta(competenciaRota);
   const [filtro, setFiltro] = useState<FiltroMes>("todos");
   const [pagando, setPagando] = useState<Transacao | null>(null);
 
-  const doMes = transacoes.filter((t) => {
-    const d = new Date(t.data);
-    return (t.tipo === "despesa" || t.tipo === "receita") && d >= inicio && d < fim;
-  });
+  const doMes = transacoesDoMes(transacoes, competencia, cartoes);
   const totaisFatura = cartoes
     .map((cartao) => {
-      const f = faturaAtualOuRascunho(cartao, faturas, agora);
+      const f = faturaDaCompetencia(cartao, faturas, competencia);
       return lancamentoDoTotalDaFatura(
         cartao,
         f,
@@ -94,18 +89,18 @@ export function Mes() {
   const gasto = gastos.reduce((s, t) => s + t.valor, 0);
   const receita = receitas.reduce((s, t) => s + t.valor, 0);
   const comprometido = cartoes.reduce((s, cartao) => {
-    const f = faturaAtualOuRascunho(cartao, faturas, agora);
+    const f = faturaDaCompetencia(cartao, faturas, competencia);
     return s + saldoDevedor(f, totalDaFatura(f, transacoes, cartao));
   }, 0);
   const tetos = metasAtivas(metas).filter((m) => m.tipo === "teto_categoria" && m.categoriaID);
   const alertasTeto = tetos
     .map((m) => {
-      const gastoCat = gastoDaCategoria(transacoes, m.categoriaID ?? "", competencia);
+      const gastoCat = gastoDaCategoria(transacoes, m.categoriaID ?? "", competencia, cartoes);
       const p = progressoTeto(m.valorAlvo, gastoCat);
       return { meta: m, progresso: p };
     })
     .filter((x) => x.progresso.faixa === "alerta" || x.progresso.faixa === "estouro");
-  const folga = folgaDoPeriodo(metas, transacoes, competencia);
+  const folga = folgaDoPeriodo(metas, transacoes, competencia, cartoes);
   const aPagarComp = compromissosAPagar(compromissos).filter((c) => {
     const [ano, mes] = c.venceEm.split("-").map(Number);
     return (ano ?? 0) < competencia.ano || ((ano ?? 0) === competencia.ano && (mes ?? 0) <= competencia.mes);
@@ -137,7 +132,29 @@ export function Mes() {
 
   return (
     <div>
-      <Cabecalho titulo={`${MESES[agora.getMonth()]} · ${carteira.nome}`} marca folga={folga} />
+      <Cabecalho
+        titulo={`${MESES[competencia.mes - 1]} · ${carteira.nome}`}
+        marca
+        folga={folga}
+        acao={
+          <div className="flex items-center">
+            <Link
+              href={hrefDoMes(avancando(competencia, -1))}
+              aria-label="Mês anterior"
+              className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[22px] text-grafite"
+            >
+              ‹
+            </Link>
+            <Link
+              href={hrefDoMes(avancando(competencia, 1))}
+              aria-label="Próximo mês"
+              className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[22px] text-grafite"
+            >
+              ›
+            </Link>
+          </div>
+        }
+      />
       <div className="casal-resumo-mes px-4 pt-8">
         <div>
           <Rotulo>gasto neste mês</Rotulo>

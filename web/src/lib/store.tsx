@@ -589,7 +589,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       sb.from("transactions").select("*").is("deleted_at", null),
       sb.from("wallet_members").select("wallet_id, user_id, email, papel"),
       sb.from("fixed_expenses").select("*").is("deleted_at", null),
-      sb.from("categories").select("*"),
+      sb.from("categories").select("*").is("deleted_at", null),
       sb.from("goals").select("*").is("deleted_at", null),
       sb.from("commitments").select("*").is("deleted_at", null),
     ]);
@@ -976,6 +976,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   };
 
   const salvarCategoria = async (c: Categoria) => {
+    const anterior = estado;
     const categoriasTodas = mesclarPorId(estado.categoriasTodas ?? estado.categorias ?? [], c);
     const categorias = categoriasTodas.filter((x) => x.carteiraID === estado.carteira.id);
     await commit({ ...estado, categoriasTodas, categorias });
@@ -990,7 +991,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         deleted_at: null,
         updated_at: new Date().toISOString(),
       });
-      if (error) throw error;
+      if (error) {
+        await commit(anterior);
+        throw error;
+      }
     }
   };
 
@@ -1147,15 +1151,21 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       tipo: tipo ?? "despesa",
     }).map((t) => ({
       ...t,
-      status: (tipo ?? "despesa") === "receita" ? "liquidado" as const : "a_pagar" as const,
+      status: (tipo ?? "despesa") === "receita" || cartao ? "liquidado" as const : "a_pagar" as const,
       metaID: cartao ? undefined : metaID,
     }));
+    const anterior = estado;
     const comNovas = { ...estado, transacoes: [...estado.transacoes, ...novas] };
     const { estado: comFaturas, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comNovas);
     await commit(comFaturas);
     if (sb) {
-      await persistirNovasTransacoes(novas);
-      await persistirTotaisFatura(totaisNovos, alteradas);
+      try {
+        await persistirNovasTransacoes(novas);
+        await persistirTotaisFatura(totaisNovos, alteradas);
+      } catch (erro) {
+        await commit(anterior);
+        throw erro;
+      }
     }
   };
 

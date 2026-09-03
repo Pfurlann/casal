@@ -12,6 +12,7 @@ import {
   validarMeta,
 } from "@/lib/metas";
 import { EntradaValor, formatarBRL } from "@/lib/money";
+import { saldoDaConta } from "@/lib/contas";
 import { useLoja } from "@/lib/store";
 import { IconeCategoria } from "../Icones";
 import { useAviso } from "../ui/Aviso";
@@ -28,7 +29,7 @@ function classeSelect() {
 }
 
 export function MetaForm({ id }: { id?: string }) {
-  const { metas, categorias, carteira, contas, salvarMeta, apagarMeta } = useLoja();
+  const { metas, categorias, carteira, contas, transacoes, salvarMeta, apagarMeta } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
   const existente = (metas ?? []).find((m) => m.id === id);
@@ -54,8 +55,12 @@ export function MetaForm({ id }: { id?: string }) {
   const ehTeto = tipo === "teto_categoria";
   const ehLongo = tipo === "objetivo";
   const eco = ehEconomia({ tipo } as Meta);
+  const saldoDa = (id: string) => {
+    const conta = contas.find((c) => c.id === id);
+    return conta ? saldoDaConta(conta, transacoes ?? []) : 0;
+  };
   const livreMaisAtual = contaID
-    ? cabimentoNaConta(metas, contaID, contas.find((c) => c.id === contaID)?.saldoInicial ?? 0, existente?.id)
+    ? cabimentoNaConta(metas, contaID, saldoDa(contaID), existente?.id)
     : 0;
   const erroMeta = validarMeta({
     tipo,
@@ -99,7 +104,7 @@ export function MetaForm({ id }: { id?: string }) {
     const cabimento = cabimentoNaConta(
       metas,
       idConta,
-      contas.find((c) => c.id === idConta)?.saldoInicial ?? 0,
+      saldoDa(idConta),
       existente?.id,
     );
     if (reserva.centavos === 0 && entrada.centavos > 0) {

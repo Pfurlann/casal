@@ -339,7 +339,7 @@ export function transacoesDoLancamento(p: {
       grupoParcela: grupo,
       parcelaN: parcela.numero,
       parcelaTotal: parcela.total,
-      status: "a_pagar" as const,
+      status: "liquidado" as const,
     }));
   }
   return [
@@ -357,7 +357,7 @@ export function transacoesDoLancamento(p: {
       hashDedup: `${p.valor}|${p.descricao}|${p.data.toISOString()}`,
       parcelaN: 1,
       parcelaTotal: 1,
-      status: "a_pagar" as const,
+      status: cartao ? "liquidado" as const : "a_pagar" as const,
     },
   ];
 }
@@ -418,4 +418,18 @@ export function competenciaDaRota(s: string): Competencia {
 /** Escreve a competência no formato usado na rota. */
 export function rotuloDaCompetencia(c: Competencia): string {
   return `${c.ano}-${String(c.mes).padStart(2, "0")}`;
+}
+
+/** Query `?c=AAAA-MM` do mês. Sem valor ou inválido → mês de hoje. */
+export function competenciaDaConsulta(s: string | undefined): Competencia {
+  if (!s) return competenciaDe(new Date());
+  try {
+    return competenciaDaRota(s);
+  } catch {
+    return competenciaDe(new Date());
+  }
+}
+
+export function hrefDoMes(c: Competencia): string {
+  return `/mes?c=${rotuloDaCompetencia(c)}`;
 }

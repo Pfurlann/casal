@@ -112,6 +112,18 @@ describe("saldoDasContas", () => {
     ).toBe(300_000);
   });
 
+  it("o saldo das contas acompanha receita e despesa liquidada", () => {
+    expect(
+      saldoDasContas(
+        [CONTA],
+        [
+          tx({ id: "r", tipo: "receita", valor: 20_000, contaID: CONTA.id, status: "liquidado" }),
+          tx({ id: "d", valor: 5_000, contaID: CONTA.id, status: "liquidado" }),
+        ],
+      ),
+    ).toBe(265_000);
+  });
+
   it("omite o saldo quando não há conta", () => {
     expect(saldoDasContas([])).toBeUndefined();
     expect(saldoDasContas([{ ...CONTA, arquivada: true }])).toBeUndefined();

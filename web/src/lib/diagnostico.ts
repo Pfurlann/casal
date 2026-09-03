@@ -30,6 +30,7 @@ import {
   saldoLivre,
   type FaixaTeto,
 } from "./metas";
+import { saldoDaConta, saldoDasContas } from "./contas";
 import { formatarBRL, type Centavos } from "./money";
 
 /** 80% do limite — comparação em inteiros, sem float de dinheiro. */
@@ -105,7 +106,7 @@ export function acimaDoLimite(usado: Centavos, limite: Centavos, x100 = ALERTA_L
   return usado * 100 >= limite * x100;
 }
 
-export function totaisDoMes(transacoes: Transacao[], c: Competencia): {
+export function totaisDoMes(transacoes: Transacao[], c: Competencia, cartoes: Cartao[] = []): {
   gasto: Centavos;
   receita: Centavos;
   fluxo: Centavos;
@@ -113,7 +114,7 @@ export function totaisDoMes(transacoes: Transacao[], c: Competencia): {
   let gasto = 0;
   let receita = 0;
   for (const t of transacoes) {
-    if (!noMes(t, c)) continue;
+    if (!noMes(t, c, cartoes)) continue;
     switch (t.tipo) {
       case "despesa":
         gasto += t.valor;
@@ -132,20 +133,17 @@ export function totaisDoMes(transacoes: Transacao[], c: Competencia): {
   return { gasto, receita, fluxo: receita - gasto };
 }
 
-export function saldoDasContas(contas: Conta[]): Centavos | undefined {
-  const ativas = contas.filter((c) => !c.arquivada);
-  if (ativas.length === 0) return undefined;
-  return ativas.reduce((s, c) => s + c.saldoInicial, 0);
-}
+export { saldoDasContas } from "./contas";
 
 export function gastosPorCategoria(
   transacoes: Transacao[],
   categorias: Categoria[] | undefined,
   c: Competencia,
+  cartoes: Cartao[] = [],
 ): GastoCategoria[] {
   const totais = new Map<string, Centavos>();
   for (const t of transacoes) {
-    if (t.tipo !== "despesa" || !noMes(t, c)) continue;
+    if (t.tipo !== "despesa" || !noMes(t, c, cartoes)) continue;
     const id = t.categoriaID ?? "";
     totais.set(id, (totais.get(id) ?? 0) + t.valor);
   }
@@ -203,6 +201,7 @@ export function evolucaoDeGastos(
   transacoes: Transacao[],
   c: Competencia,
   meses = 6,
+  cartoes: Cartao[] = [],
 ): PontoEvolucao[] {
   const inicio = avancando(c, -(meses - 1));
   return Array.from({ length: meses }, (_, i) => {
@@ -210,7 +209,7 @@ export function evolucaoDeGastos(
     return {
       competencia,
       rotulo: rotuloCurto(competencia),
-      gasto: totaisDoMes(transacoes, competencia).gasto,
+      gasto: totaisDoMes(transacoes, competencia, cartoes).gasto,
     };
   });
 }
@@ -237,7 +236,7 @@ export function problemasDoPeriodo(p: {
   const out: Problema[] = [];
 
   for (const meta of metasAtivas(p.metas).filter((m) => m.tipo === "teto_categoria" && m.categoriaID)) {
-    const gasto = gastoDaCategoria(p.transacoes, meta.categoriaID ?? "", c);
+    const gasto = gastoDaCategoria(p.transacoes, meta.categoriaID ?? "", c, p.cartoes);
     const prog = progressoTeto(meta.valorAlvo, gasto);
     if (prog.faixa !== "estouro") continue;
     const nome = categoriaPorId(meta.categoriaID, p.categorias)?.nome ?? nomeDaMeta(meta, p.categorias);
@@ -266,6 +265,7 @@ export function problemasDoPeriodo(p: {
   const idsCompromisso = new Set(p.compromissos.map((x) => x.transacaoID));
   for (const t of p.transacoes) {
     if (t.tipo !== "despesa" || t.status !== "a_pagar") continue;
+    if (t.cartaoID && !t.hashDedup.startsWith("fatura|")) continue;
     if (idsCompromisso.has(t.id)) continue;
     if (diaLocal(t.data, p.agora) >= hoje) continue;
     out.push({
@@ -280,13 +280,14 @@ export function problemasDoPeriodo(p: {
   for (const meta of metasAtivas(p.metas).filter((m) => ehEconomia(m) && m.contaID)) {
     const conta = p.contas.find((x) => x.id === meta.contaID);
     const nome = nomeDaMeta(meta, p.categorias);
-    const comidoNaConta = conta ? saldoLivre(conta.saldoInicial, p.metas, conta.id) < 0 : false;
+    const saldo = conta ? saldoDaConta(conta, p.transacoes) : 0;
+    const comidoNaConta = conta ? saldoLivre(saldo, p.metas, conta.id) < 0 : false;
     const gastoEnvelope = p.transacoes
-      .filter((t) => t.tipo === "despesa" && t.metaID === meta.id && noMes(t, c))
+      .filter((t) => t.tipo === "despesa" && t.metaID === meta.id && noMes(t, c, p.cartoes))
       .reduce((s, t) => s + t.valor, 0);
     if (!comidoNaConta && gastoEnvelope <= 0) continue;
     const valor = comidoNaConta && conta
-      ? Math.abs(saldoLivre(conta.saldoInicial, p.metas, conta.id))
+      ? Math.abs(saldoLivre(saldo, p.metas, conta.id))
       : gastoEnvelope;
     out.push({
       tipo: "envelope_comido",
@@ -318,13 +319,14 @@ export function metasDoPeriodo(
   transacoes: Transacao[],
   categorias: Categoria[] | undefined,
   c: Competencia,
+  cartoes: Cartao[] = [],
 ): MetaDiagnostico[] {
-  const economiaMes = economiaDoMes(transacoes, c);
+  const economiaMes = economiaDoMes(transacoes, c, cartoes);
   return metasAtivas(metas).map((meta) => {
     const nome = nomeDaMeta(meta, categorias);
     switch (meta.tipo) {
       case "teto_categoria": {
-        const gasto = gastoDaCategoria(transacoes, meta.categoriaID ?? "", c);
+        const gasto = gastoDaCategoria(transacoes, meta.categoriaID ?? "", c, cartoes);
         const p = progressoTeto(meta.valorAlvo, gasto);
         return {
           metaID: meta.id,
@@ -422,19 +424,19 @@ export function montarDiagnostico(p: {
 }): Diagnostico {
   const agora = p.agora ?? new Date();
   const competencia = competenciaDe(agora);
-  const { gasto, receita, fluxo } = totaisDoMes(p.transacoes, competencia);
+  const { gasto, receita, fluxo } = totaisDoMes(p.transacoes, competencia, p.cartoes);
   const problemas = problemasDoPeriodo({ ...p, agora });
   return {
     competencia,
     gasto,
     receita,
     fluxo,
-    saldoContas: saldoDasContas(p.contas),
-    categorias: gastosPorCategoria(p.transacoes, p.categorias, competencia),
+    saldoContas: saldoDasContas(p.contas, p.transacoes),
+    categorias: gastosPorCategoria(p.transacoes, p.categorias, competencia, p.cartoes),
     cartoes: cartoesDoPeriodo(p.cartoes, p.faturas, p.transacoes, agora),
     problemas,
-    evolucao: evolucaoDeGastos(p.transacoes, competencia),
-    metas: metasDoPeriodo(p.metas, p.transacoes, p.categorias, competencia),
+    evolucao: evolucaoDeGastos(p.transacoes, competencia, 6, p.cartoes),
+    metas: metasDoPeriodo(p.metas, p.transacoes, p.categorias, competencia, p.cartoes),
     frase: fraseDiagnostico({ gasto, receita, problemas }),
   };
 }

@@ -51,10 +51,10 @@ function compra(parcial: Partial<Transacao> = {}): Transacao {
 }
 
 describe("pago vs a pagar", () => {
-  it("compra no cartão não é paga, mesmo com status antigo liquidado", () => {
-    const t = compra({ status: "liquidado" });
+  it("compra no cartão já está paga no cartão", () => {
+    const t = compra({ status: "a_pagar" });
     expect(eCompraNoCartao(t)).toBe(true);
-    expect(eLancamentoPago(t, [FATURA_SET])).toBe(false);
+    expect(eLancamentoPago(t, [FATURA_SET])).toBe(true);
   });
 
   it("sem hashDedup não quebra o estado pago", () => {

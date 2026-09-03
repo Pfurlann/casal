@@ -393,7 +393,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(bruto) as Estado;
         const contasTodas = parsed.contasTodas ?? parsed.contas ?? [];
         const cartoesTodos = parsed.cartoesTodos ?? parsed.cartoes ?? [];
-        const despesasFixasTodas = parsed.despesasFixasTodas ?? parsed.despesasFixas ?? [];
+        const despesasFixasTodas = (parsed.despesasFixasTodas ?? parsed.despesasFixas ?? []).map((f) => ({
+          ...f,
+          tipo: f.tipo === "receita" ? "receita" as const : "despesa" as const,
+        }));
         const categoriasTodas = parsed.categoriasTodas ?? parsed.categorias ?? [];
         setEstado({
           ...VAZIO,

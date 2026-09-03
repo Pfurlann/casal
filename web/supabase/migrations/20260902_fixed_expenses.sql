@@ -9,6 +9,7 @@ create table if not exists public.fixed_expenses (
   dia_vencimento integer not null check (dia_vencimento between 1 and 31),
   account_id uuid references public.accounts (id),
   card_id uuid references public.cards (id),
+  tipo text not null default 'despesa',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
@@ -16,7 +17,8 @@ create table if not exists public.fixed_expenses (
   constraint fixed_expenses_origem check (
     (account_id is not null and card_id is null)
     or (account_id is null and card_id is not null)
-  )
+  ),
+  constraint fixed_expenses_tipo_check check (tipo in ('despesa', 'receita'))
 );
 
 create index if not exists fixed_expenses_wallet_id_idx

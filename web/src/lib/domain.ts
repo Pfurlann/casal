@@ -266,6 +266,7 @@ export function totalDaFatura(
 ): Centavos {
   return transacoes
     .filter((t) => t.tipo === "despesa" && t.cartaoID === cartao.id)
+    .filter((t) => !t.hashDedup.startsWith("fatura|"))
     .filter((t) => {
       const c = competenciaDaCompra(new Date(t.data), cartao);
       return c.ano === fatura.ano && c.mes === fatura.mes;
@@ -338,6 +339,7 @@ export function transacoesDoLancamento(p: {
       grupoParcela: grupo,
       parcelaN: parcela.numero,
       parcelaTotal: parcela.total,
+      status: "a_pagar" as const,
     }));
   }
   return [
@@ -355,6 +357,7 @@ export function transacoesDoLancamento(p: {
       hashDedup: `${p.valor}|${p.descricao}|${p.data.toISOString()}`,
       parcelaN: 1,
       parcelaTotal: 1,
+      status: "a_pagar" as const,
     },
   ];
 }
@@ -382,6 +385,7 @@ export function horizonte(
   const totais = new Map<string, Centavos>();
   for (const t of transacoes) {
     if (t.tipo !== "despesa" || t.cartaoID !== cartao.id) continue;
+    if (t.hashDedup.startsWith("fatura|")) continue;
     const c = competenciaDaCompra(new Date(t.data), cartao);
     const k = chaveCompetencia(c);
     totais.set(k, (totais.get(k) ?? 0) + t.valor);

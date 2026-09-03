@@ -101,6 +101,7 @@ describe("transacoesDoLancamento", () => {
     expect(txs).toHaveLength(1);
     expect(txs[0]?.cartaoID).toBeUndefined();
     expect(txs[0]?.contaID).toBe("a1");
+    expect(txs[0]?.status).toBe("a_pagar");
     expect(txs[0]?.parcelaTotal).toBe(1);
   });
 

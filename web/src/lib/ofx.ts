@@ -403,7 +403,7 @@ export function transacoesDoOfx(p: {
         grupoParcela: grupo,
         parcelaN: parte.numero,
         parcelaTotal: total,
-        status: "liquidado",
+        status: "a_pagar",
       });
     }
   }

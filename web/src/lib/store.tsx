@@ -39,6 +39,12 @@ import {
 import { COR_CATEGORIA_CUSTOM } from "./categorias";
 import { liquidarCompromisso as aplicarLiquidacao, transacaoDoCompromisso } from "./compromissos";
 import { gerarLancamentosFixos, liquidarLancamento as aplicarLiquidacaoLancamento } from "./despesas-fixas";
+import {
+  competenciaDoHashFatura,
+  eCompraNoCartao,
+  eLancamentoDeFatura,
+  sincronizarTotaisFatura,
+} from "./faturas";
 import { COR_ORIGEM_PADRAO, corValida } from "./origem";
 import { aplicarGastoNaReserva } from "./metas";
 import { pagadorPadrao } from "./pagador";
@@ -732,7 +738,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           grupoParcela: (t.grupo_parcela as string | null) ?? undefined,
           parcelaN: (t.parcela_n as number) ?? 1,
           parcelaTotal: (t.parcela_total as number) ?? 1,
-          status: t.status === "a_pagar" ? "a_pagar" as const : "liquidado" as const,
+          status: t.status === "liquidado" ? "liquidado" as const : "a_pagar" as const,
           metaID: (t.goal_id as string | null) ?? undefined,
         })),
       despesasFixasTodas,
@@ -754,16 +760,36 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       competenciaDe(new Date()),
       proximo.cartoesTodos ?? proximo.cartoes,
     ).map((t) => ({ ...t, pagadorID: usuario?.id }));
-    const final =
+    const comFixos =
       geradas.length === 0
         ? proximo
         : { ...proximo, transacoes: [...proximo.transacoes, ...geradas] };
+    const totais = sincronizarTotaisFatura(
+      comFixos.cartoesTodos ?? comFixos.cartoes,
+      comFixos.faturas,
+      comFixos.transacoes,
+    );
+    const final = { ...comFixos, transacoes: totais.transacoes };
     persistirLocal(final);
     setEstado(final);
     setPronto(true);
-    if (geradas.length > 0) {
-      const { error } = await sb.from("transactions").insert(geradas.map(linhaDaTransacao));
+    const inserir = [...geradas, ...totais.novas];
+    if (inserir.length > 0) {
+      const { error } = await sb.from("transactions").insert(inserir.map(linhaDaTransacao));
       if (error && error.code !== "23505") console.error(error);
+    }
+    if (totais.alteradas.length > 0) {
+      const agora = new Date().toISOString();
+      await Promise.all(
+        totais.alteradas.map((t) =>
+          sb.from("transactions").update({
+            valor_centavos: t.valor,
+            status: t.status,
+            invoice_id: t.faturaID ?? null,
+            updated_at: agora,
+          }).eq("id", t.id),
+        ),
+      );
     }
   }, [sb, localKey, persistirLocal, usuario]);
 
@@ -876,11 +902,42 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     return { estado: { ...base, transacoes: [...base.transacoes, ...novas] }, novas };
   };
 
+  const mesclarFaturasNoEstado = (base: Estado): {
+    estado: Estado;
+    novas: Transacao[];
+    alteradas: Transacao[];
+  } => {
+    const totais = sincronizarTotaisFatura(
+      base.cartoesTodos ?? base.cartoes,
+      base.faturas,
+      base.transacoes,
+    );
+    return { estado: { ...base, transacoes: totais.transacoes }, novas: totais.novas, alteradas: totais.alteradas };
+  };
+
+  const persistirTotaisFatura = async (novas: Transacao[], alteradas: Transacao[]) => {
+    if (!sb) return;
+    await persistirNovasTransacoes(novas);
+    if (alteradas.length === 0) return;
+    const agora = new Date().toISOString();
+    await Promise.all(
+      alteradas.map((t) =>
+        sb.from("transactions").update({
+          valor_centavos: t.valor,
+          status: t.status,
+          invoice_id: t.faturaID ?? null,
+          updated_at: agora,
+        }).eq("id", t.id),
+      ),
+    );
+  };
+
   const salvarDespesaFixa = async (f: DespesaFixa) => {
     const despesasFixasTodas = mesclarPorId(estado.despesasFixasTodas ?? estado.despesasFixas ?? [], f);
     const despesasFixas = despesasFixasTodas.filter((x) => x.carteiraID === estado.carteira.id);
     const base = { ...estado, despesasFixasTodas, despesasFixas };
-    const { estado: proximo, novas } = mesclarFixosNoEstado(base, usuario?.id);
+    const { estado: comFixos, novas } = mesclarFixosNoEstado(base, usuario?.id);
+    const { estado: proximo, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comFixos);
     await commit(proximo);
     if (sb) {
       const { error } = await sb.from("fixed_expenses").upsert({
@@ -900,6 +957,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       });
       if (error) throw error;
       await persistirNovasTransacoes(novas);
+      await persistirTotaisFatura(totaisNovos, alteradas);
     }
   };
 
@@ -985,8 +1043,11 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       estado.cartoesTodos ?? estado.cartoes,
     ).map((t) => ({ ...t, pagadorID: usuario?.id }));
     if (novas.length === 0) return;
-    await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
+    const comFixos = { ...estado, transacoes: [...estado.transacoes, ...novas] };
+    const { estado: proximo, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comFixos);
+    await commit(proximo);
     await persistirNovasTransacoes(novas);
+    await persistirTotaisFatura(totaisNovos, alteradas);
   };
 
   const liquidarLancamento: Loja["liquidarLancamento"] = async ({
@@ -1002,6 +1063,22 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     }
     const alvo = estado.transacoes.find((t) => t.id === id);
     if (!alvo) throw new Error("lançamento não encontrado");
+    if (eCompraNoCartao(alvo)) {
+      throw new Error("Compra no cartão se liquida na fatura.");
+    }
+    if (eLancamentoDeFatura(alvo)) {
+      if (!contaID || cartaoID) throw new Error("Pague a fatura com uma conta.");
+      const parsed = competenciaDoHashFatura(alvo.hashDedup);
+      const cartao = (estado.cartoesTodos ?? estado.cartoes).find((c) => c.id === alvo.cartaoID);
+      if (!cartao || !parsed) throw new Error("Não achei essa fatura.");
+      const fatura = faturaDaCompetencia(cartao, estado.faturas, parsed.competencia);
+      const total = totalDaFatura(fatura, estado.transacoes, cartao);
+      const resto = saldoDevedor(fatura, total);
+      if (resto > 0) {
+        await pagarFatura({ cartao, fatura, valor: resto, contaID });
+        return;
+      }
+    }
     const transacao = aplicarLiquidacaoLancamento(alvo, { contaID, cartaoID });
     let metasTodas = estado.metasTodas ?? estado.metas ?? [];
     if (contaID) {
@@ -1070,26 +1147,15 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       tipo: tipo ?? "despesa",
     }).map((t) => ({
       ...t,
-      status: "liquidado" as const,
+      status: (tipo ?? "despesa") === "receita" ? "liquidado" as const : "a_pagar" as const,
       metaID: cartao ? undefined : metaID,
     }));
-    let metasTodas = estado.metasTodas ?? estado.metas ?? [];
-    if ((tipo ?? "despesa") === "despesa" && !cartao) {
-      metasTodas = aplicarGastoNaReserva(metasTodas, {
-        valor,
-        contaID,
-        metaID,
-      });
-    }
-    const metas = metasTodas.filter((x) => x.carteiraID === estado.carteira.id);
-    await commit({ ...estado, transacoes: [...estado.transacoes, ...novas], metasTodas, metas });
+    const comNovas = { ...estado, transacoes: [...estado.transacoes, ...novas] };
+    const { estado: comFaturas, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comNovas);
+    await commit(comFaturas);
     if (sb) {
       await persistirNovasTransacoes(novas);
-      const mudou = metasTodas.filter((m) => {
-        const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
-        return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
-      });
-      await persistirMetas(mudou);
+      await persistirTotaisFatura(totaisNovos, alteradas);
     }
   };
 
@@ -1312,7 +1378,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     });
     const repetidos = linhas.filter((l) => estado.transacoes.some((t) => t.hashDedup === l.hashDedup)).length;
     if (novas.length === 0) return { importados: 0, repetidos };
-    await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
+    const comOfx = { ...estado, transacoes: [...estado.transacoes, ...novas] };
+    const { estado: proximo, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comOfx);
+    await commit(proximo);
     if (sb) {
       const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
       if (error) {
@@ -1330,6 +1398,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         }
         throw error;
       }
+      await persistirTotaisFatura(totaisNovos, alteradas);
     }
     return { importados: novas.length, repetidos };
   };

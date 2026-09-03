@@ -47,7 +47,7 @@ export function linhaDaTransacao(t: Transacao) {
     grupo_parcela: t.grupoParcela ?? null,
     parcela_n: t.parcelaN,
     parcela_total: t.parcelaTotal,
-    status: t.status ?? "liquidado",
+    status: t.status ?? "a_pagar",
     goal_id: t.metaID ?? null,
   };
 }
@@ -80,5 +80,5 @@ export function transacoesDoGastoNoCartao(p: {
     categoriaID: p.categoriaID,
     pagadorID: p.pagadorID,
     tipo: "despesa",
-  }).map((t) => ({ ...t, status: "liquidado" as const }));
+  }).map((t) => ({ ...t, status: "a_pagar" as const }));
 }

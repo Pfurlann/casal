@@ -9,6 +9,7 @@ import {
   type Transacao,
 } from "./domain";
 import { validarLiquidacao } from "./compromissos";
+import { eCompraNoCartao } from "./faturas";
 
 export const HORIZONTE_FIXOS = 12;
 
@@ -140,26 +141,13 @@ export function gerarLancamentosFixos(
   return novas;
 }
 
-export function eLancamentoPago(
-  t: Transacao,
-  transacoes: Transacao[],
-  fixas: DespesaFixa[] = [],
-): boolean {
-  if (t.status === "a_pagar") {
-    const m = /^fixa\|([^|]+)\|(\d{4})-(\d{2})$/.exec(t.hashDedup);
-    if (!m) return false;
-    const fixa = fixas.find((f) => f.id === m[1]);
-    if (!fixa) return false;
-    const c = { ano: Number(m[2]), mes: Number(m[3]) };
-    return Boolean(matchManualDoMes(transacoes, fixa, c, t.valor));
-  }
-  return true;
-}
+export { eLancamentoPago } from "./faturas";
 
 export function liquidarLancamento(
   t: Transacao,
   origem: { contaID?: string; cartaoID?: string },
 ): Transacao {
+  if (eCompraNoCartao(t)) throw new Error("Compra no cartão se liquida na fatura.");
   const erro = validarLiquidacao(origem);
   if (erro) throw new Error(erro);
   if (t.status === "liquidado") throw new Error("Este lançamento já foi pago.");

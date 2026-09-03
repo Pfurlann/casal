@@ -214,6 +214,18 @@ describe("matchManualDoMes / liquidarLancamento", () => {
     expect(paga.cartaoID).toBeUndefined();
     expect(() => liquidarLancamento(aPagar, {})).toThrow(/pagar/);
   });
+
+  it("fixo nasce a_pagar e compra no cartão não liquida no lançamento", () => {
+    const gerada = transacaoDaFixa(FIXA, { ano: 2026, mes: 9 });
+    expect(gerada.status).toBe("a_pagar");
+    const noCartao = transacaoDaFixa(
+      { ...FIXA, contaID: undefined, cartaoID: "k1" },
+      { ano: 2026, mes: 9 },
+      { cartao: CARTAO },
+    );
+    expect(noCartao.status).toBe("a_pagar");
+    expect(() => liquidarLancamento(noCartao, { contaID: "a1" })).toThrow(/fatura/);
+  });
 });
 
 describe("validarDespesaFixa", () => {

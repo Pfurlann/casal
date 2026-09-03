@@ -83,6 +83,8 @@ export type Fatura = {
   valorPago: Centavos;
 };
 
+export type StatusLancamento = "liquidado" | "a_pagar";
+
 export type Transacao = {
   id: string;
   carteiraID: string;
@@ -99,6 +101,8 @@ export type Transacao = {
   grupoParcela?: string;
   parcelaN: number;
   parcelaTotal: number;
+  status?: StatusLancamento;
+  metaID?: string;
 };
 
 /** Compromisso mensal da carteira (gasto ou receita). Não vira lançamento sozinho. */
@@ -114,8 +118,10 @@ export type DespesaFixa = {
   tipo: "despesa" | "receita";
 };
 
-/** Teto, economia ou objetivo. Período no v1 é só mensal. */
+/** Teto por categoria, economia do mês ou objetivo de longo prazo. */
 export type TipoMeta = "teto_categoria" | "economia_mensal" | "objetivo";
+export type PeriodoMeta = "mensal" | "longo_prazo";
+export type StatusCompromisso = "a_pagar" | "liquidado";
 
 export type Meta = {
   id: string;
@@ -124,9 +130,25 @@ export type Meta = {
   nome: string;
   valorAlvo: Centavos;
   categoriaID?: string;
-  periodo: "mensal";
+  periodo: PeriodoMeta;
   dataAlvo?: string;
   ativa: boolean;
+  /** Conta do envelope. Sem transferência fantasma — só reserva. */
+  contaID?: string;
+  /** Centavos reservados nesta conta. Livre da conta = saldo − soma disto. */
+  alocado?: Centavos;
+};
+
+/** Conta a pagar (boleto, luz deste mês). Já é o lançamento; liquidar só escolhe a origem. */
+export type Compromisso = {
+  id: string;
+  carteiraID: string;
+  nome: string;
+  valor: Centavos;
+  venceEm: string;
+  categoriaID: string;
+  transacaoID: string;
+  status: StatusCompromisso;
 };
 
 export type Competencia = { ano: number; mes: number };

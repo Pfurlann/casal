@@ -379,6 +379,57 @@ describe("Lancar", () => {
     );
   });
 
+  it("no pago com, conta com reserva mostra o envelope", () => {
+    montar({
+      metas: [
+        {
+          id: "v1",
+          carteiraID: "c1",
+          tipo: "objetivo",
+          nome: "Viagem",
+          valorAlvo: 200_000,
+          periodo: "longo_prazo",
+          ativa: true,
+          contaID: CONTA.id,
+          alocado: 80_000,
+        },
+      ],
+      contas: [{ ...CONTA, saldoInicial: 300_000 }],
+    });
+    const select = screen.getByLabelText("Forma de pagamento");
+    expect(select).toHaveTextContent("Corrente · livre R$ 2.200,00");
+    expect(select).toHaveTextContent("Corrente · R$ 800,00 na Viagem");
+  });
+
+  it("gastar da reserva passa a meta no lançamento", async () => {
+    lancar.fn.mockClear();
+    montar({
+      metas: [
+        {
+          id: "v1",
+          carteiraID: "c1",
+          tipo: "objetivo",
+          nome: "Viagem",
+          valorAlvo: 200_000,
+          periodo: "longo_prazo",
+          ativa: true,
+          contaID: CONTA.id,
+          alocado: 80_000,
+        },
+      ],
+      contas: [{ ...CONTA, saldoInicial: 300_000 }],
+    });
+    await userEvent.selectOptions(
+      screen.getByLabelText("Forma de pagamento"),
+      `reserva:${CONTA.id}:v1`,
+    );
+    await userEvent.keyboard("1000");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ contaID: CONTA.id, metaID: "v1", valor: 1000 }),
+    );
+  });
+
   it("mostra o + para criar categoria além das sugeridas", () => {
     montar();
     expect(screen.getByRole("button", { name: "Nova categoria" })).toBeInTheDocument();

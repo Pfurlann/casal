@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { ROTULO_TIPO_CONTA } from "@/lib/domain";
+import { alocadoNaConta, saldoLivre } from "@/lib/metas";
+import { formatarBRL } from "@/lib/money";
 import { useLoja } from "@/lib/store";
 import { ROTULO_VISIBILIDADE_ORIGEM, visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
@@ -9,7 +11,7 @@ import { LinhaLista } from "../ui/LinhaLista";
 import { Vazio } from "../ui/Vazio";
 
 export function Contas() {
-  const { contas, carteira } = useLoja();
+  const { contas, carteira, metas } = useLoja();
 
   return (
     <div>
@@ -44,15 +46,24 @@ export function Contas() {
           />
         ) : (
           <div className="mt-4">
-            {contas.map((c) => (
-              <LinhaLista
-                key={c.id}
-                titulo={c.nome}
-                subtitulo={`${ROTULO_TIPO_CONTA[c.tipo]} · ${ROTULO_VISIBILIDADE_ORIGEM[c.visibilidade ?? visibilidadePadraoDaCarteira(carteira)]}`}
-                valor={c.saldoInicial}
-                href={`/mais/contas/${c.id}`}
-              />
-            ))}
+            {contas.map((c) => {
+              const alocado = alocadoNaConta(metas, c.id);
+              const livre = saldoLivre(c.saldoInicial, metas, c.id);
+              const vis = ROTULO_VISIBILIDADE_ORIGEM[c.visibilidade ?? visibilidadePadraoDaCarteira(carteira)];
+              return (
+                <LinhaLista
+                  key={c.id}
+                  titulo={c.nome}
+                  subtitulo={
+                    alocado > 0
+                      ? `${ROTULO_TIPO_CONTA[c.tipo]} · livre ${formatarBRL(livre)} · ${vis}`
+                      : `${ROTULO_TIPO_CONTA[c.tipo]} · ${vis}`
+                  }
+                  valor={livre}
+                  href={`/mais/contas/${c.id}`}
+                />
+              );
+            })}
           </div>
         )}
       </div>

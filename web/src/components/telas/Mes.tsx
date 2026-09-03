@@ -2,6 +2,7 @@
 
 import { categoriaPorId } from "@/lib/categorias";
 import { competenciaDe } from "@/lib/domain";
+import { compromissosAPagar } from "@/lib/compromissos";
 import { vencimentosDoMes } from "@/lib/despesas-fixas";
 import {
   folgaDoPeriodo,
@@ -41,6 +42,7 @@ export function Mes() {
     categorias,
     despesasFixas,
     metas,
+    compromissos,
     lancarDespesaFixa,
   } = useLoja();
   const mostraPagador = carteiraMostraPagador(carteira) && (membros?.length ?? 0) > 1;
@@ -73,6 +75,10 @@ export function Mes() {
     })
     .filter((x) => x.progresso.faixa === "alerta" || x.progresso.faixa === "estouro");
   const folga = folgaDoPeriodo(metas, transacoes, competencia);
+  const aPagar = compromissosAPagar(compromissos).filter((c) => {
+    const [ano, mes] = c.venceEm.split("-").map(Number);
+    return (ano ?? 0) < competencia.ano || ((ano ?? 0) === competencia.ano && (mes ?? 0) <= competencia.mes);
+  });
 
   async function lancarFixo(id: string) {
     if (!lancarDespesaFixa) return;
@@ -130,6 +136,27 @@ export function Mes() {
         )}
       </div>
 
+      {aPagar.length > 0 && (
+        <div className="mt-8 px-4">
+          <Rotulo>a pagar</Rotulo>
+          <p className="mt-1 text-[12px] text-cinza">
+            Compromisso já lançado. Liquidar só escolhe a origem.
+          </p>
+          <div className="mt-2">
+            {aPagar.map((c) => (
+              <LinhaLista
+                key={c.id}
+                titulo={c.nome}
+                subtitulo={`vence ${c.venceEm.split("-").reverse().join("/")}`}
+                valor={c.valor}
+                tom="atencao"
+                href={`/mais/compromissos/${c.id}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {projetados.length > 0 && (
         <div className="mt-8 px-4">
           <Rotulo>projetado</Rotulo>
@@ -168,7 +195,7 @@ export function Mes() {
       )}
 
       {doMes.length === 0 ? (
-        projetados.length === 0 ? (
+        projetados.length === 0 && aPagar.length === 0 ? (
           <Vazio frase="Nenhum gasto este mês. Toque em + para registrar o primeiro." />
         ) : null
       ) : (
@@ -188,6 +215,8 @@ export function Mes() {
                     ? `${papel} · ${t.parcelaN}/${t.parcelaTotal}`
                     : t.tipo === "receita"
                       ? `${papel}${cat ? ` · ${cat.nome}` : ""}`
+                      : t.status === "a_pagar"
+                      ? `${papel} · a pagar`
                       : papel;
                 return (
                   <LinhaLista

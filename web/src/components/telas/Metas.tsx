@@ -4,12 +4,15 @@ import Link from "next/link";
 import { categoriaPorId } from "@/lib/categorias";
 import { competenciaDe } from "@/lib/domain";
 import {
+  alocadoDe,
   economiaDoMes,
   fraseEconomia,
+  fraseReserva,
   fraseTeto,
   gastoDaCategoria,
   metasAtivas,
   nomeDaMeta,
+  progressoReserva,
   progressoTeto,
 } from "@/lib/metas";
 import { useLoja } from "@/lib/store";
@@ -20,12 +23,44 @@ import { Trilha } from "../ui/Trilha";
 import { Vazio } from "../ui/Vazio";
 
 export function Metas() {
-  const { metas, transacoes, categorias, carteira } = useLoja();
+  const { metas, transacoes, categorias, contas, carteira } = useLoja();
   const competencia = competenciaDe(new Date());
   const ativas = metasAtivas(metas);
   const tetos = ativas.filter((m) => m.tipo === "teto_categoria");
   const economias = ativas.filter((m) => m.tipo === "economia_mensal");
+  const objetivos = ativas.filter((m) => m.tipo === "objetivo");
   const economiaMes = economiaDoMes(transacoes ?? [], competencia);
+
+  function linhaEconomia(m: typeof ativas[number]) {
+    const nome = nomeDaMeta(m, categorias);
+    const conta = contas?.find((c) => c.id === m.contaID);
+    const temEnvelope = Boolean(m.contaID);
+    const alocado = alocadoDe(m);
+    const p = temEnvelope
+      ? progressoReserva(m.valorAlvo, alocado)
+      : progressoTeto(m.valorAlvo, Math.max(economiaMes, 0));
+    const sub = temEnvelope
+      ? `${fraseReserva(alocado, m.valorAlvo, nome)}${conta ? ` · ${conta.nome}` : ""}`
+      : fraseEconomia(economiaMes, m.valorAlvo);
+    const bateu = temEnvelope ? alocado >= m.valorAlvo : economiaMes >= m.valorAlvo;
+    return (
+      <div key={m.id}>
+        <LinhaLista
+          titulo={nome}
+          subtitulo={sub}
+          valor={bateu ? (temEnvelope ? alocado : economiaMes) : m.valorAlvo - (temEnvelope ? alocado : economiaMes)}
+          tom={bateu ? "normal" : "atencao"}
+          href={`/metas/${m.id}`}
+        />
+        <div className="pb-3">
+          <Trilha
+            consumido={Math.min(Math.max(temEnvelope ? alocado : economiaMes, 0), m.valorAlvo)}
+            total={m.valorAlvo}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -43,18 +78,19 @@ export function Metas() {
       />
       <div className="px-4 pt-6">
         <p className="text-[12px] text-cinza">
-          Tetos e economia de {carteira.nome} neste mês. O teto aparece na hora de lançar.
+          Tetos e economia de {carteira.nome}. Reserve na conta sem transferência. Gastar da
+          reserva desconta a meta.
         </p>
 
         {ativas.length === 0 ? (
           <Vazio
-            frase="Nenhum teto nesta carteira. O limite aparece na hora de gastar."
+            frase="Nenhuma meta nesta carteira. Teto, economia do mês ou objetivo de longo prazo."
             acao={
               <Link
                 href="/metas/nova"
                 className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
               >
-                Criar teto
+                Criar meta
               </Link>
             }
           />
@@ -89,32 +125,21 @@ export function Metas() {
 
             {economias.length > 0 && (
               <div className="mt-8">
-                <Rotulo>economia</Rotulo>
+                <Rotulo>economia do mês</Rotulo>
                 <p className="mt-1 text-[12px] text-cinza">
-                  Receitas menos despesas. Sem cofre e sem transferência.
+                  Competência deste mês. Com reserva, o alvo é o envelope.
                 </p>
-                <div className="mt-2">
-                  {economias.map((m) => {
-                    const bateu = economiaMes >= m.valorAlvo;
-                    return (
-                      <div key={m.id}>
-                        <LinhaLista
-                          titulo={nomeDaMeta(m, categorias)}
-                          subtitulo={fraseEconomia(economiaMes, m.valorAlvo)}
-                          valor={bateu ? economiaMes : m.valorAlvo - economiaMes}
-                          tom={bateu ? "normal" : "atencao"}
-                          href={`/metas/${m.id}`}
-                        />
-                        <div className="pb-3">
-                          <Trilha
-                            consumido={Math.min(Math.max(economiaMes, 0), m.valorAlvo)}
-                            total={m.valorAlvo}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <div className="mt-2">{economias.map(linhaEconomia)}</div>
+              </div>
+            )}
+
+            {objetivos.length > 0 && (
+              <div className="mt-8">
+                <Rotulo>longo prazo</Rotulo>
+                <p className="mt-1 text-[12px] text-cinza">
+                  Alvo com data opcional. Reserve na conta até completar ou marque concluída.
+                </p>
+                <div className="mt-2">{objetivos.map(linhaEconomia)}</div>
               </div>
             )}
           </>

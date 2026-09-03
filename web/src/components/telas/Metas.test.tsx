@@ -25,8 +25,8 @@ describe("Metas", () => {
   it("mostra vazio e o atalho para criar teto", () => {
     loja.valor = { carteira: CARTEIRA, metas: [], transacoes: [], categorias: [] };
     render(<Metas />);
-    expect(screen.getByText(/Nenhum teto nesta carteira/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Criar teto" })).toHaveAttribute("href", "/metas/nova");
+    expect(screen.getByText(/Nenhuma meta nesta carteira/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Criar meta" })).toHaveAttribute("href", "/metas/nova");
   });
 
   it("lista o teto com o que sobra neste mês", () => {

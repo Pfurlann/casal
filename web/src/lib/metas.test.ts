@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
-import type { Meta, Transacao } from "./domain";
+import type { Conta, Meta, Transacao } from "./domain";
 import {
+  alocarNaMeta,
+  alocadoNaConta,
+  aplicarGastoNaReserva,
   economiaDoMes,
   folgaDoPeriodo,
   fraseEconomia,
+  fraseReserva,
   fraseTeto,
   gastoDaCategoria,
+  opcoesContaComReserva,
   progressoTeto,
+  rotuloContaComReserva,
+  saldoLivre,
   tetoDaCategoria,
+  validarAlocacao,
   validarMeta,
 } from "./metas";
 
@@ -144,8 +152,80 @@ describe("validarMeta", () => {
     expect(
       validarMeta({ tipo: "economia_mensal", nome: "", valorAlvo: 100, outras: [] }),
     ).toBeNull();
-    expect(validarMeta({ tipo: "objetivo", nome: "Viagem", valorAlvo: 100, outras: [] })).toMatch(
-      /depois/,
+    expect(validarMeta({ tipo: "objetivo", nome: "", valorAlvo: 100, outras: [] })).toMatch(/nome/);
+    expect(validarMeta({ tipo: "objetivo", nome: "Viagem", valorAlvo: 100, outras: [] })).toBeNull();
+  });
+});
+
+const VIAGEM: Meta = {
+  id: "v1",
+  carteiraID: "w1",
+  tipo: "objetivo",
+  nome: "Viagem",
+  valorAlvo: 200_000,
+  periodo: "longo_prazo",
+  ativa: true,
+  contaID: "a1",
+  alocado: 80_000,
+};
+
+const CORRENTE: Conta = {
+  id: "a1",
+  carteiraID: "w1",
+  nome: "Corrente",
+  tipo: "corrente",
+  saldoInicial: 300_000,
+  arquivada: false,
+};
+
+describe("envelope / alocar", () => {
+  it("reserva na conta sem criar transferência", () => {
+    const livreAntes = saldoLivre(CORRENTE.saldoInicial, [VIAGEM], "a1");
+    expect(livreAntes).toBe(220_000);
+    const atualizada = alocarNaMeta(VIAGEM, 150_000, 220_000 + 80_000);
+    expect(atualizada.alocado).toBe(150_000);
+    expect(saldoLivre(CORRENTE.saldoInicial, [atualizada], "a1")).toBe(150_000);
+    expect(alocadoNaConta([atualizada], "a1")).toBe(150_000);
+  });
+
+  it("não deixa reservar mais que o livre", () => {
+    expect(validarAlocacao({ alocado: 400_000, livreMaisAtual: 300_000 })).toMatch(/livre/);
+  });
+
+  it("gastar da conta da meta reduz o envelope", () => {
+    const depois = aplicarGastoNaReserva([VIAGEM], {
+      valor: 30_000,
+      contaID: "a1",
+      metaID: "v1",
+    });
+    expect(depois[0]?.alocado).toBe(50_000);
+    expect(saldoLivre(CORRENTE.saldoInicial, depois, "a1")).toBe(250_000);
+  });
+
+  it("com uma só reserva, gastar da conta já desconta", () => {
+    const depois = aplicarGastoNaReserva([VIAGEM], { valor: 10_000, contaID: "a1" });
+    expect(depois[0]?.alocado).toBe(70_000);
+  });
+
+  it("gasto do saldo livre não mexe na reserva de outra meta", () => {
+    const depois = aplicarGastoNaReserva(
+      [VIAGEM, { ...VIAGEM, id: "v2", nome: "Reserva", alocado: 40_000 }],
+      { valor: 10_000, contaID: "a1" },
     );
+    expect(depois[0]?.alocado).toBe(80_000);
+    expect(depois[1]?.alocado).toBe(40_000);
+  });
+
+  it("rótulo do seletor mostra a reserva na conta", () => {
+    expect(rotuloContaComReserva(CORRENTE, VIAGEM)).toBe("Corrente · R$ 800,00 na Viagem");
+    expect(opcoesContaComReserva([CORRENTE], [VIAGEM]).map((o) => o.rotulo)).toEqual([
+      "Corrente · livre R$ 2.200,00",
+      "Corrente · R$ 800,00 na Viagem",
+    ]);
+  });
+
+  it("diz o que falta na reserva", () => {
+    expect(fraseReserva(80_000, 200_000, "Viagem")).toBe("Faltam R$ 1.200,00 na reserva de Viagem.");
+    expect(fraseReserva(200_000, 200_000, "Viagem")).toBe("A reserva de Viagem chegou no alvo.");
   });
 });

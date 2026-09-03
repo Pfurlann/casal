@@ -12,7 +12,15 @@ import {
   type Categoria,
   type TipoTransacao,
 } from "@/lib/domain";
-import { fraseTeto, gastoDaCategoria, progressoTeto, tetoDaCategoria } from "@/lib/metas";
+import {
+  fraseTeto,
+  gastoDaCategoria,
+  opcoesContaComReserva,
+  parseOrigemPago,
+  progressoTeto,
+  tetoDaCategoria,
+  valorPagoCom,
+} from "@/lib/metas";
 import { dividir, EntradaValor, formatarBRL } from "@/lib/money";
 import { carteiraMostraPagador } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
@@ -63,6 +71,7 @@ export function Lancar() {
   const [dataISO, setDataISO] = useState(() => dataLocalISO());
   const [contaID, setContaID] = useState(contas[0]?.id ?? "");
   const [cartaoID, setCartaoID] = useState("");
+  const [metaID, setMetaID] = useState("");
   const [parcelas, setParcelas] = useState(1);
   const [pagadorEscolhido, setPagadorEscolhido] = useState<string | undefined>(undefined);
   const [mais, setMais] = useState(false);
@@ -98,7 +107,21 @@ export function Lancar() {
     ? (categoriaPorId(teto.categoriaID, categoriasCustom)?.nome ?? teto.nome)
     : "";
   const primeiraParcela = parcelas > 1 ? (dividir(entrada.centavos, parcelas)[0] ?? 0) : 0;
-  const pagoCom = origemCartao ? `cartao:${cartaoID}` : contaID ? `conta:${contaID}` : "";
+  const opcoesConta = useMemo(
+    () =>
+      ehReceita
+        ? contasPagador.map((c) => ({
+            valor: `conta:${c.id}`,
+            rotulo: `${c.nome} · ${ROTULO_TIPO_CONTA[c.tipo]}`,
+          }))
+        : opcoesContaComReserva(contasPagador, metas),
+    [ehReceita, contasPagador, metas],
+  );
+  const pagoCom = valorPagoCom({
+    contaID: origemCartao ? undefined : contaID || undefined,
+    cartaoID: origemCartao ? cartaoID : undefined,
+    metaID: origemCartao || ehReceita ? undefined : metaID || undefined,
+  });
   const mostraCartoes = !ehReceita && cartoesPagador.length > 0;
   const mostraSelect = contasPagador.length > 0 || mostraCartoes;
 
@@ -125,19 +148,23 @@ export function Lancar() {
   }
 
   function escolherOrigem(valor: string) {
-    if (valor.startsWith("cartao:")) {
-      setCartaoID(valor.slice("cartao:".length));
+    const origem = parseOrigemPago(valor);
+    if (origem.cartaoID) {
+      setCartaoID(origem.cartaoID);
       setContaID("");
+      setMetaID("");
       return;
     }
-    if (valor.startsWith("conta:")) {
-      setContaID(valor.slice("conta:".length));
+    if (origem.contaID) {
+      setContaID(origem.contaID);
       setCartaoID("");
+      setMetaID(origem.metaID ?? "");
       setParcelas(1);
       return;
     }
     setContaID("");
     setCartaoID("");
+    setMetaID("");
     setParcelas(1);
   }
 
@@ -156,6 +183,7 @@ export function Lancar() {
         parcelas: origemCartao ? parcelas : 1,
         pagadorID: pagadorID || undefined,
         tipo: tipoLancamento,
+        metaID: origemCartao || ehReceita ? undefined : metaID || undefined,
       });
       voltar();
     } catch {
@@ -196,11 +224,11 @@ export function Lancar() {
                 {ehReceita ? "Escolha a conta que recebe" : "Escolha de onde sai"}
               </option>
             )}
-            {contasPagador.length > 0 && (
+            {opcoesConta.length > 0 && (
               <optgroup label="Contas">
-                {contasPagador.map((c) => (
-                  <option key={c.id} value={`conta:${c.id}`}>
-                    {c.nome} · {ROTULO_TIPO_CONTA[c.tipo]}
+                {opcoesConta.map((o) => (
+                  <option key={o.valor} value={o.valor}>
+                    {o.rotulo}
                   </option>
                 ))}
               </optgroup>

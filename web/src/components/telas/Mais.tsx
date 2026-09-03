@@ -9,7 +9,7 @@ import { Rotulo } from "../ui/Rotulo";
 import { Botao } from "../ui/Botao";
 
 export function Mais() {
-  const { contas, carteira, remoto, despesasFixas, categorias } = useLoja();
+  const { contas, carteira, remoto, despesasFixas, categorias, compromissos } = useLoja();
   const { usuario, sair } = useAuth();
   return (
     <div>
@@ -61,6 +61,15 @@ export function Mais() {
                 : `aluguel, salário, assinaturas · ${carteira.nome}`
             }
             href="/mais/fixas"
+          />
+          <LinhaLista
+            titulo="Compromissos"
+            subtitulo={
+              compromissos?.filter((c) => c.status === "a_pagar").length
+                ? `a pagar · ${compromissos.filter((c) => c.status === "a_pagar").length} em ${carteira.nome}`
+                : `luz, boleto, prestamista · ${carteira.nome}`
+            }
+            href="/mais/compromissos"
           />
         </div>
         <p className="mt-8 text-[12px] text-cinza">

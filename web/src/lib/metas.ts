@@ -1,8 +1,10 @@
 import { categoriaPorId } from "./categorias";
 import {
   competenciaDe,
+  ROTULO_TIPO_CONTA,
   type Categoria,
   type Competencia,
+  type Conta,
   type Meta,
   type TipoMeta,
   type Transacao,
@@ -153,10 +155,160 @@ export function validarMeta(p: {
       }
       return null;
     case "objetivo":
-      return "Objetivo com aporte entra depois.";
+      if (!p.nome.trim()) return "Dê um nome para a meta.";
+      return null;
     default: {
       const _nunca: never = p.tipo;
       return `tipo inválido: ${_nunca}`;
     }
   }
+}
+
+export function ehEconomia(meta: Meta): boolean {
+  return meta.tipo === "economia_mensal" || meta.tipo === "objetivo";
+}
+
+export function alocadoDe(meta: Meta): Centavos {
+  return meta.alocado ?? 0;
+}
+
+export function reservasDaConta(metas: Meta[] | undefined, contaID: string): Meta[] {
+  return metasAtivas(metas).filter((m) => ehEconomia(m) && m.contaID === contaID && alocadoDe(m) > 0);
+}
+
+export function alocadoNaConta(metas: Meta[] | undefined, contaID: string): Centavos {
+  return (metas ?? [])
+    .filter((m) => m.ativa && m.contaID === contaID)
+    .reduce((s, m) => s + alocadoDe(m), 0);
+}
+
+export function saldoLivre(saldo: Centavos, metas: Meta[] | undefined, contaID: string): Centavos {
+  return saldo - alocadoNaConta(metas, contaID);
+}
+
+export function cabimentoNaConta(
+  metas: Meta[] | undefined,
+  contaID: string,
+  saldo: Centavos,
+  metaID?: string,
+): Centavos {
+  const atual = (metas ?? []).find((m) => m.id === metaID);
+  return saldoLivre(saldo, metas, contaID) + (atual?.contaID === contaID ? alocadoDe(atual) : 0);
+}
+
+export function validarAlocacao(p: {
+  alocado: number;
+  livreMaisAtual: number;
+}): string | null {
+  if (!Number.isInteger(p.alocado) || p.alocado < 0) return "Informe quanto reservar.";
+  if (p.alocado > p.livreMaisAtual) return "Não cabe no saldo livre desta conta.";
+  return null;
+}
+
+export function alocarNaMeta(
+  meta: Meta,
+  alocado: Centavos,
+  livreMaisAtual: Centavos,
+): Meta {
+  const erro = validarAlocacao({ alocado, livreMaisAtual });
+  if (erro) throw new Error(erro);
+  return { ...meta, alocado };
+}
+
+export function unicaReservaDaConta(metas: Meta[] | undefined, contaID: string): Meta | undefined {
+  const reservas = reservasDaConta(metas, contaID);
+  return reservas.length === 1 ? reservas[0] : undefined;
+}
+
+/**
+ * Gastar da conta da meta (ou da reserva marcada) reduz o envelope.
+ * Sem transferência fantasma — só baixa `alocado`.
+ */
+export function aplicarGastoNaReserva(
+  metas: Meta[],
+  p: { valor: Centavos; contaID?: string; metaID?: string },
+): Meta[] {
+  if (p.valor <= 0) return metas;
+  let alvo: Meta | undefined;
+  if (p.metaID) {
+    alvo = metas.find((m) => m.id === p.metaID && m.ativa && ehEconomia(m) && alocadoDe(m) > 0);
+  } else if (p.contaID) {
+    alvo = unicaReservaDaConta(metas, p.contaID);
+  }
+  if (!alvo) return metas;
+  const deduz = Math.min(alocadoDe(alvo), p.valor);
+  if (deduz <= 0) return metas;
+  return metas.map((m) => (m.id === alvo!.id ? { ...m, alocado: alocadoDe(m) - deduz } : m));
+}
+
+export function progressoReserva(alvo: Centavos, alocado: Centavos): ProgressoTeto {
+  const resto = alvo - alocado;
+  const razao = alvo > 0 ? alocado / alvo : 0;
+  let faixa: FaixaTeto;
+  if (resto <= 0) faixa = "estouro";
+  else if (razao >= ALERTA_TETO) faixa = "alerta";
+  else faixa = "folga";
+  return { gasto: alocado, alvo, resto, razao, faixa };
+}
+
+export function fraseReserva(alocado: Centavos, alvo: Centavos, nome: string): string {
+  if (alocado >= alvo) return `A reserva de ${nome} chegou no alvo.`;
+  return `Faltam ${formatarBRL(alvo - alocado)} na reserva de ${nome}.`;
+}
+
+export function rotuloContaComReserva(conta: Conta, meta: Meta): string {
+  return `${conta.nome} · ${formatarBRL(alocadoDe(meta))} na ${nomeDaMeta(meta)}`;
+}
+
+export function rotuloContaLivre(conta: Conta, livre: Centavos): string {
+  return `${conta.nome} · livre ${formatarBRL(livre)}`;
+}
+
+export type OpcaoOrigem = { valor: string; rotulo: string };
+
+export function opcoesContaComReserva(
+  contas: Conta[],
+  metas: Meta[] | undefined,
+): OpcaoOrigem[] {
+  const out: OpcaoOrigem[] = [];
+  for (const c of contas) {
+    const reservas = reservasDaConta(metas, c.id);
+    const livre = saldoLivre(c.saldoInicial, metas, c.id);
+    if (reservas.length === 0) {
+      out.push({ valor: `conta:${c.id}`, rotulo: `${c.nome} · ${ROTULO_TIPO_CONTA[c.tipo]}` });
+      continue;
+    }
+    if (livre > 0) {
+      out.push({ valor: `conta:${c.id}`, rotulo: rotuloContaLivre(c, livre) });
+    }
+    for (const m of reservas) {
+      out.push({ valor: `reserva:${c.id}:${m.id}`, rotulo: rotuloContaComReserva(c, m) });
+    }
+  }
+  return out;
+}
+
+export function parseOrigemPago(valor: string): {
+  contaID?: string;
+  cartaoID?: string;
+  metaID?: string;
+} {
+  if (valor.startsWith("cartao:")) return { cartaoID: valor.slice("cartao:".length) };
+  if (valor.startsWith("reserva:")) {
+    const partes = valor.split(":");
+    return { contaID: partes[1], metaID: partes[2] };
+  }
+  if (valor.startsWith("conta:")) return { contaID: valor.slice("conta:".length) };
+  return {};
+}
+
+export function valorPagoCom(p: { contaID?: string; cartaoID?: string; metaID?: string }): string {
+  if (p.cartaoID) return `cartao:${p.cartaoID}`;
+  if (p.metaID && p.contaID) return `reserva:${p.contaID}:${p.metaID}`;
+  if (p.contaID) return `conta:${p.contaID}`;
+  return "";
+}
+
+export function marcarMetaConcluida(meta: Meta): Meta {
+  return { ...meta, ativa: false };
 }

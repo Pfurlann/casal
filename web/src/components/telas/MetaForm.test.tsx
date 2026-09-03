@@ -19,6 +19,7 @@ function montar(extra: Record<string, unknown> = {}, id?: string) {
     carteira: { id: "w1", nome: "Nosso" },
     metas: [],
     categorias: [],
+    contas: [],
     salvarMeta: vi.fn().mockResolvedValue(undefined),
     apagarMeta: vi.fn().mockResolvedValue(undefined),
     ...extra,

@@ -145,7 +145,42 @@ describe("CartaoDetalhe", () => {
     expect(screen.getByText("Saldo informado por você")).toBeInTheDocument();
   });
 
-  it("lista competências futuras com o valor da parcela", async () => {
+  it("navega para fatura anterior e mostra gasto fora da atual", async () => {
+    tela({
+      transacoes: [
+        {
+          id: "ofx-antigo",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 4500,
+          data: new Date(2026, 7, 15, 12).toISOString(),
+          descricao: "IFOOD OFX",
+          cartaoID: "k1",
+          hashDedup: "ofx|1",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+        parcela(1, new Date(2026, 8, 10, 12)),
+      ],
+    });
+    expect(screen.getByText("Sofá")).toBeInTheDocument();
+    expect(screen.queryByText("IFOOD OFX")).toBeNull();
+    expect(screen.getByText("fatura atual")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Fatura anterior" }));
+    expect(screen.getByText("fatura anterior")).toBeInTheDocument();
+    expect(screen.getByText("ago 2026")).toBeInTheDocument();
+    expect(screen.getByText("IFOOD OFX")).toBeInTheDocument();
+    expect(screen.getByText("15/08/2026")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /IFOOD OFX/ })).toHaveAttribute(
+      "href",
+      "/lancamentos/ofx-antigo",
+    );
+    expect(screen.queryByText("Sofá")).toBeNull();
+  });
+
+  it("navega para faturas futuras e volta à atual", async () => {
     tela({
       transacoes: [
         parcela(1, new Date(2026, 8, 28, 12)),
@@ -153,9 +188,19 @@ describe("CartaoDetalhe", () => {
         parcela(3, new Date(2026, 10, 28, 12)),
       ],
     });
-    await userEvent.click(screen.getByRole("button", { name: "Futuras" }));
+    await userEvent.click(screen.getByRole("button", { name: "Próxima fatura" }));
+    expect(screen.getByText("próxima fatura")).toBeInTheDocument();
+    expect(screen.getByText("28/10/2026 · parcela 2 de 3")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Próxima fatura" }));
+    expect(screen.getByText("fatura futura")).toBeInTheDocument();
     expect(screen.getByText("nov 2026")).toBeInTheDocument();
+    expect(screen.getByText("28/11/2026 · parcela 3 de 3")).toBeInTheDocument();
     expect(screen.getByText("R$ 33,33")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Voltar à fatura atual" }));
+    expect(screen.getByText("fatura atual")).toBeInTheDocument();
+    expect(screen.getByText("28/09/2026 · parcela 1 de 3")).toBeInTheDocument();
   });
 
   it("o dono vê Apagar e confirma", async () => {

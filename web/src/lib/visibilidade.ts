@@ -84,6 +84,33 @@ export function filtrarOrigensDaCarteira<T extends OrigemVisibilidade>(
   return origens.filter((o) => origemVisivelNaCarteira(o, carteira, donoAlvo));
 }
 
+/** Sem dono (legado) ou sem usuário logado: quem vê pode apagar. Senão, só o dono. */
+export function eDonoDaOrigem(origem: { donoID?: string }, usuarioID?: string): boolean {
+  if (!origem.donoID || !usuarioID) return true;
+  return origem.donoID === usuarioID;
+}
+
+/** Tira o cartão das listas e das faturas ativas. Não mexe em lançamentos. */
+export function cartoesAposApagar<
+  T extends OrigemVisibilidade & { id: string },
+  F extends { cartaoID: string },
+>(
+  cartoes: T[],
+  faturas: F[],
+  carteira: CarteiraVisibilidade | null | undefined,
+  id: string,
+  usuarioID?: string,
+): { cartoesTodos: T[]; cartoes: T[]; faturas: F[] } {
+  const cartoesTodos = cartoes.filter((c) => c.id !== id);
+  const visiveis = filtrarOrigensDaCarteira(cartoesTodos, carteira, usuarioID);
+  const ids = new Set(visiveis.map((c) => c.id));
+  return {
+    cartoesTodos,
+    cartoes: visiveis,
+    faturas: faturas.filter((f) => ids.has(f.cartaoID)),
+  };
+}
+
 /**
  * No lançar: origens de quem pagou. Se essa pessoa não tiver nenhuma visível,
  * volta para as do usuário logado — nunca mistura cartão pessoal do parceiro.

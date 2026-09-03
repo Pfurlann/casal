@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   carteiraEhPessoal,
+  cartoesAposApagar,
+  eDonoDaOrigem,
   filtrarOrigensDaCarteira,
   origemVisivelNaCarteira,
   origensDoPagador,
@@ -100,5 +102,39 @@ describe("origensDoPagador", () => {
       "eu-p",
       "eu-a",
     ]);
+  });
+});
+
+describe("eDonoDaOrigem", () => {
+  it("só o dono apaga; legado sem donoID libera", () => {
+    expect(eDonoDaOrigem({ donoID: "u1" }, "u1")).toBe(true);
+    expect(eDonoDaOrigem({ donoID: "u1" }, "u2")).toBe(false);
+    expect(eDonoDaOrigem({}, "u1")).toBe(true);
+    expect(eDonoDaOrigem({ donoID: "u1" })).toBe(true);
+  });
+});
+
+describe("cartoesAposApagar", () => {
+  it("some da lista e das faturas ativas sem tocar em outros cartões", () => {
+    const cartoes = [
+      { id: "k1", visibilidade: "conjunta" as const, donoID: "u1" },
+      { id: "k2", visibilidade: "conjunta" as const, donoID: "u1" },
+      { id: "k-ela", visibilidade: "pessoal" as const, donoID: "u2" },
+    ];
+    const faturas = [
+      { id: "f1", cartaoID: "k1" },
+      { id: "f2", cartaoID: "k2" },
+      { id: "f3", cartaoID: "k-ela" },
+    ];
+    const { cartoesTodos, cartoes: visiveis, faturas: ativas } = cartoesAposApagar(
+      cartoes,
+      faturas,
+      CONJUNTA,
+      "k1",
+      "u1",
+    );
+    expect(cartoesTodos.map((c) => c.id)).toEqual(["k2", "k-ela"]);
+    expect(visiveis.map((c) => c.id)).toEqual(["k2"]);
+    expect(ativas.map((f) => f.id)).toEqual(["f2"]);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   avancando,
@@ -22,10 +23,13 @@ import {
   totalDaFatura,
   useLoja,
 } from "@/lib/store";
+import { eDonoDaOrigem } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
+import { Botao } from "../ui/Botao";
 import { LinhaLista } from "../ui/LinhaLista";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
+import { useAviso } from "../ui/Aviso";
 
 type Aba = "atual" | "proxima" | "futuras";
 
@@ -54,9 +58,14 @@ function BlocoPontos({ programa }: { programa?: ProgramaPontos }) {
 }
 
 export function CartaoDetalhe({ id }: { id: string }) {
-  const { cartoes, transacoes, faturas } = useLoja();
+  const { cartoes, transacoes, faturas, apagarCartao, usuarioID } = useLoja();
+  const { avisar } = useAviso();
+  const router = useRouter();
   const [aba, setAba] = useState<Aba>("atual");
+  const [confirmando, setConfirmando] = useState(false);
+  const [apagando, setApagando] = useState(false);
   const cartao = cartoes.find((c) => c.id === id);
+  const podeApagar = Boolean(cartao && eDonoDaOrigem(cartao, usuarioID));
 
   if (!cartao) {
     return (
@@ -81,18 +90,43 @@ export function CartaoDetalhe({ id }: { id: string }) {
       return x.ano === fatura.ano && x.mes === fatura.mes;
     });
 
+  async function apagar() {
+    if (!cartao || !podeApagar) return;
+    setApagando(true);
+    try {
+      await apagarCartao(cartao.id);
+      router.push("/cartoes");
+    } catch {
+      avisar("erro", "Não deu para apagar o cartão. Tente de novo.");
+    } finally {
+      setApagando(false);
+    }
+  }
+
   return (
     <div>
       <Cabecalho
         titulo={cartao.apelido}
         voltarPara="/cartoes"
         acao={
-          <Link
-            href={`/cartoes/${cartao.id}/editar`}
-            className="flex min-h-[44px] items-center text-[14px] text-grafite"
-          >
-            Editar
-          </Link>
+          <div className="flex items-center gap-3">
+            {podeApagar && !confirmando && (
+              <button
+                type="button"
+                aria-label="Apagar cartão"
+                onClick={() => setConfirmando(true)}
+                className="flex min-h-[44px] items-center text-[14px] font-semibold text-ambar-texto"
+              >
+                Apagar
+              </button>
+            )}
+            <Link
+              href={`/cartoes/${cartao.id}/editar`}
+              className="flex min-h-[44px] items-center text-[14px] text-grafite"
+            >
+              Editar
+            </Link>
+          </div>
         }
       />
       <div className="px-4 pt-6">
@@ -172,6 +206,23 @@ export function CartaoDetalhe({ id }: { id: string }) {
                 />
               );
             })}
+          </div>
+        )}
+        {confirmando && (
+          <div
+            role="alertdialog"
+            aria-labelledby="apagar-cartao-titulo"
+            className="mt-8 space-y-2"
+          >
+            <p id="apagar-cartao-titulo" className="text-[14px] text-grafite">
+              Apagar cartão? Lançamentos antigos ficam.
+            </p>
+            <Botao variante="destrutivo" disabled={apagando} onClick={() => void apagar()}>
+              Apagar
+            </Botao>
+            <Botao variante="secundario" onClick={() => setConfirmando(false)} disabled={apagando}>
+              Cancelar
+            </Botao>
           </div>
         )}
       </div>

@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CartaoDetalhe } from "./CartaoDetalhe";
+import { ProvedorAviso } from "../ui/Aviso";
+
+const empurrar = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: empurrar, back: vi.fn() }),
+}));
 
 const loja = vi.hoisted(() => ({ valor: {} as Record<string, unknown> }));
 vi.mock("@/lib/store", async (original) => {
@@ -23,6 +29,22 @@ const CARTAO = {
   arquivado: false,
 };
 
+function tela(extra: Record<string, unknown> = {}) {
+  loja.valor = {
+    cartoes: [CARTAO],
+    faturas: [],
+    transacoes: [],
+    usuarioID: "u1",
+    apagarCartao: vi.fn().mockResolvedValue(undefined),
+    ...extra,
+  };
+  return render(
+    <ProvedorAviso>
+      <CartaoDetalhe id="k1" />
+    </ProvedorAviso>,
+  );
+}
+
 function parcela(n: number, data: Date) {
   return {
     id: `p${n}`,
@@ -41,23 +63,13 @@ function parcela(n: number, data: Date) {
 
 describe("CartaoDetalhe", () => {
   it("mostra a parcela da fatura atual", () => {
-    loja.valor = {
-      cartoes: [CARTAO],
-      faturas: [],
-      transacoes: [parcela(1, new Date(2026, 8, 28, 12))],
-    };
-    render(<CartaoDetalhe id="k1" />);
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
     expect(screen.getByText("Sofá")).toBeInTheDocument();
     expect(screen.getByText("parcela 1 de 3")).toBeInTheDocument();
   });
 
   it("oferece importar OFX na fatura atual", () => {
-    loja.valor = {
-      cartoes: [CARTAO],
-      faturas: [],
-      transacoes: [],
-    };
-    render(<CartaoDetalhe id="k1" />);
+    tela();
     expect(screen.getByRole("link", { name: "Importar OFX" })).toHaveAttribute(
       "href",
       "/cartoes/k1/importar-ofx",
@@ -65,12 +77,7 @@ describe("CartaoDetalhe", () => {
   });
 
   it("abre a edição ao tocar no lançamento da fatura", () => {
-    loja.valor = {
-      cartoes: [CARTAO],
-      faturas: [],
-      transacoes: [parcela(1, new Date(2026, 8, 28, 12))],
-    };
-    render(<CartaoDetalhe id="k1" />);
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
     expect(screen.getByRole("link", { name: /Sofá/ })).toHaveAttribute(
       "href",
       "/lancamentos/p1",
@@ -78,7 +85,7 @@ describe("CartaoDetalhe", () => {
   });
 
   it("mostra programa, saldo e pts por US$ 1", () => {
-    loja.valor = {
+    tela({
       cartoes: [
         {
           ...CARTAO,
@@ -91,10 +98,7 @@ describe("CartaoDetalhe", () => {
           },
         },
       ],
-      faturas: [],
-      transacoes: [],
-    };
-    render(<CartaoDetalhe id="k1" />);
+    });
     expect(screen.getByText(/Livelo · 12\.500 pts/)).toBeInTheDocument();
     expect(screen.getByText(/2,2 pts por US\$ 1/)).toBeInTheDocument();
     expect(screen.getByText("R$ 375,00")).toBeInTheDocument();
@@ -102,18 +106,38 @@ describe("CartaoDetalhe", () => {
   });
 
   it("lista competências futuras com o valor da parcela", async () => {
-    loja.valor = {
-      cartoes: [CARTAO],
-      faturas: [],
+    tela({
       transacoes: [
         parcela(1, new Date(2026, 8, 28, 12)),
         parcela(2, new Date(2026, 9, 28, 12)),
         parcela(3, new Date(2026, 10, 28, 12)),
       ],
-    };
-    render(<CartaoDetalhe id="k1" />);
+    });
     await userEvent.click(screen.getByRole("button", { name: "Futuras" }));
     expect(screen.getByText("nov 2026")).toBeInTheDocument();
     expect(screen.getByText("R$ 33,33")).toBeInTheDocument();
+  });
+
+  it("o dono vê Apagar e confirma", async () => {
+    const apagarCartao = vi.fn().mockResolvedValue(undefined);
+    empurrar.mockClear();
+    tela({
+      cartoes: [{ ...CARTAO, donoID: "u1" }],
+      usuarioID: "u1",
+      apagarCartao,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Apagar cartão" }));
+    expect(apagarCartao).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Apagar" }));
+    expect(apagarCartao).toHaveBeenCalledWith("k1");
+    expect(empurrar).toHaveBeenCalledWith("/cartoes");
+  });
+
+  it("o parceiro não vê Apagar", () => {
+    tela({
+      cartoes: [{ ...CARTAO, donoID: "u2" }],
+      usuarioID: "u1",
+    });
+    expect(screen.queryByRole("button", { name: "Apagar cartão" })).toBeNull();
   });
 });

@@ -45,7 +45,7 @@ import { clienteSupabase } from "./supabase";
 import { colunasDoPrograma, programaDeColunas } from "./pontos";
 import { transacoesDoOfx, type LinhaImportacaoOfx } from "./ofx";
 import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
-import { filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
+import { cartoesAposApagar, eDonoDaOrigem, filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
 
 export type MembroCarteira = {
   userId: string;
@@ -453,6 +453,7 @@ type Loja = Estado & {
   remoto: boolean;
   recarregar: () => Promise<void>;
   salvarCartao: (c: Cartao) => Promise<void>;
+  apagarCartao: (id: string) => Promise<void>;
   salvarConta: (c: Conta) => Promise<void>;
   lancar: (p: {
     valor: number;
@@ -791,6 +792,31 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
         ...colunasDoPrograma(gravado.programa),
       });
+    }
+  };
+
+  const apagarCartao = async (id: string) => {
+    const atual = (estado.cartoesTodos ?? estado.cartoes).find((c) => c.id === id);
+    if (!atual) return;
+    if (!eDonoDaOrigem(atual, usuario?.id)) {
+      throw new Error("Só quem cadastrou o cartão pode apagar.");
+    }
+    const { cartoesTodos, cartoes, faturas } = cartoesAposApagar(
+      estado.cartoesTodos ?? estado.cartoes,
+      estado.faturas,
+      estado.carteira,
+      id,
+      usuario?.id,
+    );
+    await commit({ ...estado, cartoesTodos, cartoes, faturas });
+    if (sb) {
+      const agora = new Date().toISOString();
+      const { error } = await sb.from("cards").update({
+        deleted_at: agora,
+        arquivado: true,
+        updated_at: agora,
+      }).eq("id", id);
+      if (error) throw error;
     }
   };
 
@@ -1494,6 +1520,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     remoto: Boolean(sb),
     recarregar,
     salvarCartao,
+    apagarCartao,
     salvarConta,
     lancar,
     editar,

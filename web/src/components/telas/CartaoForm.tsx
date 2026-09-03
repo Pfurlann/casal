@@ -16,20 +16,22 @@ import {
   textoValorPonto,
 } from "@/lib/pontos";
 import { useLoja } from "@/lib/store";
-import { visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
+import { eDonoDaOrigem, visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Campo } from "../ui/Campo";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { SeletorVisibilidade } from "../ui/SeletorVisibilidade";
 import { Teclado } from "../ui/Teclado";
+import { Botao } from "../ui/Botao";
 import { useAviso } from "../ui/Aviso";
 
 export function CartaoForm({ id }: { id?: string }) {
-  const { cartoes, cartoesTodos, carteira, salvarCartao, usuarioID } = useLoja();
+  const { cartoes, cartoesTodos, carteira, salvarCartao, apagarCartao, usuarioID } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
   const existente = (cartoesTodos ?? cartoes).find((c) => c.id === id);
+  const podeApagar = Boolean(existente && eDonoDaOrigem(existente, usuarioID));
   const programaInicial = programaVisivel(existente?.programa);
 
   const [apelido, setApelido] = useState(existente?.apelido ?? "");
@@ -57,6 +59,7 @@ export function CartaoForm({ id }: { id?: string }) {
   );
   const [, tick] = useState(0);
   const [salvando, setSalvando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const pode =
     apelido.trim().length > 0 &&
@@ -107,11 +110,36 @@ export function CartaoForm({ id }: { id?: string }) {
     }
   }
 
+  async function apagar() {
+    if (!existente || !podeApagar) return;
+    setSalvando(true);
+    try {
+      await apagarCartao(existente.id);
+      router.push("/cartoes");
+    } catch {
+      avisar("erro", "Não deu para apagar o cartão. Tente de novo.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <Cabecalho
         titulo={existente ? "editar cartão" : "novo cartão"}
         voltarPara={existente ? `/cartoes/${existente.id}` : "/cartoes"}
+        acao={
+          podeApagar && !confirmando ? (
+            <button
+              type="button"
+              aria-label="Apagar cartão"
+              onClick={() => setConfirmando(true)}
+              className="flex min-h-[44px] items-center text-[14px] font-semibold text-ambar-texto"
+            >
+              Apagar
+            </button>
+          ) : undefined
+        }
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <Campo label="Apelido" value={apelido} onChange={setApelido} placeholder="Roxinho" />
@@ -269,20 +297,36 @@ export function CartaoForm({ id }: { id?: string }) {
           ))}
         </div>
       </div>
-      <Teclado
-        aoDigitar={(d) => {
-          entrada.digitar(d);
-          tick((n) => n + 1);
-        }}
-        aoApagar={() => {
-          entrada.apagar();
-          tick((n) => n + 1);
-        }}
-        aoSalvar={salvar}
-        aoFechar={voltar}
-        podeSalvar={pode}
-        mostraSalvar
-      />
+      {confirmando ? (
+        <div className="border-t border-nevoa px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <div role="alertdialog" aria-labelledby="apagar-cartao-titulo" className="space-y-2">
+            <p id="apagar-cartao-titulo" className="text-[14px] text-grafite">
+              Apagar cartão? Lançamentos antigos ficam.
+            </p>
+            <Botao variante="destrutivo" disabled={salvando} onClick={() => void apagar()}>
+              Apagar
+            </Botao>
+            <Botao variante="secundario" onClick={() => setConfirmando(false)} disabled={salvando}>
+              Cancelar
+            </Botao>
+          </div>
+        </div>
+      ) : (
+        <Teclado
+          aoDigitar={(d) => {
+            entrada.digitar(d);
+            tick((n) => n + 1);
+          }}
+          aoApagar={() => {
+            entrada.apagar();
+            tick((n) => n + 1);
+          }}
+          aoSalvar={salvar}
+          aoFechar={voltar}
+          podeSalvar={pode}
+          mostraSalvar
+        />
+      )}
     </div>
   );
 }

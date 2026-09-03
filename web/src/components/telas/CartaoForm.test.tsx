@@ -18,38 +18,37 @@ vi.mock("@/lib/store", async (original) => {
 
 const CARTEIRA = { id: "w1", nome: "Casa", cor: "grafite", rotulo: "pessoal", visibilidade: "aberta" };
 
-function montar(id?: string) {
+const CARTAO_BASE = {
+  carteiraID: CARTEIRA.id,
+  apelido: "Roxinho",
+  banco: "Nubank",
+  ultimos4: "1234",
+  bandeira: "mastercard",
+  cor: "grafite",
+  limite: 500000,
+  diaFechamento: 28,
+  diaVencimento: 5,
+  arquivado: false,
+  programa: {
+    nome: "Livelo",
+    saldo: 12500,
+    pontosPorUnidadeX100: 220,
+    moeda: "usd",
+    valorPontoCentavos: 3,
+  },
+};
+
+function montar(id?: string, extra: Record<string, unknown> = {}) {
   empurrar.mockClear();
   salvarCartao.fn.mockReset();
   salvarCartao.fn.mockResolvedValue(undefined);
   loja.valor = {
-    cartoes: id
-      ? [
-          {
-            id,
-            carteiraID: CARTEIRA.id,
-            apelido: "Roxinho",
-            banco: "Nubank",
-            ultimos4: "1234",
-            bandeira: "mastercard",
-            cor: "grafite",
-            limite: 500000,
-            diaFechamento: 28,
-            diaVencimento: 5,
-            arquivado: false,
-            programa: {
-              nome: "Livelo",
-              saldo: 12500,
-              pontosPorUnidadeX100: 220,
-              moeda: "usd",
-              valorPontoCentavos: 3,
-            },
-          },
-        ]
-      : [],
+    cartoes: id ? [{ id, ...CARTAO_BASE }] : [],
     carteira: CARTEIRA,
     usuarioID: "u1",
     salvarCartao: salvarCartao.fn,
+    apagarCartao: vi.fn().mockResolvedValue(undefined),
+    ...extra,
   };
   return render(
     <ProvedorAviso>
@@ -112,5 +111,30 @@ describe("CartaoForm — programa de pontos", () => {
     expect(screen.getByLabelText("Saldo atual de pontos")).toHaveValue("12500");
     expect(screen.getByLabelText("Pontos por US$ 1")).toHaveValue("2,2");
     expect(screen.getByLabelText("Valor do ponto (R$, opcional)")).toHaveValue("0,03");
+  });
+});
+
+describe("CartaoForm — apagar", () => {
+  it("o dono confirma e apaga", async () => {
+    const apagarCartao = vi.fn().mockResolvedValue(undefined);
+    montar("k1", {
+      cartoes: [{ id: "k1", ...CARTAO_BASE, donoID: "u1" }],
+      apagarCartao,
+    });
+    const user = userEvent.setup({ delay: null });
+    await user.click(screen.getByRole("button", { name: "Apagar cartão" }));
+    expect(apagarCartao).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog", { name: /Apagar cartão/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Apagar" }));
+    expect(apagarCartao).toHaveBeenCalledWith("k1");
+    expect(empurrar).toHaveBeenCalledWith("/cartoes");
+  });
+
+  it("o parceiro não vê Apagar", () => {
+    montar("k1", {
+      cartoes: [{ id: "k1", ...CARTAO_BASE, donoID: "u2" }],
+      usuarioID: "u1",
+    });
+    expect(screen.queryByRole("button", { name: "Apagar cartão" })).toBeNull();
   });
 });

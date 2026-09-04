@@ -49,11 +49,12 @@ export function ImportarOfxConta({ contaId }: { contaId: string }) {
 
   const extraido = useMemo(() => (texto ? parseOfxConta(texto) : null), [texto]);
 
-  const extraidas = extraido
-    ? [...extraido.gastos, ...extraido.creditos].sort((a, b) =>
-        a.data < b.data ? -1 : a.data > b.data ? 1 : 0,
-      )
-    : [];
+  const extraidas = useMemo(() => {
+    if (!extraido) return [];
+    return [...extraido.gastos, ...extraido.creditos].sort((a, b) =>
+      a.data < b.data ? -1 : a.data > b.data ? 1 : 0,
+    );
+  }, [extraido]);
 
   const linhas = useMemo(
     () =>
@@ -135,7 +136,9 @@ export function ImportarOfxConta({ contaId }: { contaId: string }) {
         "ok",
         r.importados === 0
           ? "Esses lançamentos já estavam na conta."
-          : `${r.importados} lançamento${r.importados === 1 ? "" : "s"} na conta.`,
+          : `${r.importados} lançamento${r.importados === 1 ? "" : "s"} na conta${
+              r.repetidos > 0 ? ` · ${r.repetidos} já existiam` : ""
+            }.`,
       );
       const comps = escolhidas.map((l) => competenciaDe(dataDeLocalISO(l.data)));
       const destino =

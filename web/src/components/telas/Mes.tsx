@@ -61,11 +61,17 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
     metas,
     compromissos,
     liquidarLancamento,
+    modoResumo,
+    resumoMensal,
   } = useLoja();
   const mostraPagador = carteiraMostraPagador(carteira) && (membros?.length ?? 0) > 1;
   const competencia = competenciaDaConsulta(competenciaRota);
   const [filtro, setFiltro] = useState<FiltroMes>("todos");
   const [pagando, setPagando] = useState<Transacao | null>(null);
+
+  const resumoDoMes = (resumoMensal ?? []).find(
+    (r) => r.ano === competencia.ano && r.mes === competencia.mes,
+  );
 
   const doMes = transacoesDoMes(transacoes, competencia, cartoes);
   const totaisFatura = cartoes
@@ -129,6 +135,60 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
         }
       });
   }, [listaMes, faturas, filtro]);
+
+  if (modoResumo) {
+    const gastoR = resumoDoMes?.despesas ?? 0;
+    const receitaR = resumoDoMes?.receitas ?? 0;
+    const qtdR = resumoDoMes?.qtd ?? 0;
+    return (
+      <div>
+        <Cabecalho
+          titulo={`${MESES[competencia.mes - 1]} · ${carteira.nome}`}
+          marca
+          acao={
+            <div className="flex items-center">
+              <Link
+                href={hrefDoMes(avancando(competencia, -1))}
+                aria-label="Mês anterior"
+                className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[22px] text-grafite"
+              >
+                ‹
+              </Link>
+              <Link
+                href={hrefDoMes(avancando(competencia, 1))}
+                aria-label="Próximo mês"
+                className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[22px] text-grafite"
+              >
+                ›
+              </Link>
+            </div>
+          }
+        />
+        <div className="px-4 pt-6">
+          <p className="rounded-controle border border-nevoa bg-areia px-3 py-2 text-[12px] text-cinza">
+            Carteira em modo resumo: você vê só os totais, sem cada lançamento.
+          </p>
+          <div className="mt-8">
+            <Rotulo>gasto neste mês</Rotulo>
+            <div className="mt-2">
+              <Numero centavos={gastoR} tamanho="heroi" subordinaCentavos />
+            </div>
+            <p className="mt-2 font-numero text-[12px] tabular-nums text-cinza">
+              {qtdR} lançamentos · {rotuloDaCompetencia(competencia)}
+            </p>
+          </div>
+          {receitaR > 0 && (
+            <div className="mt-8">
+              <Rotulo>receita neste mês</Rotulo>
+              <div className="mt-1">
+                <Numero centavos={receitaR} tamanho="secao" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

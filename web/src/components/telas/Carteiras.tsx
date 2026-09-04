@@ -61,13 +61,21 @@ export function Carteiras() {
 
   async function copiar() {
     if (!convite) return;
+    const texto = formatarCodigoConvite(convite.codigo);
     try {
-      await navigator.clipboard.writeText(formatarCodigoConvite(convite.codigo));
+      await navigator.clipboard.writeText(texto);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     } catch {
       avisar("erro", "Não deu para copiar. Anote o código.");
     }
+  }
+
+  function compartilhar() {
+    if (!convite) return;
+    const texto = `Entra no ca$al com o código ${formatarCodigoConvite(convite.codigo)}`;
+    const wa = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(wa, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -104,7 +112,7 @@ export function Carteiras() {
                     <span className="block truncate text-[12px] text-cinza">
                       {`${ROTULO_CARTEIRA[c.rotulo]}${
                         c.membrosN > 1 ? ` · ${c.membrosN} pessoas` : " · só você"
-                      }`}
+                      }${c.visibilidade === "resumo" ? " · só totais" : ""}`}
                     </span>
                   </span>
                 </button>
@@ -163,9 +171,15 @@ export function Carteiras() {
                 <p className="mt-1 font-numero text-[12px] tabular-nums text-cinza">
                   válido até {new Date(convite.expiraEm).toLocaleDateString("pt-BR")}
                 </p>
-                <div className="mt-3">
+                <div className="mt-3 flex flex-col gap-2">
                   <Botao variante="secundario" onClick={copiar}>
                     {copiado ? "Copiado" : "Copiar código"}
+                  </Botao>
+                  <Botao variante="secundario" onClick={compartilhar}>
+                    Enviar no WhatsApp
+                  </Botao>
+                  <Botao variante="secundario" onClick={gerar} disabled={!remoto || enviando}>
+                    {enviando ? "Gerando…" : "Gerar outro código"}
                   </Botao>
                 </div>
               </div>
@@ -202,7 +216,7 @@ export function Carteiras() {
               onClick={entrar}
               disabled={!remoto || enviando || limpo.length < 6}
             >
-              Entrar na carteira
+              {enviando ? "Entrando…" : "Entrar na carteira"}
             </Botao>
           </div>
         </div>

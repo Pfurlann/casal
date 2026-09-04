@@ -71,6 +71,9 @@ describe("Carteiras", () => {
   it("mostra o código com prazo quando já existe convite", () => {
     montar({ convite: { codigo: "ABCDEF", expiraEm: "2026-09-30T00:00:00.000Z" } });
     expect(screen.getByText("ABC-DEF")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Copiar código/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /WhatsApp/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Gerar outro código/ })).toBeInTheDocument();
   });
 
   it("não oferece convite em carteira pessoal", () => {

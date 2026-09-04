@@ -165,7 +165,6 @@ function campo(bloco: string, tag: string): string {
 function dataDePosted(raw: string): string | null {
   const d = /^(\d{4})(\d{2})(\d{2})/.exec(raw.trim());
   if (!d) return null;
-  const ano = Number(d[1]);
   const mes = Number(d[2]);
   const dia = Number(d[3]);
   if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
@@ -249,9 +248,19 @@ export function classificarTipoOfx(trntype: string, _centavos: number, memo: str
 
 /**
  * Conta bancária: sinal OFX padrão (negativo = saída / gasto).
- * Não reutiliza a classificação invertida de cartão BR.
+ * XFER / transferências e memos de TED/PIX entre contas → ainda pelo sinal.
  */
-export function classificarTipoOfxConta(_trntype: string, centavos: number, _memo: string): TipoLinhaOfx {
+export function classificarTipoOfxConta(trntype: string, centavos: number, memo: string): TipoLinhaOfx {
+  const tipo = trntype.toUpperCase();
+  const texto = memo.toLowerCase();
+  if (/pagamento\s+recebido|pagto\s+recebido|estorno|ajuste\s+cred|devol/i.test(texto)) {
+    return "credito";
+  }
+  if (tipo === "CREDIT" || tipo === "DEP" || tipo === "DIRECTDEP") return "credito";
+  if (tipo === "DEBIT" || tipo === "POS" || tipo === "ATM" || tipo === "PAYMENT") return "gasto";
+  if (tipo === "XFER" || tipo === "TRANSFER") {
+    return centavos < 0 ? "gasto" : "credito";
+  }
   return centavos < 0 ? "gasto" : "credito";
 }
 

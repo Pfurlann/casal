@@ -3,8 +3,14 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { LojaProvider } from "@/lib/store";
+import { LojaProvider, useLoja } from "@/lib/store";
 import { ForcarTemaClaro } from "@/lib/tema";
+import { FaixaOffline } from "@/components/ui/FaixaOffline";
+
+function FaixaSync() {
+  const { pendenciasOutbox } = useLoja();
+  return <FaixaOffline pendencias={pendenciasOutbox} />;
+}
 
 function ComSessao({ children }: { children: ReactNode }) {
   const { pronto, precisaLogin } = useAuth();
@@ -22,7 +28,12 @@ function ComSessao({ children }: { children: ReactNode }) {
     );
     return pronto && precisaLogin ? <ForcarTemaClaro>{splash}</ForcarTemaClaro> : splash;
   }
-  return <LojaProvider>{children}</LojaProvider>;
+  return (
+    <LojaProvider>
+      <FaixaSync />
+      {children}
+    </LojaProvider>
+  );
 }
 
 export function Providers({ children }: { children: ReactNode }) {

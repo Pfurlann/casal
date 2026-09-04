@@ -51,6 +51,12 @@ import { pagadorPadrao } from "./pagador";
 import { clienteSupabase } from "./supabase";
 import { colunasDoPrograma, programaDeColunas } from "./pontos";
 import { transacoesDoOfx, transacoesDoOfxConta, type LinhaImportacaoOfx } from "./ofx";
+import {
+  drenarOutbox,
+  eErroRede,
+  enfileirarOutbox,
+  tamanhoOutbox,
+} from "./outbox";
 import { cartaoDoLancamento, cartoesDaLoja, linhaDaTransacao } from "./persistir";
 import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
 import { cartoesAposApagar, eDonoDaOrigem, filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
@@ -67,6 +73,14 @@ export type ConviteAtivo = {
 };
 
 export type CarteiraItem = Carteira & { membrosN: number; souDono: boolean };
+
+export type ResumoMensal = {
+  ano: number;
+  mes: number;
+  despesas: number;
+  receitas: number;
+  qtd: number;
+};
 
 export type Estado = {
   carteira: Carteira;
@@ -87,6 +101,9 @@ export type Estado = {
   compromissosTodos: Compromisso[];
   membros: MembroCarteira[];
   convite: ConviteAtivo | null;
+  /** Parceiro em carteira `resumo`: só agregado, sem detalhe. */
+  modoResumo: boolean;
+  resumoMensal: ResumoMensal[];
 };
 
 function carteiraPadrao(parcial?: Partial<Carteira>): Carteira {
@@ -99,8 +116,13 @@ function carteiraPadrao(parcial?: Partial<Carteira>): Carteira {
   };
 }
 
-function visibilidadeDe(rotulo: RotuloCarteira): VisibilidadeCarteira {
-  return rotulo === "pessoal" ? "fechada" : "aberta";
+function visibilidadeDe(
+  rotulo: RotuloCarteira,
+  escolhida?: VisibilidadeCarteira,
+): VisibilidadeCarteira {
+  if (rotulo === "pessoal") return "fechada";
+  if (escolhida === "resumo" || escolhida === "aberta") return escolhida;
+  return "aberta";
 }
 
 function mapearCarteira(w: {
@@ -347,6 +369,8 @@ const VAZIO: Estado = {
   compromissosTodos: [],
   membros: [],
   convite: null,
+  modoResumo: false,
+  resumoMensal: [],
 };
 
 function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
@@ -384,6 +408,8 @@ function bootstrap(rotulo: RotuloCarteira = "compartilhada"): Estado {
     compromissosTodos: [],
     membros: [],
     convite: null,
+    modoResumo: false,
+    resumoMensal: [],
   };
 }
 
@@ -474,10 +500,23 @@ type Loja = Estado & {
   }) => Promise<void>;
   criarConvite: () => Promise<string | null>;
   aceitarConvite: (codigo: string) => Promise<string | null>;
-  criarCarteira: (p: { nome: string; rotulo: RotuloCarteira; cor: string }) => Promise<string | null>;
+  criarCarteira: (p: {
+    nome: string;
+    rotulo: RotuloCarteira;
+    cor: string;
+    visibilidade?: VisibilidadeCarteira;
+  }) => Promise<string | null>;
   selecionarCarteira: (id: string) => Promise<void>;
-  salvarCarteira: (p: { id: string; nome: string; rotulo: RotuloCarteira; cor: string }) => Promise<string | null>;
+  salvarCarteira: (p: {
+    id: string;
+    nome: string;
+    rotulo: RotuloCarteira;
+    cor: string;
+    visibilidade?: VisibilidadeCarteira;
+  }) => Promise<string | null>;
   apagarCarteira: (id: string) => Promise<string | null>;
+  pendenciasOutbox: number;
+  sincronizarOutbox: () => Promise<void>;
   salvarDespesaFixa: (f: DespesaFixa) => Promise<void>;
   apagarDespesaFixa: (id: string) => Promise<void>;
   lancarDespesaFixa: (id: string, competencia?: Competencia) => Promise<void>;
@@ -521,8 +560,28 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const { usuario } = useAuth();
   const [estado, setEstado] = useState<Estado>(VAZIO);
   const [pronto, setPronto] = useState(false);
+  const [pendenciasOutbox, setPendenciasOutbox] = useState(0);
   const sb = useMemo(() => clienteSupabase(), []);
   const localKey = chaveLocal(usuario?.id);
+
+  const atualizarPendencias = useCallback(() => {
+    setPendenciasOutbox(tamanhoOutbox(usuario?.id));
+  }, [usuario?.id]);
+
+  const sincronizarOutbox = useCallback(async () => {
+    if (!sb) return;
+    await drenarOutbox(sb, usuario?.id);
+    atualizarPendencias();
+  }, [sb, usuario?.id, atualizarPendencias]);
+
+  useEffect(() => {
+    atualizarPendencias();
+    const onOnline = () => {
+      void sincronizarOutbox();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [atualizarPendencias, sincronizarOutbox]);
 
   const persistirLocal = useCallback(
     (e: Estado) => {
@@ -699,6 +758,23 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       ? (commits.data ?? []).map((r) => mapearCompromisso(r as Parameters<typeof mapearCompromisso>[0]))
       : (localFallback()?.compromissosTodos ?? localFallback()?.compromissos ?? []);
 
+    const modoResumo =
+      linhaCarteira.visibilidade === "resumo" && linhaCarteira.souDono === false;
+    let resumoMensal: ResumoMensal[] = [];
+    if (modoResumo) {
+      const { data: resumos } = await sb
+        .from("resumo_mensal_carteira")
+        .select("ano, mes, despesas_centavos, receitas_centavos, qtd")
+        .eq("wallet_id", walletId);
+      resumoMensal = (resumos ?? []).map((r) => ({
+        ano: r.ano as number,
+        mes: r.mes as number,
+        despesas: Number(r.despesas_centavos ?? 0),
+        receitas: Number(r.receitas_centavos ?? 0),
+        qtd: Number(r.qtd ?? 0),
+      }));
+    }
+
     const proximo: Estado = {
       carteira: {
         id: linhaCarteira.id,
@@ -724,27 +800,29 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         status: f.status as Fatura["status"],
         valorPago: f.valor_pago_centavos as number,
       })),
-      transacoes: (txs.data ?? [])
-        .filter((t) => t.wallet_id === walletId)
-        .map((t) => ({
-          id: t.id as string,
-          carteiraID: t.wallet_id as string,
-          tipo: t.tipo as Transacao["tipo"],
-          valor: t.valor_centavos as number,
-          data: t.data as string,
-          categoriaID: (t.category_id as string | null) ?? undefined,
-          descricao: (t.descricao as string) ?? "",
-          contaID: (t.account_id as string | null) ?? undefined,
-          cartaoID: (t.card_id as string | null) ?? undefined,
-          faturaID: (t.invoice_id as string | null) ?? undefined,
-          pagadorID: (t.pagador_id as string | null) ?? undefined,
-          hashDedup: (t.hash_dedup as string) ?? "",
-          grupoParcela: (t.grupo_parcela as string | null) ?? undefined,
-          parcelaN: (t.parcela_n as number) ?? 1,
-          parcelaTotal: (t.parcela_total as number) ?? 1,
-          status: t.status === "liquidado" ? "liquidado" as const : "a_pagar" as const,
-          metaID: (t.goal_id as string | null) ?? undefined,
-        })),
+      transacoes: modoResumo
+        ? []
+        : (txs.data ?? [])
+            .filter((t) => t.wallet_id === walletId)
+            .map((t) => ({
+              id: t.id as string,
+              carteiraID: t.wallet_id as string,
+              tipo: t.tipo as Transacao["tipo"],
+              valor: t.valor_centavos as number,
+              data: t.data as string,
+              categoriaID: (t.category_id as string | null) ?? undefined,
+              descricao: (t.descricao as string) ?? "",
+              contaID: (t.account_id as string | null) ?? undefined,
+              cartaoID: (t.card_id as string | null) ?? undefined,
+              faturaID: (t.invoice_id as string | null) ?? undefined,
+              pagadorID: (t.pagador_id as string | null) ?? undefined,
+              hashDedup: (t.hash_dedup as string) ?? "",
+              grupoParcela: (t.grupo_parcela as string | null) ?? undefined,
+              parcelaN: (t.parcela_n as number) ?? 1,
+              parcelaTotal: (t.parcela_total as number) ?? 1,
+              status: t.status === "liquidado" ? "liquidado" as const : "a_pagar" as const,
+              metaID: (t.goal_id as string | null) ?? undefined,
+            })),
       despesasFixasTodas,
       despesasFixas: despesasFixasTodas.filter((f) => f.carteiraID === walletId),
       categoriasTodas,
@@ -757,7 +835,16 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       convite: convites.data?.[0]
         ? { codigo: convites.data[0].codigo as string, expiraEm: convites.data[0].expira_em as string }
         : null,
+      modoResumo,
+      resumoMensal,
     };
+    if (modoResumo) {
+      persistirLocal(proximo);
+      setEstado(proximo);
+      setPronto(true);
+      void sincronizarOutbox();
+      return;
+    }
     const geradas = gerarLancamentosFixos(
       proximo.despesasFixas,
       proximo.transacoes,
@@ -795,7 +882,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         ),
       );
     }
-  }, [sb, localKey, persistirLocal, usuario]);
+  }, [sb, localKey, persistirLocal, usuario, sincronizarOutbox]);
 
   useEffect(() => {
     void recarregar();
@@ -1167,6 +1254,14 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         await persistirNovasTransacoes(novas);
         await persistirTotaisFatura(totaisNovos, alteradas);
       } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOutbox(
+            [...novas, ...totaisNovos].map(linhaDaTransacao),
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
         await commit(anterior);
         throw erro;
       }
@@ -1394,25 +1489,40 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     if (novas.length === 0) return { importados: 0, repetidos };
     const comOfx = { ...estado, transacoes: [...estado.transacoes, ...novas] };
     const { estado: proximo, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comOfx);
+    const anterior = estado;
     await commit(proximo);
     if (sb) {
-      const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
-      if (error) {
-        if (error.code === "23505") {
-          let gravados = 0;
-          for (const tx of novas) {
-            const r = await sb.from("transactions").insert(linhaDaTransacao(tx));
-            if (r.error) {
-              if (r.error.code === "23505") continue;
-              throw r.error;
+      try {
+        const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
+        if (error) {
+          if (error.code === "23505") {
+            let gravados = 0;
+            for (const tx of novas) {
+              const r = await sb.from("transactions").insert(linhaDaTransacao(tx));
+              if (r.error) {
+                if (r.error.code === "23505") continue;
+                throw r.error;
+              }
+              gravados += 1;
             }
-            gravados += 1;
+            await persistirTotaisFatura(totaisNovos, alteradas);
+            return { importados: gravados, repetidos: repetidos + (novas.length - gravados) };
           }
-          return { importados: gravados, repetidos: repetidos + (novas.length - gravados) };
+          throw error;
         }
-        throw error;
+        await persistirTotaisFatura(totaisNovos, alteradas);
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOutbox(
+            [...novas, ...totaisNovos].map(linhaDaTransacao),
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return { importados: novas.length, repetidos };
+        }
+        await commit(anterior);
+        throw erro;
       }
-      await persistirTotaisFatura(totaisNovos, alteradas);
     }
     return { importados: novas.length, repetidos };
   };
@@ -1429,23 +1539,34 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     });
     const repetidos = linhas.filter((l) => estado.transacoes.some((t) => t.hashDedup === l.hashDedup)).length;
     if (novas.length === 0) return { importados: 0, repetidos };
+    const anterior = estado;
     await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
     if (sb) {
-      const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
-      if (error) {
-        if (error.code === "23505") {
-          let gravados = 0;
-          for (const tx of novas) {
-            const r = await sb.from("transactions").insert(linhaDaTransacao(tx));
-            if (r.error) {
-              if (r.error.code === "23505") continue;
-              throw r.error;
+      try {
+        const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
+        if (error) {
+          if (error.code === "23505") {
+            let gravados = 0;
+            for (const tx of novas) {
+              const r = await sb.from("transactions").insert(linhaDaTransacao(tx));
+              if (r.error) {
+                if (r.error.code === "23505") continue;
+                throw r.error;
+              }
+              gravados += 1;
             }
-            gravados += 1;
+            return { importados: gravados, repetidos: repetidos + (novas.length - gravados) };
           }
-          return { importados: gravados, repetidos: repetidos + (novas.length - gravados) };
+          throw error;
         }
-        throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOutbox(novas.map(linhaDaTransacao), usuario?.id);
+          atualizarPendencias();
+          return { importados: novas.length, repetidos };
+        }
+        await commit(anterior);
+        throw erro;
       }
     }
     return { importados: novas.length, repetidos };
@@ -1466,10 +1587,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
 
   const aceitarConvite = async (codigo: string): Promise<string | null> => {
     if (!sb) return "Convites precisam do login na nuvem.";
-    const { data, error } = await sb.rpc("aceitar_convite", { p_codigo: codigo });
+    const limpo = codigo.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    if (limpo.length !== 6) return "O código tem 6 letras ou números.";
+    const { data, error } = await sb.rpc("aceitar_convite", { p_codigo: limpo });
     if (error) return traduzirConvite(error.message);
     const walletId = typeof data === "string" ? data : null;
-    if (walletId && usuario?.id) {
+    if (!walletId) return "Não foi possível entrar na carteira.";
+    if (usuario?.id) {
       localStorage.setItem(chaveCarteira(usuario.id), walletId);
     }
     await recarregar();
@@ -1487,8 +1611,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     else localStorage.setItem(chaveCarteira(), id);
   };
 
-  const criarCarteira = async (p: { nome: string; rotulo: RotuloCarteira; cor: string }): Promise<string | null> => {
-    const visibilidade = visibilidadeDe(p.rotulo);
+  const criarCarteira = async (p: {
+    nome: string;
+    rotulo: RotuloCarteira;
+    cor: string;
+    visibilidade?: VisibilidadeCarteira;
+  }): Promise<string | null> => {
+    const visibilidade = visibilidadeDe(p.rotulo, p.visibilidade);
     const id = uuid();
     const contaId = uuid();
     if (!sb) {
@@ -1523,6 +1652,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         compromissosTodos: (estado.compromissosTodos ?? estado.compromissos ?? []).filter((c) => c.carteiraID !== id),
         membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
         convite: null,
+        modoResumo: false,
+        resumoMensal: [],
       });
       return null;
     }
@@ -1553,12 +1684,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     nome: string;
     rotulo: RotuloCarteira;
     cor: string;
+    visibilidade?: VisibilidadeCarteira;
   }): Promise<string | null> => {
     if (!eDonoDa(estado.carteiras, estado.membros, usuario?.id, p.id)) {
       return "Só quem criou a carteira pode editar.";
     }
     const nome = p.nome.trim();
-    const visibilidade = visibilidadeDe(p.rotulo);
+    const visibilidade = visibilidadeDe(p.rotulo, p.visibilidade);
     if (!sb) {
       const atual = estado.carteiras.find((c) => c.id === p.id);
       const atualizada = carteiraPadrao({
@@ -1633,6 +1765,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           compromissosTodos: [],
           membros: usuario ? [{ userId: usuario.id, email: usuario.email ?? "", papel: "dono" }] : [],
           convite: null,
+          modoResumo: false,
+          resumoMensal: [],
         });
         return null;
       }
@@ -1676,6 +1810,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
             : []
           : estado.membros,
         convite: proxima ? null : estado.convite,
+        modoResumo: false,
+        resumoMensal: [],
       });
       return null;
     }
@@ -1732,6 +1868,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     liquidarLancamento,
     importarOfx,
     importarOfxConta,
+    pendenciasOutbox,
+    sincronizarOutbox,
   };
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

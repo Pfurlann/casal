@@ -50,6 +50,7 @@ describe("CarteiraForm", () => {
       nome: "Meu",
       rotulo: "pessoal",
       cor: CARTEIRA.cor,
+      visibilidade: "fechada",
     });
   });
 
@@ -66,6 +67,7 @@ describe("CarteiraForm", () => {
       nome: "Casa",
       rotulo: "pessoal",
       cor: CARTEIRA.cor,
+      visibilidade: "fechada",
     });
   });
 

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { RotuloCarteira } from "@/lib/domain";
+import type { RotuloCarteira, VisibilidadeCarteira } from "@/lib/domain";
 import { CORES_CARTAO, ROTULO_CARTEIRA } from "@/lib/domain";
 import { useLoja } from "@/lib/store";
 import { useAviso } from "../ui/Aviso";
@@ -26,6 +26,9 @@ export function CarteiraForm({ id }: { id?: string }) {
   const [rotulo, setRotulo] = useState<RotuloCarteira>(
     existente?.rotulo === "pj" ? "compartilhada" : (existente?.rotulo ?? "pessoal"),
   );
+  const [visibilidade, setVisibilidade] = useState<VisibilidadeCarteira>(
+    existente?.visibilidade === "resumo" ? "resumo" : "aberta",
+  );
   const [cor, setCor] = useState(existente?.cor ?? CORES_CARTAO[0]);
   const [salvando, setSalvando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -40,7 +43,12 @@ export function CarteiraForm({ id }: { id?: string }) {
   async function criar() {
     if (!pode) return;
     setSalvando(true);
-    const falha = await criarCarteira({ nome: nome.trim(), rotulo, cor });
+    const falha = await criarCarteira({
+      nome: nome.trim(),
+      rotulo,
+      cor,
+      visibilidade: rotulo === "pessoal" ? "fechada" : visibilidade,
+    });
     setSalvando(false);
     if (falha) avisar("erro", falha);
     else voltar();
@@ -49,7 +57,13 @@ export function CarteiraForm({ id }: { id?: string }) {
   async function salvar() {
     if (!pode || !existente) return;
     setSalvando(true);
-    const falha = await salvarCarteira({ id: existente.id, nome: nome.trim(), rotulo, cor });
+    const falha = await salvarCarteira({
+      id: existente.id,
+      nome: nome.trim(),
+      rotulo,
+      cor,
+      visibilidade: rotulo === "pessoal" ? "fechada" : visibilidade,
+    });
     setSalvando(false);
     if (falha) avisar("erro", falha);
     else voltar();
@@ -110,6 +124,25 @@ export function CarteiraForm({ id }: { id?: string }) {
               : "Você convida o parceiro com um código."}
           </p>
         </div>
+
+        {rotulo === "compartilhada" && (
+          <div className="mt-4">
+            <Rotulo>o parceiro vê</Rotulo>
+            <div className="mt-2 flex gap-2">
+              <Etiqueta ativa={visibilidade === "aberta"} aoClicar={() => setVisibilidade("aberta")}>
+                tudo
+              </Etiqueta>
+              <Etiqueta ativa={visibilidade === "resumo"} aoClicar={() => setVisibilidade("resumo")}>
+                só totais
+              </Etiqueta>
+            </div>
+            <p className="mt-2 text-[12px] text-cinza">
+              {visibilidade === "resumo"
+                ? "Parceiro vê totais do mês, sem cada lançamento."
+                : "Parceiro vê a mesma lista de lançamentos que você."}
+            </p>
+          </div>
+        )}
 
         <div className="mt-5">
           <Rotulo>cor</Rotulo>

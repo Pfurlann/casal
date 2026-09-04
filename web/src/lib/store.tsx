@@ -50,7 +50,7 @@ import { aplicarGastoNaReserva } from "./metas";
 import { pagadorPadrao } from "./pagador";
 import { clienteSupabase } from "./supabase";
 import { colunasDoPrograma, programaDeColunas } from "./pontos";
-import { transacoesDoOfx, type LinhaImportacaoOfx } from "./ofx";
+import { transacoesDoOfx, transacoesDoOfxConta, type LinhaImportacaoOfx } from "./ofx";
 import { cartaoDoLancamento, cartoesDaLoja, linhaDaTransacao } from "./persistir";
 import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
 import { cartoesAposApagar, eDonoDaOrigem, filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
@@ -501,6 +501,10 @@ type Loja = Estado & {
   }) => Promise<void>;
   importarOfx: (p: {
     cartaoID: string;
+    linhas: LinhaImportacaoOfx[];
+  }) => Promise<{ importados: number; repetidos: number }>;
+  importarOfxConta: (p: {
+    contaID: string;
     linhas: LinhaImportacaoOfx[];
   }) => Promise<{ importados: number; repetidos: number }>;
 };
@@ -1413,6 +1417,40 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     return { importados: novas.length, repetidos };
   };
 
+  const importarOfxConta: Loja["importarOfxConta"] = async ({ contaID, linhas }) => {
+    const conta = (estado.contasTodas ?? estado.contas).find((c) => c.id === contaID);
+    if (!conta) throw new Error("conta não encontrada");
+    const novas = transacoesDoOfxConta({
+      linhas,
+      carteiraID: estado.carteira.id,
+      contaID: conta.id,
+      pagadorID: pagadorPadrao(undefined, usuario?.id),
+      existentes: estado.transacoes,
+    });
+    const repetidos = linhas.filter((l) => estado.transacoes.some((t) => t.hashDedup === l.hashDedup)).length;
+    if (novas.length === 0) return { importados: 0, repetidos };
+    await commit({ ...estado, transacoes: [...estado.transacoes, ...novas] });
+    if (sb) {
+      const { error } = await sb.from("transactions").insert(novas.map(linhaDaTransacao));
+      if (error) {
+        if (error.code === "23505") {
+          let gravados = 0;
+          for (const tx of novas) {
+            const r = await sb.from("transactions").insert(linhaDaTransacao(tx));
+            if (r.error) {
+              if (r.error.code === "23505") continue;
+              throw r.error;
+            }
+            gravados += 1;
+          }
+          return { importados: gravados, repetidos: repetidos + (novas.length - gravados) };
+        }
+        throw error;
+      }
+    }
+    return { importados: novas.length, repetidos };
+  };
+
   const criarConvite = async (): Promise<string | null> => {
     if (!sb) return "Convites precisam do login na nuvem.";
     const { data, error } = await sb.rpc("criar_convite", { p_wallet_id: estado.carteira.id });
@@ -1693,6 +1731,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     liquidarCompromisso,
     liquidarLancamento,
     importarOfx,
+    importarOfxConta,
   };
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

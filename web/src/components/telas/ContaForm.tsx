@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CORES_CARTAO, ROTULO_TIPO_CONTA, type Conta, type TipoConta, type VisibilidadeOrigem } from "@/lib/domain";
@@ -141,7 +142,13 @@ export function ContaForm({ id }: { id?: string }) {
         </div>
 
         {existente && (
-          <div className="mt-8">
+          <div className="mt-8 space-y-3">
+            <Link
+              href={`/mais/contas/${existente.id}/importar-ofx`}
+              className="flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite"
+            >
+              Importar OFX
+            </Link>
             <Botao variante="destrutivo" onClick={arquivar} disabled={salvando}>
               Arquivar conta
             </Botao>

@@ -130,6 +130,14 @@ describe("ContaForm — saldo inicial", () => {
     );
   });
 
+  it("oferece importar OFX na conta existente", () => {
+    montar("c1");
+    expect(screen.getByRole("link", { name: "Importar OFX" })).toHaveAttribute(
+      "href",
+      "/mais/contas/c1/importar-ofx",
+    );
+  });
+
   it("alterna de volta para crédito pelo teclado", async () => {
     montar();
     const user = userEvent.setup({ delay: null });

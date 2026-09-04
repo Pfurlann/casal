@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { Cartao, Categoria, Transacao } from "./domain";
 import { competenciaDaCompra } from "./domain";
 import { transacoesDoMes } from "./metas";
-import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX } from "./ofx-fixture";
+import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX, FIXTURE_CONTA_OFX } from "./ofx-fixture";
 import {
   ACCEPT_ARQUIVO_OFX,
   CATEGORIA_OUTROS_ID,
+  CATEGORIA_REEMBOLSO_ID,
+  CATEGORIA_SALARIO_ID,
   centavosDeOfx,
   classificarCategoria,
+  classificarCategoriaOfxConta,
   classificarTipoOfx,
+  classificarTipoOfxConta,
   creditoRelevanteNaFatura,
   eConteudoOfx,
   eNomeOfx,
@@ -16,12 +20,17 @@ import {
   expansaoParcelasOfx,
   fraseParcelaOfx,
   hashDedupOfx,
+  hashDedupOfxConta,
   jaImportada,
   parcelaDoTexto,
   parseOfx,
+  parseOfxConta,
   pareceCredito,
   transacoesDoOfx,
+  transacoesDoOfxConta,
 } from "./ofx";
+import { saldoDaConta } from "./contas";
+import type { Conta } from "./domain";
 
 const CARTAO: Cartao = {
   id: "k1",
@@ -370,5 +379,122 @@ describe("transacoesDoOfx", () => {
     expect(txs[0]?.categoriaID).toBe("cat-pet");
     expect(transacoesDoMes(txs, { ano: 2026, mes: 9 }, [nanquim])).toHaveLength(1);
     expect(transacoesDoMes(txs, { ano: 2026, mes: 8 }, [nanquim])).toHaveLength(0);
+  });
+});
+
+describe("OFX de conta bancária", () => {
+  const CONTA: Conta = {
+    id: "cta1",
+    carteiraID: "w1",
+    nome: "Nubank",
+    tipo: "corrente",
+    saldoInicial: 100000,
+    arquivada: false,
+  };
+
+  it("classifica pelo sinal bancário, sem inverter CREDIT como cartão", () => {
+    expect(classificarTipoOfxConta("DEBIT", -8990, "IFOOD")).toBe("gasto");
+    expect(classificarTipoOfxConta("CREDIT", 520000, "SALARIO")).toBe("credito");
+    expect(classificarTipoOfx("CREDIT", 4000, "PARK EXPRESS")).toBe("gasto");
+    expect(classificarTipoOfxConta("CREDIT", 4000, "PARK EXPRESS")).toBe("credito");
+  });
+
+  it("parseOfxConta separa débitos e créditos pelo sinal", () => {
+    const { gastos, creditos } = parseOfxConta(FIXTURE_CONTA_OFX);
+    expect(gastos).toHaveLength(2);
+    expect(creditos).toHaveLength(2);
+    expect(gastos.map((g) => g.valorCentavos)).toEqual([8990, 25000]);
+    expect(creditos.map((c) => c.valorCentavos)).toEqual([520000, 4500]);
+    expect(gastos[0]?.descricao).toMatch(/IFOOD/);
+    expect(creditos[0]?.descricao).toMatch(/SALARIO/);
+  });
+
+  it("não muda o parse de cartão no mesmo arquivo de fatura", () => {
+    const cartao = parseOfx(FIXTURE_FATURA_OFX);
+    const conta = parseOfxConta(FIXTURE_FATURA_OFX);
+    expect(cartao.gastos).toHaveLength(3);
+    expect(cartao.creditos).toHaveLength(1);
+    // No extrato de conta, CREDIT positivo vira crédito (não gasto BR).
+    expect(conta.gastos).toHaveLength(3);
+    expect(conta.creditos).toHaveLength(1);
+    expect(conta.creditos[0]?.fitId).toBe("FIT-PAGTO-4");
+  });
+
+  it("categoria de conta: despesa pelas regras, crédito → salário/reembolso", () => {
+    expect(classificarCategoriaOfxConta("IFOOD *X", "gasto")).toBe("00000000-0000-0000-0000-000000000002");
+    expect(classificarCategoriaOfxConta("SALARIO EMPRESA", "credito")).toBe(CATEGORIA_SALARIO_ID);
+    expect(classificarCategoriaOfxConta("ESTORNO TAXA", "credito")).toBe(CATEGORIA_REEMBOLSO_ID);
+  });
+
+  it("materializa 1:1 liquidado na conta, sem cartão nem parcelas", () => {
+    const { gastos, creditos } = parseOfxConta(FIXTURE_CONTA_OFX);
+    const linhas = [...gastos, ...creditos].map((g) => ({
+      descricao: g.descricao,
+      valor: g.valorCentavos,
+      data: g.data,
+      categoriaID: classificarCategoriaOfxConta(g.descricao, g.tipo),
+      hashDedup: hashDedupOfxConta("cta1", g.fitId),
+      tipo: g.tipo,
+    }));
+    const txs = transacoesDoOfxConta({
+      linhas,
+      carteiraID: "w1",
+      contaID: "cta1",
+      pagadorID: "u1",
+    });
+    expect(txs).toHaveLength(4);
+    expect(txs.every((t) => t.status === "liquidado" && t.contaID === "cta1" && !t.cartaoID)).toBe(true);
+    expect(txs.filter((t) => t.tipo === "despesa")).toHaveLength(2);
+    expect(txs.filter((t) => t.tipo === "receita")).toHaveLength(2);
+    expect(txs.every((t) => t.parcelaN === 1 && t.parcelaTotal === 1 && !t.grupoParcela)).toBe(true);
+    expect(txs[0]?.hashDedup).toBe("ofx|cta1|CTA-IFOOD-1");
+  });
+
+  it("dedup por hash da conta e atualiza saldo", () => {
+    const { gastos } = parseOfxConta(FIXTURE_CONTA_OFX);
+    const linha = {
+      descricao: gastos[0]!.descricao,
+      valor: gastos[0]!.valorCentavos,
+      data: gastos[0]!.data,
+      categoriaID: CATEGORIA_OUTROS_ID,
+      hashDedup: hashDedupOfxConta("cta1", gastos[0]!.fitId),
+      tipo: "gasto" as const,
+    };
+    const primeiras = transacoesDoOfxConta({
+      linhas: [linha],
+      carteiraID: "w1",
+      contaID: "cta1",
+    });
+    expect(primeiras).toHaveLength(1);
+    const deNovo = transacoesDoOfxConta({
+      linhas: [linha],
+      carteiraID: "w1",
+      contaID: "cta1",
+      existentes: primeiras,
+    });
+    expect(deNovo).toHaveLength(0);
+    expect(jaImportada(primeiras, "ofx|cta1|CTA-IFOOD-1")).toBe(true);
+    // 1000,00 − 89,90
+    expect(saldoDaConta(CONTA, primeiras)).toBe(100000 - 8990);
+  });
+
+  it("PARC no extrato de conta não expande competências de cartão", () => {
+    const { gastos } = parseOfxConta(FIXTURE_PARCELA_OFX);
+    const txs = transacoesDoOfxConta({
+      linhas: gastos.map((g) => ({
+        descricao: g.descricao,
+        valor: g.valorCentavos,
+        data: g.data,
+        categoriaID: CATEGORIA_OUTROS_ID,
+        hashDedup: hashDedupOfxConta("cta1", g.fitId),
+        tipo: g.tipo,
+        parcelaN: g.parcelaN,
+        parcelaTotal: g.parcelaTotal,
+      })),
+      carteiraID: "w1",
+      contaID: "cta1",
+    });
+    expect(txs).toHaveLength(1);
+    expect(txs[0]?.parcelaTotal).toBe(1);
   });
 });

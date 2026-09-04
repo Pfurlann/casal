@@ -13,6 +13,8 @@ import {
 import type { Centavos } from "./money";
 
 export const CATEGORIA_OUTROS_ID = "00000000-0000-0000-0000-000000000012";
+export const CATEGORIA_SALARIO_ID = "00000000-0000-0000-0000-000000000013";
+export const CATEGORIA_REEMBOLSO_ID = "00000000-0000-0000-0000-000000000014";
 
 export type TipoLinhaOfx = "gasto" | "credito";
 
@@ -245,6 +247,14 @@ export function classificarTipoOfx(trntype: string, _centavos: number, memo: str
   }
 }
 
+/**
+ * Conta bancária: sinal OFX padrão (negativo = saída / gasto).
+ * Não reutiliza a classificação invertida de cartão BR.
+ */
+export function classificarTipoOfxConta(_trntype: string, centavos: number, _memo: string): TipoLinhaOfx {
+  return centavos < 0 ? "gasto" : "credito";
+}
+
 function blocosStmttrn(texto: string): string[] {
   const blocos: string[] = [];
   const re = /<STMTTRN>([\s\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN>)|(?=<\/BANKTRANLIST>))/gi;
@@ -301,8 +311,10 @@ export function lerTextoDoArquivo(file: File): Promise<string> {
   });
 }
 
-/** Extrai STMTTRN de OFX/OFC (SGML ou XML). Gastos e créditos separados. */
-export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOfx[] } {
+function parseStmttrn(
+  texto: string,
+  classificar: (trntype: string, centavos: number, memo: string) => TipoLinhaOfx,
+): { gastos: LinhaOfx[]; creditos: LinhaOfx[] } {
   const gastos: LinhaOfx[] = [];
   const creditos: LinhaOfx[] = [];
   const vistos = new Set<string>();
@@ -314,7 +326,7 @@ export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOf
     const data = dataDePosted(campo(bloco, "DTPOSTED") || campo(bloco, "DTUSER"));
     if (!data) continue;
     const descricao = descricaoDaLinha(bloco);
-    const tipo = classificarTipoOfx(campo(bloco, "TRNTYPE"), centavos, descricao);
+    const tipo = classificar(campo(bloco, "TRNTYPE"), centavos, descricao);
     const valorCentavos = centavos < 0 ? -centavos : centavos;
     const fitId = fitIdDaLinha(bloco, data, tipo === "gasto" ? -valorCentavos : valorCentavos, descricao);
     if (vistos.has(fitId)) continue;
@@ -338,8 +350,22 @@ export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOf
   return { gastos, creditos };
 }
 
+/** Extrai STMTTRN de OFX/OFC (SGML ou XML). Gastos e créditos separados — classificação de cartão BR. */
+export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOfx[] } {
+  return parseStmttrn(texto, classificarTipoOfx);
+}
+
+/** Extrato de conta bancária: sinal OFX padrão (não inverte como cartão BR). */
+export function parseOfxConta(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOfx[] } {
+  return parseStmttrn(texto, classificarTipoOfxConta);
+}
+
 export function hashDedupOfx(cartaoID: string, fitId: string): string {
   return `ofx|${cartaoID}|${fitId}`;
+}
+
+export function hashDedupOfxConta(contaID: string, fitId: string): string {
+  return `ofx|${contaID}|${fitId}`;
 }
 
 export function jaImportada(transacoes: Transacao[], hash: string): boolean {
@@ -367,6 +393,25 @@ export function classificarCategoria(descricao: string, custom?: Categoria[]): s
   }
   if (visiveis.has(CATEGORIA_OUTROS_ID)) return CATEGORIA_OUTROS_ID;
   return categoriasVisiveis(custom, "despesa")[0]?.id ?? CATEGORIAS.find((c) => c.tipo === "despesa")?.id ?? CATEGORIA_OUTROS_ID;
+}
+
+/** Categoria para linha de conta: despesa pelas regras; receita → Reembolso ou Salário. */
+export function classificarCategoriaOfxConta(
+  descricao: string,
+  tipo: TipoLinhaOfx,
+  custom?: Categoria[],
+): string {
+  if (tipo === "gasto") return classificarCategoria(descricao, custom);
+  const visiveis = new Set(categoriasVisiveis(custom, "receita").map((c) => c.id));
+  if (/reembolso|estorno|devolu[cç]/i.test(descricao) && visiveis.has(CATEGORIA_REEMBOLSO_ID)) {
+    return CATEGORIA_REEMBOLSO_ID;
+  }
+  if (visiveis.has(CATEGORIA_SALARIO_ID)) return CATEGORIA_SALARIO_ID;
+  return (
+    categoriasVisiveis(custom, "receita")[0]?.id ??
+    CATEGORIAS.find((c) => c.tipo === "receita")?.id ??
+    CATEGORIA_SALARIO_ID
+  );
 }
 
 export function hashDedupOfxParcela(hashAtual: string, atual: number, numero: number, total: number): string {
@@ -415,6 +460,42 @@ export function transacoesDoOfx(p: {
         status: "liquidado",
       });
     }
+  }
+  return novas;
+}
+
+/**
+ * Extrato de conta → lançamentos líquidos (já aconteceram).
+ * 1 linha = 1 tx; sem parcelas de cartão; crédito = receita, débito = despesa.
+ */
+export function transacoesDoOfxConta(p: {
+  linhas: LinhaImportacaoOfx[];
+  carteiraID: string;
+  contaID: string;
+  pagadorID?: string;
+  existentes?: Transacao[];
+}): Transacao[] {
+  const hashes = new Set((p.existentes ?? []).map((t) => t.hashDedup));
+  const novas: Transacao[] = [];
+  for (const linha of p.linhas) {
+    if (hashes.has(linha.hashDedup)) continue;
+    hashes.add(linha.hashDedup);
+    const credito = linha.tipo === "credito";
+    novas.push({
+      id: uuid(),
+      carteiraID: p.carteiraID,
+      tipo: credito ? "receita" : "despesa",
+      valor: linha.valor,
+      data: dataDeLocalISO(linha.data).toISOString(),
+      categoriaID: linha.categoriaID,
+      descricao: linha.descricao,
+      contaID: p.contaID,
+      pagadorID: p.pagadorID,
+      hashDedup: linha.hashDedup,
+      parcelaN: 1,
+      parcelaTotal: 1,
+      status: "liquidado",
+    });
   }
   return novas;
 }

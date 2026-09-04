@@ -23,7 +23,7 @@ import {
   tetoDaCategoria,
   valorPagoCom,
 } from "@/lib/metas";
-import { dividir, EntradaValor, formatarBRL } from "@/lib/money";
+import { EntradaValor, formatarBRL } from "@/lib/money";
 import { carteiraMostraPagador } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
 import { origensDoPagador } from "@/lib/visibilidade";
@@ -126,13 +126,15 @@ export function Lancar({
   const gastoTeto = teto?.categoriaID
     ? gastoDaCategoria(transacoes ?? [], teto.categoriaID, competencia, cartoesPagador)
     : 0;
+  /** No cartão com N>1 o teclado é o valor de cada parcela (não o total). */
+  const valorParcela = origemCartao && parcelas > 1;
+  const totalParcelado = valorParcela ? entrada.centavos * parcelas : entrada.centavos;
   const progresso = teto
     ? progressoTeto(teto.valorAlvo, gastoTeto + entrada.centavos)
     : undefined;
   const nomeTeto = teto
     ? (categoriaPorId(teto.categoriaID, categoriasCustom)?.nome ?? teto.nome)
     : "";
-  const primeiraParcela = parcelas > 1 ? (dividir(entrada.centavos, parcelas)[0] ?? 0) : 0;
   const opcoesConta = useMemo(
     () =>
       ehReceita
@@ -217,7 +219,8 @@ export function Lancar({
       const tipoLancamento: TipoTransacao = tipo;
       const data = dataDeLocalISO(dataISO);
       await lancar({
-        valor: entrada.centavos,
+        // Domínio ainda recebe o total e divide; a UI digita valor da parcela × N.
+        valor: totalParcelado,
         categoriaID,
         descricao: descricao.trim(),
         data,
@@ -293,7 +296,7 @@ export function Lancar({
       )}
       {origemCartao && (
         <div className="mt-3">
-          <Rotulo>parcelar em</Rotulo>
+          <Rotulo>parcelas</Rotulo>
           <select
             value={parcelas}
             aria-label="Parcelas"
@@ -309,8 +312,8 @@ export function Lancar({
           </select>
           {parcelas > 1 && (
             <p className="mt-2 text-[12px] text-cinza">
-              {parcelas}x de {formatarBRL(primeiraParcela)}, primeira parcela maior se
-              houver sobra
+              Total {formatarBRL(totalParcelado)} · {parcelas}x de{" "}
+              {formatarBRL(entrada.centavos)}
             </p>
           )}
         </div>
@@ -341,9 +344,18 @@ export function Lancar({
           className="px-4 pt-6 text-center"
           role="status"
           aria-live="polite"
-          aria-label={ehReceita ? "Valor da receita" : "Valor do gasto"}
+          aria-label={
+            ehReceita
+              ? "Valor da receita"
+              : valorParcela
+                ? "Valor da parcela"
+                : "Valor do gasto"
+          }
         >
           <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
+          {valorParcela && (
+            <p className="mt-2 text-[12px] text-cinza">valor da parcela</p>
+          )}
         </div>
         <div className="px-4">
           <Campo

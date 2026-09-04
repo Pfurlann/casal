@@ -328,13 +328,16 @@ describe("Lancar", () => {
     expect(screen.getByRole("option", { name: "24x" })).toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "3");
-    expect(screen.getByText(/3x de R\$ 33,34, primeira parcela maior se houver sobra/)).toBeInTheDocument();
+    // Teclado = valor da parcela; total = parcela × N
+    expect(screen.getByText(/Total R\$ 300,00 · 3x de R\$ 100,00/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Valor da parcela")).toBeInTheDocument();
   });
 
   it("grava o lançamento no cartão com o número de parcelas, sem conta", async () => {
     lancar.fn.mockClear();
     montar({ cartoes: [CARTAO] });
-    await userEvent.keyboard("300000");
+    // R$ 250,00 × 12 = R$ 3.000,00
+    await userEvent.keyboard("25000");
     await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
     await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "12");
     await informarDescricao("Sofá");
@@ -354,7 +357,8 @@ describe("Lancar", () => {
   it("no cartão 3x grava a mesma descrição para o grupo", async () => {
     lancar.fn.mockClear();
     montar({ cartoes: [CARTAO] });
-    await userEvent.keyboard("9000");
+    // R$ 30,00 × 3 = R$ 90,00
+    await userEvent.keyboard("3000");
     await userEvent.selectOptions(screen.getByLabelText("Forma de pagamento"), `cartao:${CARTAO.id}`);
     await userEvent.selectOptions(screen.getByLabelText("Parcelas"), "3");
     await informarDescricao("Sofá");
@@ -365,7 +369,12 @@ describe("Lancar", () => {
       data: Date;
       parcelas: number;
     };
-    expect(payload).toMatchObject({ descricao: "Sofá", cartaoID: CARTAO.id, parcelas: 3 });
+    expect(payload).toMatchObject({
+      descricao: "Sofá",
+      cartaoID: CARTAO.id,
+      parcelas: 3,
+      valor: 9000,
+    });
     const txs = transacoesDoLancamento({
       valor: payload.valor,
       descricao: payload.descricao,
@@ -376,6 +385,7 @@ describe("Lancar", () => {
     });
     expect(txs).toHaveLength(3);
     expect(txs.every((t) => t.descricao === "Sofá")).toBe(true);
+    expect(txs.every((t) => t.valor === 3000)).toBe(true);
   });
 
   it("na conjunta, quem pagou começa no usuário logado", async () => {

@@ -762,13 +762,18 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       linhaCarteira.visibilidade === "resumo" && linhaCarteira.souDono === false;
     let resumoMensal: ResumoMensal[] = [];
     if (modoResumo) {
-      const { data: resumos } = await sb
-        .from("resumo_mensal_carteira")
-        .select("ano, mes, despesas_centavos, receitas_centavos, qtd")
-        .eq("wallet_id", walletId);
-      resumoMensal = (resumos ?? []).map((r) => ({
-        ano: r.ano as number,
-        mes: r.mes as number,
+      const { data: resumos } = await sb.rpc("resumo_mensal_da_carteira", {
+        p_wallet_id: walletId,
+      });
+      resumoMensal = ((resumos as Array<{
+        ano: number;
+        mes: number;
+        despesas_centavos: number;
+        receitas_centavos: number;
+        qtd: number;
+      }> | null) ?? []).map((r) => ({
+        ano: r.ano,
+        mes: r.mes,
         despesas: Number(r.despesas_centavos ?? 0),
         receitas: Number(r.receitas_centavos ?? 0),
         qtd: Number(r.qtd ?? 0),

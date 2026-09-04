@@ -32,7 +32,7 @@ export function Navegacao() {
         // até lg: barra fixa no rodapé. de lg em diante: trilho à esquerda.
         "fixed inset-x-0 bottom-0 z-20 flex items-stretch border-t border-nevoa bg-ar " +
         "pb-[env(safe-area-inset-bottom)] " +
-        "lg:sticky lg:top-0 lg:h-dvh lg:w-[240px] lg:shrink-0 lg:flex-col lg:items-stretch " +
+        "lg:sticky lg:top-0 lg:h-dvh lg:w-[260px] lg:shrink-0 lg:flex-col lg:items-stretch " +
         "lg:overflow-y-auto lg:border-r lg:border-t-0 lg:px-4 lg:pt-8 lg:pb-0"
       }
     >
@@ -50,7 +50,7 @@ export function Navegacao() {
             className={
               "casal-toque min-h-[44px] flex-1 flex-col items-center justify-center gap-1 text-[10px] " +
               (d.soDesktop ? "hidden lg:flex " : "flex ") +
-              "lg:min-h-[44px] lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:text-[14px] " +
+              "lg:min-h-[40px] lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:py-2 lg:text-[14px] " +
               (atual
                 ? "text-grafite lg:bg-nevoa"
                 : "text-cinza lg:hover:bg-nevoa lg:hover:text-grafite")

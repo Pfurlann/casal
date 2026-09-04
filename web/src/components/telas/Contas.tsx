@@ -30,7 +30,7 @@ export function Contas() {
           </Link>
         }
       />
-      <div className="px-4 pt-6">
+      <div className="px-4 pt-6 lg:px-0">
         <p className="text-[12px] text-cinza">
           O que você tem no banco — usadas ao pagar fatura.
         </p>
@@ -47,25 +47,27 @@ export function Contas() {
             }
           />
         ) : (
-          <div className="mt-4">
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {contas.map((c) => {
               const saldo = saldoDaConta(c, transacoes ?? []);
               const alocado = alocadoNaConta(metas, c.id);
               const livre = saldoLivre(saldo, metas, c.id);
               const vis = ROTULO_VISIBILIDADE_ORIGEM[c.visibilidade ?? visibilidadePadraoDaCarteira(carteira)];
               return (
-                <LinhaLista
-                  key={c.id}
-                  icone={<BolinhaCor cor={c.cor} />}
-                  titulo={c.nome}
-                  subtitulo={
-                    alocado > 0
-                      ? `${ROTULO_TIPO_CONTA[c.tipo]} · livre ${formatarBRL(livre)} · ${vis}`
-                      : `${ROTULO_TIPO_CONTA[c.tipo]} · ${vis}`
-                  }
-                  valor={saldo}
-                  href={`/mais/contas/${c.id}`}
-                />
+                <div key={c.id} className="casal-painel lg:p-4">
+                  <LinhaLista
+                    icone={<BolinhaCor cor={c.cor} />}
+                    titulo={c.nome}
+                    subtitulo={
+                      alocado > 0
+                        ? `${ROTULO_TIPO_CONTA[c.tipo]} · livre ${formatarBRL(livre)} · ${vis}`
+                        : `${ROTULO_TIPO_CONTA[c.tipo]} · ${vis}`
+                    }
+                    valor={saldo}
+                    href={`/mais/contas/${c.id}`}
+                    semBorda
+                  />
+                </div>
               );
             })}
           </div>

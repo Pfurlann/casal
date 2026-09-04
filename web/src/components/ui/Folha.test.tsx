@@ -76,7 +76,7 @@ describe("Folha", () => {
   it("no desktop a folha ganha largura útil sem virar telefone cortado", () => {
     render(<Cena aoFechar={() => {}} />);
     const folha = screen.getByRole("dialog");
-    expect(folha.className).toContain("lg:max-w-[560px]");
+    expect(folha.className).toContain("lg:max-w-[720px]");
     expect(folha.className).toContain("overflow-y-auto");
   });
 

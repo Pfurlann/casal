@@ -19,7 +19,7 @@ export function Cabecalho({
   folga?: number;
 }) {
   return (
-    <div className="flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))]">
+    <div className="flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] lg:min-h-[52px] lg:gap-4 lg:px-0 lg:pt-0">
       {aoVoltar ? (
         <button
           type="button"
@@ -40,7 +40,7 @@ export function Cabecalho({
           </Link>
         )
       )}
-      <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-semibold tracking-[-0.02em] text-grafite">
+      <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-semibold tracking-[-0.02em] text-grafite lg:text-[22px] lg:tracking-[-0.03em]">
         {titulo}
       </h1>
       {marca && <Marca tamanho={26} folga={folga} />}

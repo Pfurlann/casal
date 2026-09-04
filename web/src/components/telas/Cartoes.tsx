@@ -78,30 +78,32 @@ export function Cartoes() {
           </Link>
         }
       />
-      <div className="casal-grade px-4 pt-8">
-        <div>
+      <div className="casal-grade px-4 pt-8 lg:px-0">
+        <div className="casal-painel lg:p-5">
           <Rotulo>a pagar este mês</Rotulo>
           <div className="mt-2">
             <Numero centavos={totalMes} tamanho="heroi" subordinaCentavos />
           </div>
         </div>
-        <div>
+        <div className="casal-painel mt-8 lg:mt-0 lg:p-5">
           <Rotulo>próximas faturas · todos os cartões</Rotulo>
           <div className="mt-3">
             <Curva pontos={pontos} />
           </div>
         </div>
       </div>
-      <div className="mt-8 px-4">
+      <div className="mt-8 grid gap-3 px-4 pb-4 lg:grid-cols-2 lg:px-0 xl:grid-cols-3">
         {itens.map((t) => (
-          <LinhaLista
-            key={t.cartao.id}
-            icone={<BolinhaCor cor={t.cartao.cor} />}
-            titulo={`${t.cartao.banco} · ${t.cartao.apelido}`}
-            subtitulo={`${t.cartao.visibilidade ? `${ROTULO_VISIBILIDADE_ORIGEM[t.cartao.visibilidade]} · ` : ""}fecha ${t.fecha} · vence ${t.vence} · próx. ${formatarBRL(t.proxima)}`}
-            valor={t.total}
-            href={`/cartoes/${t.cartao.id}`}
-          />
+          <div key={t.cartao.id} className="casal-painel lg:p-4">
+            <LinhaLista
+              icone={<BolinhaCor cor={t.cartao.cor} />}
+              titulo={`${t.cartao.banco} · ${t.cartao.apelido}`}
+              subtitulo={`${t.cartao.visibilidade ? `${ROTULO_VISIBILIDADE_ORIGEM[t.cartao.visibilidade]} · ` : ""}fecha ${t.fecha} · vence ${t.vence} · próx. ${formatarBRL(t.proxima)}`}
+              valor={t.total}
+              href={`/cartoes/${t.cartao.id}`}
+              semBorda
+            />
+          </div>
         ))}
       </div>
     </div>

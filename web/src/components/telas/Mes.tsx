@@ -30,6 +30,7 @@ import {
   totalDaFatura,
   useLoja,
 } from "@/lib/store";
+import { useDesktop } from "@/lib/use-desktop";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Etiqueta } from "../ui/Etiqueta";
 import { LinhaDeslizavel } from "../ui/LinhaDeslizavel";
@@ -68,6 +69,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
   const competencia = competenciaDaConsulta(competenciaRota);
   const [filtro, setFiltro] = useState<FiltroMes>("todos");
   const [pagando, setPagando] = useState<Transacao | null>(null);
+  const desktop = useDesktop();
 
   const resumoDoMes = (resumoMensal ?? []).find(
     (r) => r.ano === competencia.ano && r.mes === competencia.mes,
@@ -215,8 +217,8 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
           </div>
         }
       />
-      <div className="casal-resumo-mes px-4 pt-8">
-        <div>
+      <div className="casal-resumo-mes px-4 pt-8 lg:px-0">
+        <div className="casal-painel lg:p-5">
           <Rotulo>gasto neste mês</Rotulo>
           <div className="mt-2">
             <Numero centavos={gasto} tamanho="heroi" subordinaCentavos />
@@ -228,7 +230,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
             {gastos.length} lançamentos
           </p>
         </div>
-        <div>
+        <div className="casal-painel mt-8 lg:mt-0 lg:p-5">
           {receita > 0 && (
             <div>
               <Rotulo>receita neste mês</Rotulo>
@@ -265,12 +267,12 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
       </div>
 
       {aPagarComp.length > 0 && (
-        <div className="mt-8 px-4">
+        <div className="mt-8 px-4 lg:px-0">
           <Rotulo>compromissos</Rotulo>
           <p className="mt-1 text-[12px] text-cinza">
             Já lançados. Na lista do mês, deslize para marcar pago.
           </p>
-          <div className="mt-2">
+          <div className="casal-lista-densa mt-2 lg:grid lg:grid-cols-2 lg:gap-x-8">
             {aPagarComp.map((c) => (
               <LinhaLista
                 key={c.id}
@@ -290,18 +292,20 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
           <Vazio frase="Nenhum gasto este mês. Toque em + para registrar o primeiro." />
         ) : null
       ) : (
-        <div className="mt-8 px-4">
-          <Rotulo>lançamentos</Rotulo>
-          <div className="mt-2 flex gap-2" role="group" aria-label="Filtro dos lançamentos">
-            <Etiqueta ativa={filtro === "todos"} aoClicar={() => setFiltro("todos")}>
-              Todos
-            </Etiqueta>
-            <Etiqueta ativa={filtro === "pagos"} aoClicar={() => setFiltro("pagos")}>
-              Pagos
-            </Etiqueta>
-            <Etiqueta ativa={filtro === "a_pagar"} aoClicar={() => setFiltro("a_pagar")}>
-              A pagar
-            </Etiqueta>
+        <div className="mt-8 px-4 lg:px-0">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <Rotulo>lançamentos</Rotulo>
+            <div className="flex gap-2" role="group" aria-label="Filtro dos lançamentos">
+              <Etiqueta ativa={filtro === "todos"} aoClicar={() => setFiltro("todos")}>
+                Todos
+              </Etiqueta>
+              <Etiqueta ativa={filtro === "pagos"} aoClicar={() => setFiltro("pagos")}>
+                Pagos
+              </Etiqueta>
+              <Etiqueta ativa={filtro === "a_pagar"} aoClicar={() => setFiltro("a_pagar")}>
+                A pagar
+              </Etiqueta>
+            </div>
           </div>
           <div className="casal-tabela-cabeca mt-4" role="row">
             <span>descrição</span>
@@ -328,14 +332,16 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                 const parcela = t.parcelaTotal > 1 ? `${t.parcelaN}/${t.parcelaTotal}` : null;
                 const partes = [papel, parcela, origem?.nome, quem].filter(Boolean);
                 const titulo = t.descricao || cat?.nome || "Sem descrição";
+                const podePagar = !pago && !compraCartao && Boolean(liquidarLancamento);
                 return (
                   <LinhaDeslizavel
                     key={t.id}
-                    desabilitado={pago || compraCartao}
+                    desabilitado={pago || compraCartao || desktop}
+                    className={desktop ? "casal-deslize-desktop-off" : undefined}
                     acao={
-                      pago || compraCartao || !liquidarLancamento
-                        ? undefined
-                        : { rotulo: "Pago", aoClicar: () => setPagando(t) }
+                      podePagar && !desktop
+                        ? { rotulo: "Pago", aoClicar: () => setPagando(t) }
+                        : undefined
                     }
                   >
                     <Link
@@ -370,6 +376,18 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                           <span aria-label="pago" className="text-[14px] text-pago">
                             ✓
                           </span>
+                        ) : podePagar && desktop ? (
+                          <button
+                            type="button"
+                            className="casal-btn-pagar-desktop"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setPagando(t);
+                            }}
+                          >
+                            Pagar
+                          </button>
                         ) : (
                           <span className="casal-linha-mes-estado-texto">a pagar</span>
                         )}

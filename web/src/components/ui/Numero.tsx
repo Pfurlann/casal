@@ -1,9 +1,9 @@
 import { formatarBRL } from "@/lib/money";
 
 const TAMANHO = {
-  heroi: "text-[36px] tracking-[-0.03em]",
-  secao: "text-[24px] tracking-[-0.03em]",
-  corpo: "text-[14px]",
+  heroi: "text-[36px] tracking-[-0.03em] lg:text-[48px]",
+  secao: "text-[24px] tracking-[-0.03em] lg:text-[30px]",
+  corpo: "text-[14px] lg:text-[15px]",
   legenda: "text-[12px]",
 } as const;
 

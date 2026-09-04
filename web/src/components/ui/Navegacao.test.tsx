@@ -69,11 +69,11 @@ describe("Navegacao — trilho de desktop", () => {
     expect(screen.getAllByRole("link", { name: "mês" })).toHaveLength(1);
   });
 
-  it("no desktop o trilho é um painel de 240px, não uma barra apertada", () => {
+  it("no desktop o trilho é um painel de 260px, não uma barra apertada", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
     expect(screen.getByRole("navigation", { name: "Seções" }).className).toContain(
-      "lg:w-[240px]",
+      "lg:w-[260px]",
     );
     expect(screen.getByRole("navigation", { name: "Seções" }).className).toContain(
       "lg:sticky",

@@ -74,25 +74,43 @@ select {
   font-size: 12px;
 }
 
+.casal-btn-pagar-desktop {
+  display: none;
+}
+
+.casal-painel {
+  /* mobile: sem card — continua fluxo natural */
+}
+
 @media (min-width: 1024px) {
+  body {
+    background: color-mix(in srgb, var(--nevoa) 55%, var(--ar));
+  }
+
   .casal-shell {
     display: flex;
     align-items: stretch;
     width: 100%;
-    max-width: 1440px;
+    max-width: 1600px;
     margin-inline: auto;
     padding-inline: var(--e-6);
-    gap: var(--e-4);
+    gap: var(--e-5);
   }
 
   .casal-principal {
     flex: 1;
     min-width: 0;
     width: 100%;
-    max-width: 1100px;
+    max-width: 1280px;
     margin-inline: 0;
-    padding-inline: var(--e-4);
+    margin-block: var(--e-5);
+    padding-inline: var(--e-6);
+    padding-block: var(--e-5) var(--e-8);
     padding-bottom: var(--e-8);
+    border: 1px solid var(--nevoa);
+    border-radius: 22px;
+    background: var(--ar);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--grafite) 4%, transparent);
   }
 
   .casal-resumo-mes,
@@ -103,10 +121,47 @@ select {
     align-items: start;
   }
 
+  .casal-paineis {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--e-5);
+    align-items: start;
+  }
+
+  .casal-painel {
+    border: 1px solid var(--nevoa);
+    border-radius: 18px;
+    background: var(--ar);
+    padding: var(--e-5);
+  }
+
+  .casal-painel-6 {
+    grid-column: span 6;
+  }
+
+  .casal-painel-4 {
+    grid-column: span 4;
+  }
+
+  .casal-painel-8 {
+    grid-column: span 8;
+  }
+
+  .casal-painel-12 {
+    grid-column: span 12;
+  }
+
+  .casal-lista-densa .casal-linha-lista,
+  .casal-lista-densa a.casal-linha-lista,
+  .casal-lista-densa button.casal-linha-lista {
+    min-height: 36px;
+    padding-block: 0.5rem;
+  }
+
   /* Mesma grade no cabeçalho e em cada linha — sem max-content (largura por conteúdo). */
   .casal-tabela-cabeca,
   .casal-linha-mes {
-    --casal-cols-mes: minmax(0, 2.4fr) minmax(0, 1.1fr) minmax(0, 1.5fr) 7.25rem 4.5rem;
+    --casal-cols-mes: minmax(0, 2.6fr) minmax(0, 1.2fr) minmax(0, 1.5fr) 7.5rem 5.5rem;
     display: grid;
     grid-template-columns: var(--casal-cols-mes);
     column-gap: var(--e-4);
@@ -115,16 +170,24 @@ select {
   }
 
   .casal-tabela-cabeca {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     padding-block: var(--e-2);
     border-bottom: 1px solid var(--nevoa);
+    background: var(--ar);
     color: var(--cinza);
     font-size: 12px;
   }
 
   .casal-linha-mes {
-    min-height: var(--alvo);
-    padding-block: var(--e-3);
+    min-height: 40px;
+    padding-block: 0.55rem;
     text-align: left;
+  }
+
+  .casal-linha-mes:hover {
+    background: color-mix(in srgb, var(--nevoa) 65%, transparent);
   }
 
   .casal-linha-mes-desc {
@@ -173,6 +236,32 @@ select {
   .casal-linha-mes-estado {
     justify-self: stretch;
     text-align: right;
+  }
+
+  .casal-btn-pagar-desktop {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid var(--nevoa);
+    padding-inline: 0.65rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--grafite);
+    background: var(--ar);
+  }
+
+  .casal-btn-pagar-desktop:hover {
+    background: var(--nevoa);
+  }
+
+  .casal-deslize-desktop-off > button:first-child {
+    display: none;
+  }
+
+  .casal-deslize-desktop-off > div {
+    transform: none !important;
   }
 }
 

@@ -17,8 +17,10 @@ describe("toque — tokens e reduced-motion", () => {
   it("o shell wide usa o painel, não um telefone no meio", () => {
     expect(globals).toContain(".casal-shell");
     expect(globals).toContain(".casal-principal");
-    expect(globals).toMatch(/max-width:\s*1100px/);
-    expect(globals).toMatch(/max-width:\s*1440px/);
+    expect(globals).toMatch(/max-width:\s*1280px/);
+    expect(globals).toMatch(/max-width:\s*1600px/);
+    expect(globals).toContain(".casal-paineis");
+    expect(globals).toContain(".casal-painel");
     expect(globals).toContain(".casal-linha-mes");
     expect(globals).toContain(".casal-resumo-mes");
   });

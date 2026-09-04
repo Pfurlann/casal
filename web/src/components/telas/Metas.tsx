@@ -76,7 +76,7 @@ export function Metas() {
           </Link>
         }
       />
-      <div className="px-4 pt-6">
+      <div className="px-4 pt-6 lg:px-0">
         <p className="text-[12px] text-cinza">
           Tetos e economia de {carteira.nome}. Reserve na conta sem transferência. Gastar da
           reserva desconta a meta.
@@ -95,11 +95,11 @@ export function Metas() {
             }
           />
         ) : (
-          <>
+          <div className="casal-paineis mt-2">
             {tetos.length > 0 && (
-              <div className="mt-6">
+              <div className="casal-painel casal-painel-6 mt-6 lg:mt-4">
                 <Rotulo>tetos</Rotulo>
-                <div className="mt-2">
+                <div className="casal-lista-densa mt-2">
                   {tetos.map((m) => {
                     const cat = categoriaPorId(m.categoriaID, categorias);
                     const gasto = gastoDaCategoria(transacoes ?? [], m.categoriaID ?? "", competencia, cartoes);
@@ -124,25 +124,27 @@ export function Metas() {
             )}
 
             {economias.length > 0 && (
-              <div className="mt-8">
+              <div className="casal-painel casal-painel-6 mt-8 lg:mt-4">
                 <Rotulo>economia do mês</Rotulo>
                 <p className="mt-1 text-[12px] text-cinza">
                   Competência deste mês. Com reserva, o alvo é o envelope.
                 </p>
-                <div className="mt-2">{economias.map(linhaEconomia)}</div>
+                <div className="casal-lista-densa mt-2">{economias.map(linhaEconomia)}</div>
               </div>
             )}
 
             {objetivos.length > 0 && (
-              <div className="mt-8">
+              <div className="casal-painel casal-painel-12 mt-8 lg:mt-4">
                 <Rotulo>longo prazo</Rotulo>
                 <p className="mt-1 text-[12px] text-cinza">
                   Alvo com data opcional. Reserve na conta até completar ou marque concluída.
                 </p>
-                <div className="mt-2">{objetivos.map(linhaEconomia)}</div>
+                <div className="casal-lista-densa mt-2 lg:grid lg:grid-cols-2 lg:gap-x-8">
+                  {objetivos.map(linhaEconomia)}
+                </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

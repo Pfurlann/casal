@@ -70,7 +70,7 @@ export function LinhaLista({
   semBorda?: boolean;
 }) {
   const classe =
-    `flex min-h-[44px] w-full items-center gap-3 py-3 text-left ${
+    `casal-linha-lista casal-toque flex min-h-[44px] w-full items-center gap-3 py-3 text-left lg:min-h-[36px] lg:py-2 ${
       semBorda ? "" : "border-b border-nevoa"
     }`;
   const filhos = (

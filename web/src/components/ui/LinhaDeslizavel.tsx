@@ -12,10 +12,12 @@ export function LinhaDeslizavel({
   acao,
   children,
   desabilitado,
+  className,
 }: {
   acao?: { rotulo: string; aoClicar: () => void };
   children: ReactNode;
   desabilitado?: boolean;
+  className?: string;
 }) {
   const [dx, setDx] = useState(0);
   const inicio = useRef<number | null>(null);
@@ -40,7 +42,7 @@ export function LinhaDeslizavel({
   }
 
   return (
-    <div className="relative overflow-hidden border-b border-nevoa">
+    <div className={`relative overflow-hidden border-b border-nevoa ${className ?? ""}`}>
       {pode && (
         <button
           type="button"

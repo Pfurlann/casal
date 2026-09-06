@@ -450,3 +450,8 @@ export function competenciaDaConsulta(s: string | undefined): Competencia {
 export function hrefDoMes(c: Competencia): string {
   return `/mes?c=${rotuloDaCompetencia(c)}`;
 }
+
+/** Query `?c=AAAA-MM` do detalhe do cartão / fatura. */
+export function hrefDoCartao(id: string, c: Competencia): string {
+  return `/cartoes/${id}?c=${rotuloDaCompetencia(c)}`;
+}

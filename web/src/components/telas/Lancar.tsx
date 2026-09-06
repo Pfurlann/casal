@@ -37,6 +37,7 @@ import { SeletorCategoria } from "../ui/SeletorCategoria";
 import { BolinhaCor } from "../ui/SeletorCor";
 import { Teclado } from "../ui/Teclado";
 import { useAviso } from "../ui/Aviso";
+import { Vazio } from "../ui/Vazio";
 import { fecharFolha } from "@/lib/folha-nav";
 
 function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
@@ -87,9 +88,6 @@ export function Lancar({
   const [salvando, setSalvando] = useState(false);
   const campoValor = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    campoValor.current?.focus();
-  }, []);
   const mostraPagador = carteiraMostraPagador(carteira);
   const pagadorID = pagadorEscolhido ?? usuarioID ?? "";
   const contasPagador = useMemo(
@@ -180,6 +178,43 @@ export function Lancar({
       if (primeira) setContaID(primeira.id);
     }
   }, [pagadorID, contasPagador, cartoesPagador, contaID, cartaoID]);
+
+  const semOrigem = contasPagador.length === 0 && cartoesPagador.length === 0;
+
+  useEffect(() => {
+    if (semOrigem) return;
+    campoValor.current?.focus();
+  }, [semOrigem]);
+
+  if (semOrigem) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <Cabecalho titulo={titulo} aoVoltar={voltar} />
+        {carteira?.nome && (
+          <p className="px-4 pt-1 text-center text-[12px] text-cinza">em {carteira.nome}</p>
+        )}
+        <Vazio
+          frase="Cadastre uma conta ou um cartão para começar a lançar."
+          acao={
+            <div className="flex flex-col items-center gap-2">
+              <Link
+                href="/mais/contas/novo"
+                className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+              >
+                Adicionar conta
+              </Link>
+              <Link
+                href="/cartoes/novo"
+                className="flex min-h-[44px] items-center rounded-controle border border-nevoa px-4 font-texto text-[14px] font-semibold text-grafite"
+              >
+                Adicionar cartão
+              </Link>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
 
   function escolherTipo(proximo: "despesa" | "receita") {
     if (proximo === tipo) return;

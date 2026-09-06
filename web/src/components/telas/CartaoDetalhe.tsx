@@ -7,8 +7,10 @@ import {
   avancando,
   chaveCompetencia,
   competenciaDaCompra,
+  competenciaDaConsulta,
   competenciaDe,
   dataLocalISO,
+  hrefDoCartao,
   rotuloCurto,
   rotuloDaCompetencia,
   type Competencia,
@@ -76,13 +78,20 @@ function BlocoPontos({ programa }: { programa?: ProgramaPontos }) {
   );
 }
 
-export function CartaoDetalhe({ id }: { id: string }) {
+export function CartaoDetalhe({
+  id,
+  competenciaRota,
+}: {
+  id: string;
+  /** Query `?c=AAAA-MM` — deep-link da fatura/competência. */
+  competenciaRota?: string;
+}) {
   const { cartoes, transacoes, faturas, apagarCartao, usuarioID } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
   const agora = new Date();
   const atualComp = competenciaDe(agora);
-  const [competencia, setCompetencia] = useState<Competencia>(atualComp);
+  const competencia = competenciaDaConsulta(competenciaRota);
   const [confirmando, setConfirmando] = useState(false);
   const [apagando, setApagando] = useState(false);
   const cartao = cartoes.find((c) => c.id === id);
@@ -160,38 +169,35 @@ export function CartaoDetalhe({ id }: { id: string }) {
         <BlocoPontos programa={cartao.programa} />
 
         <div className="mt-6 flex items-center justify-between gap-2">
-          <button
-            type="button"
+          <Link
+            href={hrefDoCartao(cartao.id, avancando(competencia, -1))}
             aria-label="Fatura anterior"
-            onClick={() => setCompetencia((c) => avancando(c, -1))}
             className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[22px] text-grafite"
           >
             ‹
-          </button>
+          </Link>
           <div className="min-w-0 flex-1 text-center" aria-live="polite">
             <p className="font-texto text-[16px] font-semibold text-grafite">
               {rotuloCurto(competencia)} {competencia.ano}
             </p>
             <p className="mt-0.5 text-[12px] text-cinza">{papel}</p>
           </div>
-          <button
-            type="button"
+          <Link
+            href={hrefDoCartao(cartao.id, avancando(competencia, 1))}
             aria-label="Próxima fatura"
-            onClick={() => setCompetencia((c) => avancando(c, 1))}
             className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center text-[22px] text-grafite"
           >
             ›
-          </button>
+          </Link>
         </div>
 
         {chaveCompetencia(competencia) !== chaveCompetencia(atualComp) && (
-          <button
-            type="button"
-            onClick={() => setCompetencia(atualComp)}
+          <Link
+            href={hrefDoCartao(cartao.id, atualComp)}
             className="casal-toque mt-2 mx-auto flex min-h-[44px] items-center justify-center text-[13px] font-semibold text-grafite"
           >
             Voltar à fatura atual
-          </button>
+          </Link>
         )}
 
         <div className="mt-6">

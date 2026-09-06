@@ -30,17 +30,21 @@ const CARTAO = {
 };
 
 function tela(extra: Record<string, unknown> = {}) {
+  const { competenciaRota, ...lojaExtra } = extra;
   loja.valor = {
     cartoes: [CARTAO],
     faturas: [],
     transacoes: [],
     usuarioID: "u1",
     apagarCartao: vi.fn().mockResolvedValue(undefined),
-    ...extra,
+    ...lojaExtra,
   };
   return render(
     <ProvedorAviso>
-      <CartaoDetalhe id="k1" />
+      <CartaoDetalhe
+        id="k1"
+        competenciaRota={typeof competenciaRota === "string" ? competenciaRota : undefined}
+      />
     </ProvedorAviso>,
   );
 }
@@ -145,8 +149,9 @@ describe("CartaoDetalhe", () => {
     expect(screen.getByText("Saldo informado por você")).toBeInTheDocument();
   });
 
-  it("navega para fatura anterior e mostra gasto fora da atual", async () => {
+  it("deep-link ?c= mostra fatura anterior e gasto fora da atual", () => {
     tela({
+      competenciaRota: "2026-08",
       transacoes: [
         {
           id: "ofx-antigo",
@@ -164,11 +169,6 @@ describe("CartaoDetalhe", () => {
         parcela(1, new Date(2026, 8, 10, 12)),
       ],
     });
-    expect(screen.getByText("Sofá")).toBeInTheDocument();
-    expect(screen.queryByText("IFOOD OFX")).toBeNull();
-    expect(screen.getByText("fatura atual")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Fatura anterior" }));
     expect(screen.getByText("fatura anterior")).toBeInTheDocument();
     expect(screen.getByText("ago 2026")).toBeInTheDocument();
     expect(screen.getByText("IFOOD OFX")).toBeInTheDocument();
@@ -178,29 +178,59 @@ describe("CartaoDetalhe", () => {
       "/lancamentos/ofx-antigo",
     );
     expect(screen.queryByText("Sofá")).toBeNull();
+    expect(screen.getByRole("link", { name: "Fatura anterior" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-07",
+    );
+    expect(screen.getByRole("link", { name: "Próxima fatura" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-09",
+    );
+    expect(screen.getByRole("link", { name: "Voltar à fatura atual" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-09",
+    );
   });
 
-  it("navega para faturas futuras e volta à atual", async () => {
+  it("deep-link ?c= mostra fatura futura e links de navegação", () => {
     tela({
+      competenciaRota: "2026-11",
       transacoes: [
         parcela(1, new Date(2026, 8, 28, 12)),
         parcela(2, new Date(2026, 9, 28, 12)),
         parcela(3, new Date(2026, 10, 28, 12)),
       ],
     });
-    await userEvent.click(screen.getByRole("button", { name: "Próxima fatura" }));
-    expect(screen.getByText("próxima fatura")).toBeInTheDocument();
-    expect(screen.getByText("28/10/2026 · parcela 2 de 3")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Próxima fatura" }));
     expect(screen.getByText("fatura futura")).toBeInTheDocument();
     expect(screen.getByText("nov 2026")).toBeInTheDocument();
     expect(screen.getByText("28/11/2026 · parcela 3 de 3")).toBeInTheDocument();
     expect(screen.getByText("R$ 33,33")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Fatura anterior" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-10",
+    );
+    expect(screen.getByRole("link", { name: "Próxima fatura" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-12",
+    );
+    expect(screen.getByRole("link", { name: "Voltar à fatura atual" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-09",
+    );
+  });
 
-    await userEvent.click(screen.getByRole("button", { name: "Voltar à fatura atual" }));
+  it("na fatura atual, links de seta usam ?c= na rota", () => {
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
     expect(screen.getByText("fatura atual")).toBeInTheDocument();
-    expect(screen.getByText("28/09/2026 · parcela 1 de 3")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Fatura anterior" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-08",
+    );
+    expect(screen.getByRole("link", { name: "Próxima fatura" })).toHaveAttribute(
+      "href",
+      "/cartoes/k1?c=2026-10",
+    );
+    expect(screen.queryByRole("link", { name: "Voltar à fatura atual" })).toBeNull();
   });
 
   it("o dono vê Apagar e confirma", async () => {

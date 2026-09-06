@@ -4,6 +4,7 @@ import {
   competenciaDaRota,
   dataDeLocalISO,
   dataLocalISO,
+  hrefDoCartao,
   hrefDoMes,
   planejarParcelas,
   rotuloDaCompetencia,
@@ -53,7 +54,7 @@ describe("rotuloDaCompetencia", () => {
   });
 });
 
-describe("competenciaDaConsulta / hrefDoMes", () => {
+describe("competenciaDaConsulta / hrefDoMes / hrefDoCartao", () => {
   it("lê ?c= ou cai no mês atual, e monta o href", () => {
     expect(competenciaDaConsulta("2026-08")).toEqual({ ano: 2026, mes: 8 });
     expect(competenciaDaConsulta("setembro")).toEqual(expect.objectContaining({
@@ -61,6 +62,7 @@ describe("competenciaDaConsulta / hrefDoMes", () => {
       mes: new Date().getMonth() + 1,
     }));
     expect(hrefDoMes({ ano: 2026, mes: 8 })).toBe("/mes?c=2026-08");
+    expect(hrefDoCartao("k1", { ano: 2026, mes: 8 })).toBe("/cartoes/k1?c=2026-08");
   });
 });
 

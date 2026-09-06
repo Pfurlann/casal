@@ -284,13 +284,17 @@ describe("Lancar", () => {
     expect(empurrar).not.toHaveBeenCalled();
   });
 
-  it("sem contas nem cartões, pede cadastro e não deixa salvar", async () => {
+  it("sem contas nem cartões, mostra CTA claro e não deixa teclado morto", () => {
     montar({ contas: [], cartoes: [] });
-    await userEvent.keyboard("1000");
-    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Cadastrar conta" })).toHaveAttribute(
+    expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
+    expect(screen.getByText(/Cadastre uma conta ou um cartão/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Adicionar conta" })).toHaveAttribute(
       "href",
       "/mais/contas/novo",
+    );
+    expect(screen.getByRole("link", { name: "Adicionar cartão" })).toHaveAttribute(
+      "href",
+      "/cartoes/novo",
     );
     expect(screen.queryByLabelText("Forma de pagamento")).toBeNull();
   });

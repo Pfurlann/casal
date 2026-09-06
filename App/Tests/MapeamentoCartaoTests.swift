@@ -7,6 +7,7 @@ import Testing
 struct MapeamentoCartaoTests {
     @Test("cartão faz ida e volta sem perder nenhum campo")
     func cartaoIdaEVolta() {
+        let removidoEm = Date(timeIntervalSince1970: 1_680_000_100)
         let original = Cartao(
             carteiraID: UUID(),
             apelido: "Nosso",
@@ -18,7 +19,8 @@ struct MapeamentoCartaoTests {
             diaFechamento: 28,
             diaVencimento: 5,
             contaPagamentoID: UUID(),
-            arquivado: true
+            arquivado: true,
+            removidoEm: removidoEm
         )
 
         let volta = CartaoRegistro(dominio: original).paraDominio()
@@ -35,6 +37,7 @@ struct MapeamentoCartaoTests {
         #expect(volta.diaVencimento == 5)
         #expect(volta.contaPagamentoID == original.contaPagamentoID)
         #expect(volta.arquivado == true)
+        #expect(volta.removidoEm == removidoEm)
     }
 
     @Test("o limite persiste como inteiro de centavos")
@@ -74,9 +77,11 @@ struct MapeamentoCartaoTests {
 
     @Test("conta faz ida e volta")
     func contaIdaEVolta() {
+        let removidoEm = Date(timeIntervalSince1970: 1_680_000_200)
         let original = Conta(
             carteiraID: UUID(), nome: "Conta corrente",
-            tipo: .poupanca, saldoInicial: Money(centavos: 150_000), arquivada: true
+            tipo: .poupanca, saldoInicial: Money(centavos: 150_000), arquivada: true,
+            removidoEm: removidoEm
         )
         let volta = ContaRegistro(dominio: original).paraDominio()
 
@@ -86,6 +91,7 @@ struct MapeamentoCartaoTests {
         #expect(volta.tipo == .poupanca)
         #expect(volta.saldoInicial == Money(centavos: 150_000))
         #expect(volta.arquivada == true)
+        #expect(volta.removidoEm == removidoEm)
     }
 
     @Test("raw value malformado cai no padrão e dispara assertion em debug")

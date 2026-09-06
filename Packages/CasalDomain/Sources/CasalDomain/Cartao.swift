@@ -17,6 +17,8 @@ public struct Cartao: Identifiable, Hashable, Sendable {
     /// Conta de onde o pagamento da fatura sai, quando já escolhida.
     public var contaPagamentoID: UUID?
     public var arquivado: Bool
+    /// Espelho de `deleted_at` SQL / soft-delete local.
+    public var removidoEm: Date?
 
     public init(
         id: UUID = UUID(),
@@ -30,7 +32,8 @@ public struct Cartao: Identifiable, Hashable, Sendable {
         diaFechamento: Int,
         diaVencimento: Int,
         contaPagamentoID: UUID? = nil,
-        arquivado: Bool = false
+        arquivado: Bool = false,
+        removidoEm: Date? = nil
     ) {
         self.id = id
         self.carteiraID = carteiraID
@@ -44,7 +47,10 @@ public struct Cartao: Identifiable, Hashable, Sendable {
         self.diaVencimento = diaVencimento
         self.contaPagamentoID = contaPagamentoID
         self.arquivado = arquivado
+        self.removidoEm = removidoEm
     }
+
+    public var estaRemovido: Bool { removidoEm != nil }
 
     public static func diaValido(_ dia: Int) -> Bool {
         (1...31).contains(dia)

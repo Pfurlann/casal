@@ -1,7 +1,7 @@
-# AVISO — Contrato: outbox offline→online (P1.5 BACK)
+# AVISO — Contrato: outbox offline→online (P1.5 → P1.6 BACK)
 
 **Data:** 2026-09-06  
-**Escopo:** fila localStorage por user (`casal-outbox[:userId]`), drain idempotente com reapply pós-23505, soft-delete SQL `deleted_at`, SwiftData upsert in-place + soft-delete de conta.
+**Escopo:** fila localStorage por user (`casal-outbox[:userId]`), drain idempotente com reapply pós-23505, soft-delete SQL `deleted_at`, SwiftData upsert in-place + soft-delete de conta/cartão; P1.6: `apagarConta` web + `removidoEm` no domínio Conta/Cartao.
 
 ## Soft-delete no SQL
 
@@ -17,7 +17,7 @@ No domínio iOS / SwiftData o espelho é **`removidoEm`**.
 | --- | --- | --- | --- | --- | --- |
 | `insert` | ✅ drain + callers | ✅ drain + `salvarCartao` | ✅ drain + `salvarConta` | ✅ drain + `pagarFatura` | ✅ drain + `salvarCompromisso` |
 | `update` | ✅ `editar` / `liquidar*` | ✅ `salvarCartao` | ✅ `salvarConta` | ✅ `pagarFatura` | ✅ `liquidarCompromisso` / `salvarCompromisso` |
-| `soft_delete` | ✅ `apagar` (+ compromisso a_pagar) | ✅ `apagarCartao` | ✅ drain (API) | ✅ drain (API) | ✅ `apagarCompromisso` |
+| `soft_delete` | ✅ `apagar` (+ compromisso a_pagar) | ✅ `apagarCartao` | ✅ `apagarConta` | ✅ drain (API) | ✅ `apagarCompromisso` |
 
 - **23505 em `insert`:** após conflito, o drain **reaplica** linha a linha — insert individual e, se ainda 23505, **`update` by `id`** com o payload da linha (sem `id`). Antes (P1) 23505 = sucesso vazio sem reaplicar patch.
 - Item legado (só `linhas`, sem `op`/`tabela`) normaliza para `insert` + `transactions`.
@@ -34,6 +34,7 @@ API: `web/src/lib/outbox.ts` — `enfileirarOutbox` (legado insert txs), `enfile
 | `editar` | `update` txs |
 | `apagar` | `soft_delete` txs |
 | `apagarCartao` | `soft_delete` cards |
+| `apagarConta` | `soft_delete` accounts |
 | `salvarCartao` | `insert` ou `update` cards (conforme já existia local) |
 | `salvarConta` | `insert` ou `update` accounts |
 | `pagarFatura` | `insert`/`update` invoices + `insert` tx transferência |
@@ -50,17 +51,18 @@ Payloads derivados do DDL (`accounts` / `cards` / `invoices` / `transactions` / 
 
 `RepositorioCartoes.arquivarConta` (P1.5): soft-delete local — `arquivada = true` + `removidoEm = agora` (espelha `deleted_at`).
 
-Regra seção 12: se `removidoEm` local já está setado, **não ressuscita** ao aplicar um domínio sem remoção (`aplicar(dominio:)` em `Mapeamento.swift`).
+Regra seção 12: se `removidoEm` local já está setado, **não ressuscita** ao aplicar um domínio sem remoção (`aplicar(dominio:)` em `Mapeamento.swift` — Transacao, Cartao, Conta).
 
 `RepositorioFaturas.atualizarFatura` já era in-place.
 
 ## O que ficou para depois
 
-1. **Caller web `apagarConta` / soft_delete accounts** — API de fila já aceita; store ainda não expõe fluxo de apagar conta com enqueue (só `salvarConta`).
-2. **Metas / goals no outbox** — `liquidar*` enfileira txs/commitments; `persistirMetas` continua online-only (goals fora do mapa).
-3. **Domínio Swift** `Cartao` / `Conta` ainda não carregam `removidoEm` — preservamos só o valor local no registro; espelhar no domínio quando o sync M3 precisar round-trip.
-4. **`arquivarCartao` iOS** ainda só seta `arquivado` (não `removidoEm`); alinhar ao soft-delete de conta se o sync exigir `deleted_at` no cartão.
+1. ~~**Caller web `apagarConta` / soft_delete accounts**~~ — feito em P1.6: `apagarConta` no store espelha `apagarCartao` (`deleted_at` + `arquivada` + outbox).
+2. ~~**Domínio Swift `Cartao` / `Conta` + `removidoEm` round-trip**~~ — feito em P1.6 (`Mapeamento` + seção 12 tombstone).
+3. **Metas / goals no outbox** — `liquidar*` enfileira txs/commitments; `persistirMetas` continua online-only (goals fora do mapa).
+4. **`arquivarCartao` iOS** ainda só seta `arquivado` (não `removidoEm`); alinhar ao soft-delete de conta / `apagarCartao` web se o sync exigir `deleted_at` no cartão.
 5. **Totais de fatura** (`persistirTotaisFatura`) — updates de invoice/tx online; OFX já enfileira txs de total quando a rede cai no insert em lote.
+6. **UI web** — components ainda não chamam `apagarConta` (só API no store; fora de escopo P1.6 BACK).
 
 ## Mudança de comportamento (drain)
 

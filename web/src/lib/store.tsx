@@ -480,6 +480,7 @@ type Loja = Estado & {
   salvarCartao: (c: Cartao) => Promise<void>;
   apagarCartao: (id: string) => Promise<void>;
   salvarConta: (c: Conta) => Promise<void>;
+  apagarConta: (id: string) => Promise<void>;
   lancar: (p: {
     valor: number;
     categoriaID?: string;
@@ -978,6 +979,35 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         if (eErroRede(erro)) {
           enfileirarOp(
             { op: "soft_delete", tabela: "cards", ids: [id], patch },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
+    }
+  };
+
+  const apagarConta = async (id: string) => {
+    const atual = (estado.contasTodas ?? estado.contas).find((c) => c.id === id);
+    if (!atual) return;
+    if (!eDonoDaOrigem(atual, usuario?.id)) {
+      throw new Error("Só quem cadastrou a conta pode apagar.");
+    }
+    const contasTodas = (estado.contasTodas ?? estado.contas).filter((c) => c.id !== id);
+    const contas = filtrarOrigensDaCarteira(contasTodas, estado.carteira, usuario?.id);
+    await commit({ ...estado, contasTodas, contas });
+    if (sb) {
+      const agora = new Date().toISOString();
+      const patch = { deleted_at: agora, arquivada: true, updated_at: agora };
+      try {
+        const { error } = await sb.from("accounts").update(patch).eq("id", id);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "soft_delete", tabela: "accounts", ids: [id], patch },
             usuario?.id,
           );
           atualizarPendencias();
@@ -2044,6 +2074,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     salvarCartao,
     apagarCartao,
     salvarConta,
+    apagarConta,
     lancar,
     editar,
     apagar,

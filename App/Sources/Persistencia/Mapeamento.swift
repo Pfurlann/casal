@@ -183,6 +183,7 @@ extension CartaoRegistro {
         diaVencimento = dominio.diaVencimento
         contaPagamentoID = dominio.contaPagamentoID
         arquivado = dominio.arquivado
+        removidoEm = dominio.removidoEm
     }
 
     func paraDominio() -> Cartao {
@@ -198,11 +199,13 @@ extension CartaoRegistro {
             diaFechamento: diaFechamento,
             diaVencimento: diaVencimento,
             contaPagamentoID: contaPagamentoID,
-            arquivado: arquivado
+            arquivado: arquivado,
+            removidoEm: removidoEm
         )
     }
 
-    /// Update-in-place. Domínio Cartao ainda não carrega removidoEm — preserva o local.
+    /// Update-in-place. Seção 12: se já estava removido, `removidoEm` local vence
+    /// o valor vindo no domínio (apagar vence editar / não ressuscita).
     func aplicar(dominio: Cartao) {
         let jaRemovido = removidoEm
         carteiraID = dominio.carteiraID
@@ -217,7 +220,11 @@ extension CartaoRegistro {
         contaPagamentoID = dominio.contaPagamentoID
         arquivado = dominio.arquivado
         atualizadoEm = Date()
-        removidoEm = jaRemovido
+        if let jaRemovido {
+            removidoEm = jaRemovido
+        } else {
+            removidoEm = dominio.removidoEm
+        }
     }
 }
 
@@ -230,6 +237,7 @@ extension ContaRegistro {
         tipoBruto = dominio.tipo.rawValue
         saldoInicialCentavos = dominio.saldoInicial.centavos
         arquivada = dominio.arquivada
+        removidoEm = dominio.removidoEm
     }
 
     func paraDominio() -> Conta {
@@ -239,11 +247,13 @@ extension ContaRegistro {
             nome: nome,
             tipo: decodificar(tipoBruto, campo: "tipoBruto (conta)", padrao: .corrente),
             saldoInicial: Money(centavos: saldoInicialCentavos),
-            arquivada: arquivada
+            arquivada: arquivada,
+            removidoEm: removidoEm
         )
     }
 
-    /// Update-in-place. Domínio Conta ainda não carrega removidoEm — preserva o local.
+    /// Update-in-place. Seção 12: se já estava removido, `removidoEm` local vence
+    /// o valor vindo no domínio (apagar vence editar / não ressuscita).
     func aplicar(dominio: Conta) {
         let jaRemovido = removidoEm
         carteiraID = dominio.carteiraID
@@ -252,7 +262,11 @@ extension ContaRegistro {
         saldoInicialCentavos = dominio.saldoInicial.centavos
         arquivada = dominio.arquivada
         atualizadoEm = Date()
-        removidoEm = jaRemovido
+        if let jaRemovido {
+            removidoEm = jaRemovido
+        } else {
+            removidoEm = dominio.removidoEm
+        }
     }
 }
 

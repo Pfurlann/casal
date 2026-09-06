@@ -19,8 +19,8 @@ final class RepositorioCartoesSwiftData: RepositorioCartoes {
         self.contexto = contexto
     }
 
-    /// Upsert por id via update-in-place. Domínio Cartao não carrega
-    /// removidoEm — o valor local é preservado (não ressuscita).
+    /// Upsert por id via update-in-place. Seção 12: `removidoEm` local
+    /// já setado prevalece sobre o domínio (não ressuscita).
     func salvarCartao(_ cartao: Cartao) throws {
         let alvo = cartao.id
         var descritor = FetchDescriptor<CartaoRegistro>(predicate: #Predicate { $0.id == alvo })
@@ -54,8 +54,8 @@ final class RepositorioCartoesSwiftData: RepositorioCartoes {
         try contexto.save()
     }
 
-    /// Upsert por id via update-in-place. Domínio Conta não carrega
-    /// removidoEm — o valor local é preservado (não ressuscita).
+    /// Upsert por id via update-in-place. Seção 12: `removidoEm` local
+    /// já setado prevalece sobre o domínio (não ressuscita).
     func salvarConta(_ conta: Conta) throws {
         let alvo = conta.id
         var descritor = FetchDescriptor<ContaRegistro>(predicate: #Predicate { $0.id == alvo })

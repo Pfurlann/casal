@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const salvarConta = vi.hoisted(() => ({ fn: vi.fn() }));
+const apagarConta = vi.hoisted(() => ({ fn: vi.fn() }));
 const loja = vi.hoisted(() => ({ valor: {} as Record<string, unknown> }));
 vi.mock("@/lib/store", async (original) => {
   const real = await original<typeof import("@/lib/store")>();
@@ -18,26 +19,29 @@ vi.mock("@/lib/store", async (original) => {
 
 const CARTEIRA = { id: "w1", nome: "Casa", cor: "grafite", rotulo: "pessoal", visibilidade: "aberta" };
 
-function montar(id?: string) {
+const CONTA_BASE = {
+  id: "c1",
+  carteiraID: CARTEIRA.id,
+  nome: "Nubank",
+  tipo: "corrente" as const,
+  saldoInicial: -5000,
+  arquivada: false,
+  donoID: "u1",
+};
+
+function montar(id?: string, extra: Record<string, unknown> = {}) {
   empurrar.mockClear();
   salvarConta.fn.mockReset();
   salvarConta.fn.mockResolvedValue(undefined);
+  apagarConta.fn.mockReset();
+  apagarConta.fn.mockResolvedValue(undefined);
   loja.valor = {
-    contas: id
-      ? [
-          {
-            id,
-            carteiraID: CARTEIRA.id,
-            nome: "Nubank",
-            tipo: "corrente",
-            saldoInicial: -5000,
-            arquivada: false,
-          },
-        ]
-      : [],
+    contas: id ? [{ ...CONTA_BASE, id }] : [],
     carteira: CARTEIRA,
     usuarioID: "u1",
     salvarConta: salvarConta.fn,
+    apagarConta: apagarConta.fn,
+    ...extra,
   };
   return render(
     <ProvedorAviso>
@@ -87,6 +91,7 @@ describe("ContaForm — visibilidade", () => {
       carteira: { ...CARTEIRA, rotulo: "compartilhada", visibilidade: "aberta" },
       usuarioID: "u1",
       salvarConta: salvarConta.fn,
+      apagarConta: apagarConta.fn,
     };
     render(
       <ProvedorAviso>
@@ -147,5 +152,38 @@ describe("ContaForm — saldo inicial", () => {
     expect(screen.getByText("−R$ 18,00")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Crédito" }));
     expect(screen.getByText("R$ 18,00")).toBeInTheDocument();
+  });
+});
+
+describe("ContaForm — apagar", () => {
+  it("o dono confirma e chama apagarConta", async () => {
+    montar("c1", {
+      contas: [{ ...CONTA_BASE, donoID: "u1" }],
+    });
+    const user = userEvent.setup({ delay: null });
+    await user.click(screen.getByRole("button", { name: "Apagar conta" }));
+    expect(apagarConta.fn).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog", { name: /Apagar conta/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Apagar" }));
+    expect(apagarConta.fn).toHaveBeenCalledWith("c1");
+    expect(empurrar).toHaveBeenCalledWith("/mais/contas");
+  });
+
+  it("o parceiro não vê Apagar", () => {
+    montar("c1", {
+      contas: [{ ...CONTA_BASE, donoID: "u2" }],
+      usuarioID: "u1",
+    });
+    expect(screen.queryByRole("button", { name: "Apagar conta" })).toBeNull();
+  });
+
+  it("cancelar fecha o confirm sem apagar", async () => {
+    montar("c1");
+    const user = userEvent.setup({ delay: null });
+    await user.click(screen.getByRole("button", { name: "Apagar conta" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(apagarConta.fn).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog", { name: /Apagar conta/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Apagar conta" })).toBeInTheDocument();
   });
 });

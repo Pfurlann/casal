@@ -7,7 +7,7 @@ import { CORES_CARTAO, ROTULO_TIPO_CONTA, type Conta, type TipoConta, type Visib
 import { COR_ORIGEM_PADRAO } from "@/lib/origem";
 import { EntradaValor } from "@/lib/money";
 import { useLoja } from "@/lib/store";
-import { visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
+import { eDonoDaOrigem, visibilidadePadraoDaCarteira } from "@/lib/visibilidade";
 import { useAviso } from "../ui/Aviso";
 import { Botao } from "../ui/Botao";
 import { Cabecalho } from "../ui/Cabecalho";
@@ -22,10 +22,11 @@ import { Teclado } from "../ui/Teclado";
 const TIPOS: TipoConta[] = ["corrente", "poupanca", "dinheiro"];
 
 export function ContaForm({ id }: { id?: string }) {
-  const { contas, contasTodas, carteira, salvarConta, usuarioID } = useLoja();
+  const { contas, contasTodas, carteira, salvarConta, apagarConta, usuarioID } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
   const existente = (contasTodas ?? contas).find((c) => c.id === id);
+  const podeApagar = Boolean(existente && eDonoDaOrigem(existente, usuarioID));
 
   const [nome, setNome] = useState(existente?.nome ?? "");
   const [tipo, setTipo] = useState<TipoConta>(existente?.tipo ?? "corrente");
@@ -36,18 +37,19 @@ export function ContaForm({ id }: { id?: string }) {
   const [entrada] = useState(() => EntradaValor.deCentavos(existente?.saldoInicial ?? 0));
   const [, tick] = useState(0);
   const [salvando, setSalvando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const pode = nome.trim().length > 0 && !salvando;
   const voltar = () => router.push("/mais/contas");
 
-  function montar(arquivada: boolean): Conta {
+  function montar(): Conta {
     return {
       id: existente?.id ?? crypto.randomUUID(),
       carteiraID: existente?.carteiraID ?? carteira.id,
       nome: nome.trim() || existente?.nome || "",
       tipo,
       saldoInicial: entrada.centavos,
-      arquivada,
+      arquivada: false,
       donoID: existente?.donoID ?? usuarioID,
       visibilidade,
       cor,
@@ -58,7 +60,7 @@ export function ContaForm({ id }: { id?: string }) {
     if (!pode) return;
     setSalvando(true);
     try {
-      await salvarConta(montar(false));
+      await salvarConta(montar());
       voltar();
     } catch {
       avisar("erro", "Não deu para salvar a conta. Tente de novo.");
@@ -67,14 +69,14 @@ export function ContaForm({ id }: { id?: string }) {
     }
   }
 
-  async function arquivar() {
-    if (!existente) return;
+  async function apagar() {
+    if (!existente || !podeApagar) return;
     setSalvando(true);
     try {
-      await salvarConta(montar(true));
+      await apagarConta(existente.id);
       voltar();
     } catch {
-      avisar("erro", "Não deu para arquivar a conta. Tente de novo.");
+      avisar("erro", "Não deu para apagar a conta. Tente de novo.");
     } finally {
       setSalvando(false);
     }
@@ -85,6 +87,18 @@ export function ContaForm({ id }: { id?: string }) {
       <Cabecalho
         titulo={existente ? "editar conta" : "nova conta"}
         voltarPara="/mais/contas"
+        acao={
+          podeApagar && !confirmando ? (
+            <button
+              type="button"
+              aria-label="Apagar conta"
+              onClick={() => setConfirmando(true)}
+              className="flex min-h-[44px] items-center text-[14px] font-semibold text-ambar-texto"
+            >
+              Apagar
+            </button>
+          ) : undefined
+        }
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <Campo
@@ -142,37 +156,50 @@ export function ContaForm({ id }: { id?: string }) {
         </div>
 
         {existente && (
-          <div className="mt-8 space-y-3">
+          <div className="mt-8">
             <Link
               href={`/mais/contas/${existente.id}/importar-ofx`}
               className="flex min-h-[44px] items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite"
             >
               Importar OFX
             </Link>
-            <Botao variante="destrutivo" onClick={arquivar} disabled={salvando}>
-              Arquivar conta
-            </Botao>
           </div>
         )}
       </div>
-      <Teclado
-        aoDigitar={(d) => {
-          entrada.digitar(d);
-          tick((n) => n + 1);
-        }}
-        aoApagar={() => {
-          entrada.apagar();
-          tick((n) => n + 1);
-        }}
-        aoAlternarSinal={() => {
-          entrada.alternarSinal();
-          tick((n) => n + 1);
-        }}
-        aoSalvar={salvar}
-        aoFechar={voltar}
-        podeSalvar={pode}
-        mostraSalvar
-      />
+      {confirmando ? (
+        <div className="border-t border-nevoa px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <div role="alertdialog" aria-labelledby="apagar-conta-titulo" className="space-y-2">
+            <p id="apagar-conta-titulo" className="text-[14px] text-grafite">
+              Apagar conta? Lançamentos antigos ficam.
+            </p>
+            <Botao variante="destrutivo" disabled={salvando} onClick={() => void apagar()}>
+              {salvando ? "Apagando…" : "Apagar"}
+            </Botao>
+            <Botao variante="secundario" onClick={() => setConfirmando(false)} disabled={salvando}>
+              Cancelar
+            </Botao>
+          </div>
+        </div>
+      ) : (
+        <Teclado
+          aoDigitar={(d) => {
+            entrada.digitar(d);
+            tick((n) => n + 1);
+          }}
+          aoApagar={() => {
+            entrada.apagar();
+            tick((n) => n + 1);
+          }}
+          aoAlternarSinal={() => {
+            entrada.alternarSinal();
+            tick((n) => n + 1);
+          }}
+          aoSalvar={salvar}
+          aoFechar={voltar}
+          podeSalvar={pode}
+          mostraSalvar
+        />
+      )}
     </div>
   );
 }

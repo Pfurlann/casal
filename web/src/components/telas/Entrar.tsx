@@ -135,7 +135,7 @@ export function Entrar() {
 
   return (
     <ForcarTemaClaro>
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-ar px-6 text-grafite lg:max-w-[720px] lg:px-10">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-ar px-6 text-grafite lg:my-8 lg:min-h-[calc(100dvh-4rem)] lg:max-w-[1120px] lg:rounded-[22px] lg:border lg:border-nevoa lg:px-12 lg:pb-12 lg:pt-10">
         <div className="pt-[max(48px,env(safe-area-inset-top))]">
           <Assinatura variante="base" largura={132} />
           <h1 className="mt-8 font-texto text-[17px] font-semibold tracking-[-0.02em] text-grafite">

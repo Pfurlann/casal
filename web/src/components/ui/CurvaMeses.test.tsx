@@ -3,9 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { CurvaMeses } from "./CurvaMeses";
 
 const PONTOS = [
-  { rotulo: "jul", gasto: 100_000, receita: 200_000 },
-  { rotulo: "ago", gasto: 50_000, receita: 0 },
-  { rotulo: "set", gasto: 0, receita: 0 },
+  { rotulo: "jul", gasto: 100_000, receita: 200_000, competencia: { ano: 2026, mes: 7 } },
+  { rotulo: "ago", gasto: 50_000, receita: 0, competencia: { ano: 2026, mes: 8 } },
+  { rotulo: "set", gasto: 0, receita: 0, competencia: { ano: 2026, mes: 9 } },
 ];
 
 describe("CurvaMeses", () => {
@@ -32,5 +32,17 @@ describe("CurvaMeses", () => {
     const { container } = render(<CurvaMeses pontos={PONTOS} />);
     expect(container.innerHTML).not.toContain("gradient");
     expect(container.innerHTML).not.toContain("currentColor");
+  });
+
+  it("cada mês é link para /mes?c= da competência", () => {
+    render(<CurvaMeses pontos={PONTOS} />);
+    expect(screen.getByRole("link", { name: "Ver mês jul" })).toHaveAttribute(
+      "href",
+      "/mes?c=2026-07",
+    );
+    expect(screen.getByRole("link", { name: "Ver mês set" })).toHaveAttribute(
+      "href",
+      "/mes?c=2026-09",
+    );
   });
 });

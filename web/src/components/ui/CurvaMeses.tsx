@@ -1,26 +1,47 @@
+import Link from "next/link";
+import { hrefDoMes, type Competencia } from "@/lib/domain";
+
 const ALTURA_MAXIMA = 40;
 
 /**
  * Curva sóbria de 6 meses: gasto (grafite) e receita (âmbar).
- * Meses zerados usam névoa. Sem arco-íris.
+ * Clique na barra → /mes daquele mês. Sem arco-íris.
  */
 export function CurvaMeses({
   pontos,
 }: {
-  pontos: { rotulo: string; gasto: number; receita: number }[];
+  pontos: {
+    rotulo: string;
+    gasto: number;
+    receita: number;
+    competencia: Competencia;
+  }[];
 }) {
   const maior = Math.max(...pontos.flatMap((p) => [p.gasto, p.receita]), 0);
 
   return (
     <div>
-      <div className="flex items-end gap-2" role="img" aria-label="Gasto e receita nos últimos meses">
+      <div
+        className="flex items-end gap-2"
+        role="img"
+        aria-label="Gasto e receita nos últimos meses"
+      >
         {pontos.map((p, i) => {
           const hGasto =
             maior > 0 && p.gasto > 0 ? Math.max((p.gasto / maior) * ALTURA_MAXIMA, 2) : 2;
           const hReceita =
-            maior > 0 && p.receita > 0 ? Math.max((p.receita / maior) * ALTURA_MAXIMA, 2) : 2;
+            maior > 0 && p.receita > 0
+              ? Math.max((p.receita / maior) * ALTURA_MAXIMA, 2)
+              : 2;
+          const href = hrefDoMes(p.competencia);
           return (
-            <div key={`${p.rotulo}-${i}`} className="flex flex-1 flex-col items-center gap-1">
+            <Link
+              key={`${p.rotulo}-${i}`}
+              href={href}
+              data-mes-barra
+              aria-label={`Ver mês ${p.rotulo}`}
+              className="casal-toque flex flex-1 flex-col items-center gap-1 rounded-controle px-0.5 py-1 hover:bg-nevoa/50"
+            >
               <div className="flex h-10 items-end gap-0.5">
                 <div
                   data-barra
@@ -46,7 +67,7 @@ export function CurvaMeses({
               <span className="font-numero text-[12px] tabular-nums text-grafite">
                 {p.rotulo}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>

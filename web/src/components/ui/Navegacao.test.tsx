@@ -134,16 +134,18 @@ describe("Navegacao — trilho de desktop", () => {
     expect(mes.className).toContain("lg:w-full");
   });
 
-  it("rodapé do trilho tem um bloco único de conta/carteira + Novo lançamento", () => {
+  it("rodapé do trilho tem bloco plano de conta/carteira + Novo lançamento", () => {
     caminho.atual = "/mes";
     const { container } = render(<Navegacao />);
     const carteira = screen.getByRole("link", { name: /Carteira Nosso/ });
     expect(carteira).toHaveAttribute("href", "/mais/carteiras");
     expect(screen.getByText("pedro@exemplo.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
-    // um único bloco agrupa carteira + e-mail + Sair
-    const bloco = carteira.closest("div.rounded-controle");
+    // bloco plano (sem card interno bordado) agrupa carteira + e-mail + Sair
+    const bloco = container.querySelector("[data-conta-rail]");
     expect(bloco).toBeTruthy();
+    expect(bloco?.className).not.toMatch(/border/);
+    expect(bloco?.className).not.toMatch(/rounded-controle/);
     expect(bloco?.textContent).toMatch(/Nosso/);
     expect(bloco?.textContent).toMatch(/pedro@exemplo.com/);
     expect(bloco?.textContent).toMatch(/Sair/);

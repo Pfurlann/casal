@@ -13,7 +13,7 @@ const OPACIDADES = [1, 0.72, 0.5, 0.34, 0.22, 0.12] as const;
 export function Rosca({
   fatias,
 }: {
-  fatias: FatiaRelatorio[];
+  fatias: readonly FatiaRelatorio[];
 }) {
   const total = fatias.reduce((s, f) => s + f.total, 0);
   let acumulado = 0;

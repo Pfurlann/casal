@@ -69,6 +69,25 @@ struct RepositorioTests {
         #expect(encontradas.isEmpty)
     }
 
+    @Test("salvar depois de remover não ressuscita (apagar vence editar)")
+    func apagarVenceEditar() throws {
+        let repo = try repositorioEmMemoria()
+        var alvo = transacao(4200, dia: 10)
+        try repo.salvar(alvo)
+        try repo.remover(id: alvo.id)
+
+        // Outbox / sync reenvia edição sem removidoEm — não pode voltar à listagem.
+        alvo.valor = Money(centavos: 5000)
+        alvo.removidoEm = nil
+        try repo.salvar(alvo)
+
+        let encontradas = try repo.listar(
+            de: Date(timeIntervalSince1970: 0),
+            ate: Date(timeIntervalSince1970: 30 * 86_400)
+        )
+        #expect(encontradas.isEmpty)
+    }
+
     @Test("listar respeita as bordas do período")
     func bordasDoPeriodo() throws {
         let repo = try repositorioEmMemoria()

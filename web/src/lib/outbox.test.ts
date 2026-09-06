@@ -3,11 +3,37 @@ import {
   chaveOutbox,
   drenarOutbox,
   eErroRede,
+  enfileirarOp,
   enfileirarOutbox,
   lerOutbox,
   removerOutbox,
   tamanhoOutbox,
+  type ClienteOutbox,
 } from "./outbox";
+
+function clienteMock(handlers: {
+  insert?: () => PromiseLike<{ error: { code?: string; message?: string } | null }>;
+  updateEq?: (id: string) => PromiseLike<{ error: { code?: string; message?: string } | null }>;
+  updateIn?: (ids: string[]) => PromiseLike<{ error: { code?: string; message?: string } | null }>;
+}): ClienteOutbox {
+  return {
+    from: () => ({
+      insert: async (linhas) => {
+        void linhas;
+        return (handlers.insert ?? (async () => ({ error: null })))();
+      },
+      update: (patch) => {
+        void patch;
+        return {
+          eq: async (_col, id) =>
+            (handlers.updateEq ?? (async () => ({ error: null })))(id),
+          in: async (_col, ids) =>
+            (handlers.updateIn ?? (async () => ({ error: null })))(ids),
+        };
+      },
+    }),
+  };
+}
 
 describe("outbox", () => {
   beforeEach(() => {
@@ -21,16 +47,13 @@ describe("outbox", () => {
     expect(lerOutbox("u2")).toHaveLength(0);
     expect(tamanhoOutbox("u1")).toBe(1);
     expect(chaveOutbox("u1")).toBe("casal-outbox:u1");
+    expect(lerOutbox("u1")[0]?.op).toBe("insert");
+    expect(lerOutbox("u1")[0]?.tabela).toBe("transactions");
   });
 
   it("drena com sucesso e remove da fila", async () => {
     enfileirarOutbox([{ id: "a" }, { id: "b" }], "u1");
-    const sb = {
-      from: () => ({
-        insert: async () => ({ error: null }),
-      }),
-    };
-    const r = await drenarOutbox(sb, "u1");
+    const r = await drenarOutbox(clienteMock({}), "u1");
     expect(r.enviados).toBe(2);
     expect(r.restam).toBe(0);
     expect(lerOutbox("u1")).toHaveLength(0);
@@ -38,24 +61,24 @@ describe("outbox", () => {
 
   it("trata 23505 como sucesso", async () => {
     enfileirarOutbox([{ id: "a" }], "u1");
-    const sb = {
-      from: () => ({
+    const r = await drenarOutbox(
+      clienteMock({
         insert: async () => ({ error: { code: "23505", message: "dup" } }),
       }),
-    };
-    const r = await drenarOutbox(sb, "u1");
+      "u1",
+    );
     expect(r.enviados).toBe(1);
     expect(lerOutbox("u1")).toHaveLength(0);
   });
 
   it("mantém item se o insert falhar", async () => {
     enfileirarOutbox([{ id: "a" }], "u1");
-    const sb = {
-      from: () => ({
+    const r = await drenarOutbox(
+      clienteMock({
         insert: async () => ({ error: { code: "400", message: "nope" } }),
       }),
-    };
-    const r = await drenarOutbox(sb, "u1");
+      "u1",
+    );
     expect(r.enviados).toBe(0);
     expect(r.restam).toBe(1);
     expect(lerOutbox("u1")[0]?.tentativas).toBe(1);
@@ -73,5 +96,91 @@ describe("outbox", () => {
     vi.stubGlobal("navigator", { onLine: true });
     expect(eErroRede(new Error("Failed to fetch"))).toBe(true);
     expect(eErroRede(new Error("validation"))).toBe(false);
+  });
+
+  it("enfileira e drena update de transactions", async () => {
+    const visto: string[] = [];
+    enfileirarOp(
+      {
+        op: "update",
+        tabela: "transactions",
+        ids: ["t1"],
+        patch: { descricao: "Padaria", updated_at: "2026-09-06T12:00:00.000Z" },
+      },
+      "u1",
+    );
+    expect(tamanhoOutbox("u1")).toBe(1);
+    expect(lerOutbox("u1")[0]?.op).toBe("update");
+    const r = await drenarOutbox(
+      clienteMock({
+        updateEq: async (id) => {
+          visto.push(id);
+          return { error: null };
+        },
+      }),
+      "u1",
+    );
+    expect(r.enviados).toBe(1);
+    expect(visto).toEqual(["t1"]);
+    expect(lerOutbox("u1")).toHaveLength(0);
+  });
+
+  it("enfileira e drena soft_delete em lote", async () => {
+    let idsVistos: string[] = [];
+    enfileirarOp(
+      {
+        op: "soft_delete",
+        tabela: "transactions",
+        ids: ["a", "b"],
+        patch: { deleted_at: "2026-09-06T12:00:00.000Z", updated_at: "2026-09-06T12:00:00.000Z" },
+      },
+      "u1",
+    );
+    const r = await drenarOutbox(
+      clienteMock({
+        updateIn: async (ids) => {
+          idsVistos = ids;
+          return { error: null };
+        },
+      }),
+      "u1",
+    );
+    expect(r.enviados).toBe(2);
+    expect(idsVistos).toEqual(["a", "b"]);
+  });
+
+  it("drena soft_delete de cards/accounts/invoices", async () => {
+    for (const tabela of ["cards", "accounts", "invoices"] as const) {
+      localStorage.clear();
+      enfileirarOp(
+        {
+          op: "soft_delete",
+          tabela,
+          ids: ["x1"],
+          patch: { deleted_at: "2026-09-06T12:00:00.000Z", updated_at: "2026-09-06T12:00:00.000Z" },
+        },
+        "u1",
+      );
+      const r = await drenarOutbox(clienteMock({}), "u1");
+      expect(r.enviados).toBe(1);
+      expect(lerOutbox("u1")).toHaveLength(0);
+    }
+  });
+
+  it("normaliza item legado sem op/tabela como insert transactions", () => {
+    localStorage.setItem(
+      "casal-outbox:u1",
+      JSON.stringify([
+        {
+          id: "old",
+          criadoEm: "2026-09-01T00:00:00.000Z",
+          tentativas: 0,
+          linhas: [{ id: "t1" }],
+        },
+      ]),
+    );
+    const item = lerOutbox("u1")[0];
+    expect(item?.op).toBe("insert");
+    expect(item?.tabela).toBe("transactions");
   });
 });

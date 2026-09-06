@@ -16,18 +16,9 @@ final class RepositorioSwiftData: RepositorioTransacoes {
         self.contexto = contexto
     }
 
-    // swiftlint:disable:next todo
-    // TODO: este upsert é delete-then-insert, não update-in-place. Isso
-    // descarta o `removidoEm` da linha antiga em favor do que vier na
-    // `transacao` recebida. Não é só "perder um token de histórico": no
-    // M3, quando o outbox reenviar uma escrita antiga depois que a linha
-    // já foi apagada em outro device, esse delete+insert ressuscita a
-    // transação — quebra direto a regra da seção 12 "apagar vence editar".
-    // Precisa virar update-in-place que preserva removidoEm quando o
-    // registro já está removido.
-    /// Upsert por id. IDs são gerados no device, então gravar de novo a
-    /// mesma transação precisa atualizar e nunca duplicar — é o que torna
-    /// a sincronização do M3 segura contra retry.
+    /// Upsert por id via update-in-place. Seção 12: se o registro local já
+    /// tem `removidoEm`, ele prevalece sobre o domínio recebido (apagar
+    /// vence editar — não ressuscita).
     func salvar(_ transacao: Transacao) throws {
         let alvo = transacao.id
         var descritor = FetchDescriptor<TransacaoRegistro>(
@@ -36,9 +27,10 @@ final class RepositorioSwiftData: RepositorioTransacoes {
         descritor.fetchLimit = 1
 
         if let existente = try contexto.fetch(descritor).first {
-            contexto.delete(existente)
+            existente.aplicar(dominio: transacao)
+        } else {
+            contexto.insert(TransacaoRegistro(dominio: transacao))
         }
-        contexto.insert(TransacaoRegistro(dominio: transacao))
         try contexto.save()
     }
 

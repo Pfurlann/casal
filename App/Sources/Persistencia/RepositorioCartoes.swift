@@ -17,26 +17,18 @@ final class RepositorioCartoesSwiftData: RepositorioCartoes {
         self.contexto = contexto
     }
 
-    // swiftlint:disable:next todo
-    // TODO: este upsert é delete-then-insert, não update-in-place. Isso
-    // descarta o `removidoEm` da linha antiga em favor do que vier no
-    // `cartao` recebido. No M3, quando o outbox reenviar uma escrita antiga
-    // depois que a linha já foi apagada em outro device, esse delete+insert
-    // ressuscita o cartão — quebra direto a regra da seção 12 "apagar vence
-    // editar". Hoje é inalcançável porque ainda não existe soft-delete de
-    // cartão; precisa virar update-in-place que preserva removidoEm quando
-    // o registro já está removido.
-    /// Upsert por id, mesmo padrão do repositório de transações: IDs são
-    /// gerados no device, então gravar de novo o mesmo cartão atualiza.
+    /// Upsert por id via update-in-place. Domínio Cartao não carrega
+    /// removidoEm — o valor local é preservado (não ressuscita).
     func salvarCartao(_ cartao: Cartao) throws {
         let alvo = cartao.id
         var descritor = FetchDescriptor<CartaoRegistro>(predicate: #Predicate { $0.id == alvo })
         descritor.fetchLimit = 1
 
         if let existente = try contexto.fetch(descritor).first {
-            contexto.delete(existente)
+            existente.aplicar(dominio: cartao)
+        } else {
+            contexto.insert(CartaoRegistro(dominio: cartao))
         }
-        contexto.insert(CartaoRegistro(dominio: cartao))
         try contexto.save()
     }
 
@@ -60,24 +52,18 @@ final class RepositorioCartoesSwiftData: RepositorioCartoes {
         try contexto.save()
     }
 
-    // swiftlint:disable:next todo
-    // TODO: este upsert é delete-then-insert, não update-in-place. Isso
-    // descarta o `removidoEm` da linha antiga em favor do que vier na
-    // `conta` recebida. No M3, quando o outbox reenviar uma escrita antiga
-    // depois que a linha já foi apagada em outro device, esse delete+insert
-    // ressuscita a conta — quebra direto a regra da seção 12 "apagar vence
-    // editar". Hoje é inalcançável porque ainda não existe soft-delete de
-    // conta; precisa virar update-in-place que preserva removidoEm quando
-    // o registro já está removido.
+    /// Upsert por id via update-in-place. Domínio Conta não carrega
+    /// removidoEm — o valor local é preservado (não ressuscita).
     func salvarConta(_ conta: Conta) throws {
         let alvo = conta.id
         var descritor = FetchDescriptor<ContaRegistro>(predicate: #Predicate { $0.id == alvo })
         descritor.fetchLimit = 1
 
         if let existente = try contexto.fetch(descritor).first {
-            contexto.delete(existente)
+            existente.aplicar(dominio: conta)
+        } else {
+            contexto.insert(ContaRegistro(dominio: conta))
         }
-        contexto.insert(ContaRegistro(dominio: conta))
         try contexto.save()
     }
 

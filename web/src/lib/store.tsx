@@ -55,6 +55,7 @@ import { transacoesDoOfx, transacoesDoOfxConta, type LinhaImportacaoOfx } from "
 import {
   drenarOutbox,
   eErroRede,
+  enfileirarOp,
   enfileirarOutbox,
   tamanhoOutbox,
 } from "./outbox";
@@ -945,12 +946,21 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     await commit({ ...estado, cartoesTodos, cartoes, faturas });
     if (sb) {
       const agora = new Date().toISOString();
-      const { error } = await sb.from("cards").update({
-        deleted_at: agora,
-        arquivado: true,
-        updated_at: agora,
-      }).eq("id", id);
-      if (error) throw error;
+      const patch = { deleted_at: agora, arquivado: true, updated_at: agora };
+      try {
+        const { error } = await sb.from("cards").update(patch).eq("id", id);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "soft_delete", tabela: "cards", ids: [id], patch },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -1395,22 +1405,40 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     });
     if (sb) {
       const agora = new Date().toISOString();
-      await Promise.all(
-        ids.map((id) => {
-          const t = todas.find((x) => x.id === id);
-          if (!t) return Promise.resolve();
-          return sb.from("transactions").update({
-            descricao: t.descricao,
-            category_id: t.categoriaID ?? null,
-            valor_centavos: t.valor,
-            wallet_id: t.carteiraID,
-            account_id: t.contaID ?? null,
-            card_id: t.cartaoID ?? null,
-            pagador_id: t.pagadorID ?? null,
-            updated_at: agora,
-          }).eq("id", t.id);
-        }),
-      );
+      const patchDe = (t: (typeof todas)[number]) => ({
+        descricao: t.descricao,
+        category_id: t.categoriaID ?? null,
+        valor_centavos: t.valor,
+        wallet_id: t.carteiraID,
+        account_id: t.contaID ?? null,
+        card_id: t.cartaoID ?? null,
+        pagador_id: t.pagadorID ?? null,
+        updated_at: agora,
+      });
+      try {
+        await Promise.all(
+          ids.map(async (id) => {
+            const t = todas.find((x) => x.id === id);
+            if (!t) return;
+            const { error } = await sb.from("transactions").update(patchDe(t)).eq("id", t.id);
+            if (error) throw error;
+          }),
+        );
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          for (const id of ids) {
+            const t = todas.find((x) => x.id === id);
+            if (!t) continue;
+            enfileirarOp(
+              { op: "update", tabela: "transactions", ids: [id], patch: patchDe(t) },
+              usuario?.id,
+            );
+          }
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -1420,10 +1448,21 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     await commit({ ...estado, transacoes });
     if (sb && ids.length > 0) {
       const agora = new Date().toISOString();
-      await sb.from("transactions").update({
-        deleted_at: agora,
-        updated_at: agora,
-      }).in("id", ids);
+      const patch = { deleted_at: agora, updated_at: agora };
+      try {
+        const { error } = await sb.from("transactions").update(patch).in("id", ids);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "soft_delete", tabela: "transactions", ids, patch },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 

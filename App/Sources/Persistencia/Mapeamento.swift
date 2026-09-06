@@ -67,6 +67,37 @@ extension TransacaoRegistro {
             dispositivoID: dispositivoID
         )
     }
+
+    /// Update-in-place. Seção 12: se já estava removido, `removidoEm` local vence
+    /// o valor vindo no domínio (apagar vence editar / não ressuscita).
+    func aplicar(dominio: Transacao) {
+        let jaRemovido = removidoEm
+        carteiraID = dominio.carteiraID
+        tipoBruto = dominio.tipo.rawValue
+        valorCentavos = dominio.valor.centavos
+        data = dominio.data
+        categoriaID = dominio.categoriaID
+        descricao = dominio.descricao
+        contaID = dominio.contaID
+        cartaoID = dominio.cartaoID
+        faturaID = dominio.faturaID
+        criadoPor = dominio.criadoPor
+        estadoBruto = dominio.estado.rawValue
+        origemBruta = dominio.origem.rawValue
+        idExterno = dominio.idExterno
+        hashDedup = dominio.hashDedup
+        grupoParcela = dominio.grupoParcela
+        parcelaN = dominio.parcelaN
+        parcelaTotal = dominio.parcelaTotal
+        // criadoEm permanece o original do registro local
+        atualizadoEm = max(dominio.atualizadoEm, atualizadoEm)
+        dispositivoID = dominio.dispositivoID ?? dispositivoID
+        if let jaRemovido {
+            removidoEm = jaRemovido
+        } else {
+            removidoEm = dominio.removidoEm
+        }
+    }
 }
 
 extension CarteiraRegistro {
@@ -170,6 +201,24 @@ extension CartaoRegistro {
             arquivado: arquivado
         )
     }
+
+    /// Update-in-place. Domínio Cartao ainda não carrega removidoEm — preserva o local.
+    func aplicar(dominio: Cartao) {
+        let jaRemovido = removidoEm
+        carteiraID = dominio.carteiraID
+        apelido = dominio.apelido
+        banco = dominio.banco
+        bandeiraBruta = dominio.bandeira.rawValue
+        ultimos4 = dominio.ultimos4
+        cor = dominio.cor
+        limiteCentavos = dominio.limite.centavos
+        diaFechamento = dominio.diaFechamento
+        diaVencimento = dominio.diaVencimento
+        contaPagamentoID = dominio.contaPagamentoID
+        arquivado = dominio.arquivado
+        atualizadoEm = Date()
+        removidoEm = jaRemovido
+    }
 }
 
 extension ContaRegistro {
@@ -192,6 +241,18 @@ extension ContaRegistro {
             saldoInicial: Money(centavos: saldoInicialCentavos),
             arquivada: arquivada
         )
+    }
+
+    /// Update-in-place. Domínio Conta ainda não carrega removidoEm — preserva o local.
+    func aplicar(dominio: Conta) {
+        let jaRemovido = removidoEm
+        carteiraID = dominio.carteiraID
+        nome = dominio.nome
+        tipoBruto = dominio.tipo.rawValue
+        saldoInicialCentavos = dominio.saldoInicial.centavos
+        arquivada = dominio.arquivada
+        atualizadoEm = Date()
+        removidoEm = jaRemovido
     }
 }
 

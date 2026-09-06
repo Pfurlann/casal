@@ -132,3 +132,24 @@ final class FaturaRegistro {
 
     init() {}
 }
+
+/// Item da fila offline→online (espelha `ItemOutbox` web).
+/// Persistido em SwiftData; drain real exige Auth + cliente remoto (ver AVISO-CONTRATO-IOS-SYNC.md).
+@Model
+final class OutboxItemRegistro {
+    var id: UUID = UUID()
+    var criadoEm: Date = Date()
+    var tentativas: Int = 0
+    /// `insert` | `update` | `soft_delete`
+    var opBruto: String = "insert"
+    /// `transactions` | `cards` | `accounts` | `invoices` | `commitments`
+    var tabelaBruta: String = "transactions"
+    /// insert: JSON array de objetos (linhas SQL-shaped).
+    var linhasJSON: Data = Data("[]".utf8)
+    /// update / soft_delete: JSON array de ids (strings UUID).
+    var idsJSON: Data?
+    /// update / soft_delete: JSON objeto patch.
+    var patchJSON: Data?
+
+    init() {}
+}

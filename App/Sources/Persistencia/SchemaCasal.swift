@@ -25,13 +25,29 @@ enum SchemaCasalV2: VersionedSchema {
     }
 }
 
+/// Versão 3: acrescenta a fila outbox local (offline→online). Aditiva.
+enum SchemaCasalV3: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
+
+    static var models: [any PersistentModel.Type] {
+        [
+            TransacaoRegistro.self, CarteiraRegistro.self, CategoriaRegistro.self,
+            ContaRegistro.self, CartaoRegistro.self, FaturaRegistro.self,
+            OutboxItemRegistro.self
+        ]
+    }
+}
+
 enum PlanoMigracaoCasal: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaCasalV1.self, SchemaCasalV2.self]
+        [SchemaCasalV1.self, SchemaCasalV2.self, SchemaCasalV3.self]
     }
 
     static var stages: [MigrationStage] {
-        [.lightweight(fromVersion: SchemaCasalV1.self, toVersion: SchemaCasalV2.self)]
+        [
+            .lightweight(fromVersion: SchemaCasalV1.self, toVersion: SchemaCasalV2.self),
+            .lightweight(fromVersion: SchemaCasalV2.self, toVersion: SchemaCasalV3.self),
+        ]
     }
 }
 
@@ -41,7 +57,7 @@ enum SchemaCasal {
     /// nenhum lugar do app crie um container sem plano de migração.
     static func container(emMemoria: Bool = false) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: SchemaCasalV2.self),
+            for: Schema(versionedSchema: SchemaCasalV3.self),
             migrationPlan: PlanoMigracaoCasal.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: emMemoria)
         )
@@ -49,7 +65,7 @@ enum SchemaCasal {
 
     static func container(url: URL) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: SchemaCasalV2.self),
+            for: Schema(versionedSchema: SchemaCasalV3.self),
             migrationPlan: PlanoMigracaoCasal.self,
             configurations: ModelConfiguration(url: url)
         )

@@ -7,12 +7,7 @@ import Testing
 @Suite("RepositorioSwiftData")
 struct RepositorioTests {
     private func repositorioEmMemoria() throws -> RepositorioSwiftData {
-        let configuracao = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: TransacaoRegistro.self, CarteiraRegistro.self, CategoriaRegistro.self,
-            configurations: configuracao
-        )
-        return RepositorioSwiftData(contexto: ModelContext(container))
+        RepositorioSwiftData(contexto: ModelContext(try SchemaCasal.container(emMemoria: true)))
     }
 
     private func transacao(_ centavos: Int, dia: Int, local: String = "Zaffari") -> Transacao {

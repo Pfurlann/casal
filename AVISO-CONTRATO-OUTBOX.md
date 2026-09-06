@@ -1,7 +1,7 @@
 # AVISO — Contrato: outbox offline→online (P1.5 → P1.7 BACK)
 
 **Data:** 2026-09-06  
-**Escopo:** fila localStorage por user (`casal-outbox[:userId]`), drain idempotente com reapply pós-23505, soft-delete SQL `deleted_at`, SwiftData upsert in-place + soft-delete de conta/cartão; P1.6: `apagarConta` web + `removidoEm` Conta/Cartao; P1.7: `arquivarCartao` iOS seta `removidoEm`.
+**Escopo:** fila localStorage por user (`casal-outbox[:userId]`), drain idempotente com reapply pós-23505, soft-delete SQL `deleted_at`, SwiftData upsert in-place + soft-delete de conta/cartão; P1.6: `apagarConta` web + `removidoEm` Conta/Cartao; P1.7: `arquivarCartao` iOS seta `removidoEm`; **M3-prep:** outbox local iOS (SwiftData v3) + contrato drain — ver `AVISO-CONTRATO-IOS-SYNC.md`.
 
 ## Soft-delete no SQL
 
@@ -55,14 +55,19 @@ Regra seção 12: se `removidoEm` local já está setado, **não ressuscita** ao
 
 `RepositorioFaturas.atualizarFatura` já era in-place.
 
+### Outbox iOS (M3-prep)
+
+Fila persistente `OutboxItemRegistro` (schema **v3**) + `OutboxFilaSwiftData`. Os repos acima **enfileiram** insert/update/soft_delete ao salvar/arquivar/remover. Drain: stub com pré-req Auth — detalhes em **`AVISO-CONTRATO-IOS-SYNC.md`**.
+
 ## O que ficou para depois
 
 1. ~~**Caller web `apagarConta` / soft_delete accounts**~~ — feito em P1.6: `apagarConta` no store espelha `apagarCartao` (`deleted_at` + `arquivada` + outbox).
 2. ~~**Domínio Swift `Cartao` / `Conta` + `removidoEm` round-trip**~~ — feito em P1.6 (`Mapeamento` + seção 12 tombstone).
 3. **Metas / goals no outbox** — `liquidar*` enfileira txs/commitments; `persistirMetas` continua online-only (goals fora do mapa). Fica pra depois.
 4. ~~**`arquivarCartao` iOS**~~ — feito em P1.7: seta `arquivado` + `removidoEm` (espelha `arquivarConta` / `apagarCartao` web); testes tombstone no repo.
-5. **AVISO — Totais de fatura** (`persistirTotaisFatura`): updates de `transactions` (valor/status/`invoice_id`) e inserts auxiliares continuam **online-only** (`if (!sb) return`, sem `eErroRede`/outbox nas `alteradas`). OFX já enfileira txs de total novas no insert em lote; gap restante = patch das alteradas offline. Alinhar exige expandir callers — fora de P1.7 curto.
+5. **AVISO — Totais de fatura** (`persistirTotaisFatura`): updates de `transactions` (valor/status/`invoice_id`) e inserts auxiliares continuam **online-only** (`if (!sb) return`, sem `eErroRede`/outbox nas `alteradas`). OFX já enfileira txs de total novas no insert em lote; gap restante = patch das alteradas offline. Alinhar exige expandir callers — fora de P1.7 / M3-prep curto. (iOS: mesmo gap — ver `AVISO-CONTRATO-IOS-SYNC.md`.)
 6. **UI web** — components ainda não chamam `apagarConta` (só API no store; fora de escopo BACK).
+7. ~~**Outbox local iOS**~~ — feito em M3-prep: fila SwiftData + enqueue nos repos Conta/Cartao/Transacao + stub de drain. **Auth + ClienteSyncRemoto + disparo de lifecycle** ainda pendentes (`AVISO-CONTRATO-IOS-SYNC.md`).
 
 ## Mudança de comportamento (drain)
 

@@ -11,14 +11,17 @@ protocol RepositorioTransacoes {
 
 final class RepositorioSwiftData: RepositorioTransacoes {
     private let contexto: ModelContext
+    private let outbox: FilaOutbox
 
-    init(contexto: ModelContext) {
+    init(contexto: ModelContext, outbox: FilaOutbox? = nil) {
         self.contexto = contexto
+        self.outbox = outbox ?? OutboxFilaSwiftData(contexto: contexto)
     }
 
     /// Upsert por id via update-in-place. Seção 12: se o registro local já
     /// tem `removidoEm`, ele prevalece sobre o domínio recebido (apagar
     /// vence editar — não ressuscita).
+    /// Enfileira insert ou update na outbox.
     func salvar(_ transacao: Transacao) throws {
         let alvo = transacao.id
         var descritor = FetchDescriptor<TransacaoRegistro>(
@@ -26,14 +29,28 @@ final class RepositorioSwiftData: RepositorioTransacoes {
         )
         descritor.fetchLimit = 1
 
-        if let existente = try contexto.fetch(descritor).first {
+        let existente = try contexto.fetch(descritor).first
+        let jaExistia = existente != nil
+        if let existente {
             existente.aplicar(dominio: transacao)
         } else {
             contexto.insert(TransacaoRegistro(dominio: transacao))
         }
+
+        let linha = OutboxPayload.linhaTransacao(transacao)
+        if jaExistia {
+            try outbox.enfileirarUpdate(
+                tabela: .transactions,
+                ids: [transacao.id.uuidString],
+                patch: OutboxPayload.patchSemId(linha)
+            )
+        } else {
+            try outbox.enfileirarInsert(tabela: .transactions, linhas: [linha])
+        }
         try contexto.save()
     }
 
+    /// Soft-delete local + enfileira `soft_delete` transactions.
     func remover(id: UUID) throws {
         var descritor = FetchDescriptor<TransacaoRegistro>(
             predicate: #Predicate { $0.id == id }
@@ -41,8 +58,14 @@ final class RepositorioSwiftData: RepositorioTransacoes {
         descritor.fetchLimit = 1
 
         guard let registro = try contexto.fetch(descritor).first else { return }
-        registro.removidoEm = Date()
-        registro.atualizadoEm = Date()
+        let agora = Date()
+        registro.removidoEm = agora
+        registro.atualizadoEm = agora
+        try outbox.enfileirarSoftDelete(
+            tabela: .transactions,
+            ids: [id.uuidString],
+            patch: OutboxPayload.patchSoftDeleteTransacao(agora: agora)
+        )
         try contexto.save()
     }
 

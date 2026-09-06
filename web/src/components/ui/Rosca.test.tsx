@@ -33,3 +33,12 @@ describe("Rosca", () => {
     expect(container.querySelector("circle")?.getAttribute("stroke")).toBe("var(--nevoa)");
   });
 });
+
+  it("legenda usa swatch com a mesma opacidade da fatia", () => {
+    const { container } = render(<Rosca fatias={FATIAS} />);
+    const swatches = [...container.querySelectorAll("[data-swatch]")] as HTMLElement[];
+    expect(swatches).toHaveLength(3);
+    expect(swatches.map((s) => s.style.opacity)).toEqual(["1", "0.72", "0.5"]);
+    expect(swatches.every((s) => s.className.includes("bg-grafite"))).toBe(true);
+  });
+

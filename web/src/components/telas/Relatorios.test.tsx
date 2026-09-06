@@ -53,8 +53,8 @@ describe("Relatorios", () => {
     montar();
     expect(screen.getByRole("heading", { name: /relatórios · Nosso/ })).toBeInTheDocument();
     expect(screen.getByText(/ainda sem movimento neste mês/)).toBeInTheDocument();
-    expect(screen.getByText("gasto")).toBeInTheDocument();
-    expect(screen.getByText("receita")).toBeInTheDocument();
+    expect(screen.getAllByText("gasto").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("receita").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("fluxo")).toBeInTheDocument();
     expect(screen.queryByText("comprometido")).toBeNull();
     expect(screen.getByRole("link", { name: "Mês anterior" })).toHaveAttribute(
@@ -126,11 +126,18 @@ describe("Relatorios", () => {
     expect(screen.queryByText("gasto")).toBeNull();
   });
 
-  it("não reabre visão nem curva de 6 meses", () => {
+  it("não reabre visão; mostra curva de 6 meses sóbria", () => {
     const { container } = montar({ transacoes: [tx()] });
     expect(container.innerHTML).not.toContain("/visao");
-    expect(container.querySelectorAll("[data-barra]")).toHaveLength(0);
-    expect(screen.queryByText(/evolução/i)).toBeNull();
+    expect(screen.getByText("últimos 6 meses")).toBeInTheDocument();
+    expect(container.querySelectorAll("[data-barra]").length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: "Gasto e receita nos últimos meses" })).toBeInTheDocument();
+  });
+
+  it("empty state tem CTA Novo gasto para /lancar", () => {
+    montar();
+    const cta = screen.getByRole("link", { name: "Novo gasto" });
+    expect(cta).toHaveAttribute("href", "/lancar");
   });
 
   it("respeita a competência da rota", () => {

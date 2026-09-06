@@ -60,15 +60,23 @@ export function Rosca({
           })}
       </svg>
       <ul className="w-full min-w-0">
-        {fatias.map((f) => (
+        {fatias.map((f, i) => (
           <li
             key={`${f.categoriaID}-${f.nome}-legenda`}
             className="flex min-h-[44px] items-center justify-between gap-3 border-b border-nevoa py-2 last:border-b-0 lg:min-h-[36px]"
           >
-            <span className="min-w-0 truncate text-[14px] text-grafite">
-              {f.nome}
-              <span className="ml-2 font-numero text-[12px] tabular-nums text-cinza">
-                {percentualInteiro(f.total, total)}%
+            <span className="flex min-w-0 items-center gap-2 truncate text-[14px] text-grafite">
+              <span
+                aria-hidden
+                data-swatch
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-[2px] bg-grafite"
+                style={{ opacity: OPACIDADES[i] ?? 0.12 }}
+              />
+              <span className="min-w-0 truncate">
+                {f.nome}
+                <span className="ml-2 font-numero text-[12px] tabular-nums text-cinza">
+                  {percentualInteiro(f.total, total)}%
+                </span>
               </span>
             </span>
             <Numero centavos={f.total} tamanho="corpo" />

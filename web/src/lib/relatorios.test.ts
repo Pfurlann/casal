@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Cartao, Fatura, Transacao } from "./domain";
 import {
   comprometidoDoPeriodo,
+  curvaDeResumoMensal,
+  curvaDoRelatorio,
   fatiasDaRosca,
   montarRelatorio,
 } from "./relatorios";
@@ -79,6 +81,14 @@ describe("montarRelatorio", () => {
     expect(r.fluxo).toBe(380_000);
     expect(r.frase).toBe("sobra 76% da receita");
     expect(r.fatias.map((f) => f.nome)).toEqual(["Mercado", "Restaurante"]);
+    expect(r.curva).toHaveLength(6);
+    expect(r.curva[5]).toMatchObject({
+      competencia: C,
+      rotulo: "set",
+      gasto: 120_000,
+      receita: 500_000,
+      fluxo: 380_000,
+    });
   });
 
   it("ignora o lançamento sintético da fatura no gasto e na rosca", () => {
@@ -114,6 +124,38 @@ describe("montarRelatorio", () => {
       competencia: C,
     });
     expect(r.frase).toBe("gastos 12% acima da receita");
+  });
+});
+
+
+describe("curvaDoRelatorio", () => {
+  it("cobre 6 competências até a atual, sem transferência", () => {
+    const curva = curvaDoRelatorio(
+      [
+        tx({ id: "r", tipo: "receita", valor: 100_000 }),
+        tx({ id: "d", valor: 40_000 }),
+        tx({ id: "old", valor: 10_000, data: "2026-08-10T15:00:00.000Z" }),
+        tx({ id: "x", tipo: "transferencia", valor: 5_000 }),
+      ],
+      C,
+      [],
+    );
+    expect(curva).toHaveLength(6);
+    expect(curva[0].competencia).toEqual({ ano: 2026, mes: 4 });
+    expect(curva[4]).toMatchObject({ rotulo: "ago", gasto: 10_000, receita: 0, fluxo: -10_000 });
+    expect(curva[5]).toMatchObject({ rotulo: "set", gasto: 40_000, receita: 100_000, fluxo: 60_000 });
+  });
+});
+
+describe("curvaDeResumoMensal", () => {
+  it("preenche zeros quando o resumo não tem o mês", () => {
+    const curva = curvaDeResumoMensal(
+      [{ ano: 2026, mes: 9, despesas: 80_000, receitas: 120_000 }],
+      C,
+    );
+    expect(curva).toHaveLength(6);
+    expect(curva.slice(0, 5).every((p) => p.gasto === 0 && p.receita === 0)).toBe(true);
+    expect(curva[5]).toMatchObject({ gasto: 80_000, receita: 120_000, fluxo: 40_000 });
   });
 });
 

@@ -5,7 +5,9 @@ import {
   type GastoCategoria,
 } from "./diagnostico";
 import {
+  avancando,
   fechamento,
+  rotuloCurto,
   saldoDevedor,
   totalDaFatura,
   vencimento,
@@ -20,6 +22,14 @@ import type { Centavos } from "./money";
 
 export type FatiaRelatorio = GastoCategoria;
 
+export type PontoCurvaRelatorio = {
+  competencia: Competencia;
+  rotulo: string;
+  gasto: Centavos;
+  receita: Centavos;
+  fluxo: Centavos;
+};
+
 export type ResumoRelatorio = {
   competencia: Competencia;
   gasto: Centavos;
@@ -27,7 +37,15 @@ export type ResumoRelatorio = {
   fluxo: Centavos;
   comprometido: Centavos;
   fatias: FatiaRelatorio[];
+  curva: PontoCurvaRelatorio[];
   frase: string;
+};
+
+export type ResumoMensalCurva = {
+  ano: number;
+  mes: number;
+  despesas: number;
+  receitas: number;
 };
 
 const TOP_FATIAS = 5;
@@ -57,6 +75,49 @@ function faturaDoPeriodo(cartao: Cartao, faturas: Fatura[], c: Competencia): Fat
       valorPago: 0,
     }
   );
+}
+
+
+const MESES_CURVA = 6;
+
+export function curvaDoRelatorio(
+  transacoes: Transacao[],
+  competencia: Competencia,
+  cartoes: Cartao[] = [],
+  meses = MESES_CURVA,
+): PontoCurvaRelatorio[] {
+  const lancamentos = lancamentosDoRelatorio(transacoes);
+  const inicio = avancando(competencia, -(meses - 1));
+  return Array.from({ length: meses }, (_, i) => {
+    const c = avancando(inicio, i);
+    const { gasto, receita, fluxo } = totaisDoMes(lancamentos, c, cartoes);
+    return { competencia: c, rotulo: rotuloCurto(c), gasto, receita, fluxo };
+  });
+}
+
+/** Monta a mesma curva a partir dos totais mensais da loja (modo resumo). */
+export function curvaDeResumoMensal(
+  resumos: ResumoMensalCurva[],
+  competencia: Competencia,
+  meses = MESES_CURVA,
+): PontoCurvaRelatorio[] {
+  const mapa = new Map(
+    resumos.map((r) => [`${r.ano}-${r.mes}`, r] as const),
+  );
+  const inicio = avancando(competencia, -(meses - 1));
+  return Array.from({ length: meses }, (_, i) => {
+    const c = avancando(inicio, i);
+    const r = mapa.get(`${c.ano}-${c.mes}`);
+    const gasto = r?.despesas ?? 0;
+    const receita = r?.receitas ?? 0;
+    return {
+      competencia: c,
+      rotulo: rotuloCurto(c),
+      gasto,
+      receita,
+      fluxo: receita - gasto,
+    };
+  });
 }
 
 export function comprometidoDoPeriodo(
@@ -89,6 +150,7 @@ export function montarRelatorio(p: {
     fluxo,
     comprometido: comprometidoDoPeriodo(p.cartoes, p.faturas, p.transacoes, p.competencia),
     fatias: fatiasDaRosca(categorias),
+    curva: curvaDoRelatorio(p.transacoes, p.competencia, p.cartoes),
     frase: fraseDiagnostico({ gasto, receita, problemas: [] }),
   };
 }

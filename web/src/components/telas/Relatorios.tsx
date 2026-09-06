@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { fraseDiagnostico } from "@/lib/diagnostico";
 import { avancando, competenciaDaConsulta, hrefDoRelatorio } from "@/lib/domain";
-import { montarRelatorio } from "@/lib/relatorios";
+import { curvaDeResumoMensal, montarRelatorio } from "@/lib/relatorios";
 import { useLoja } from "@/lib/store";
 import { Cabecalho } from "../ui/Cabecalho";
+import { CurvaMeses } from "../ui/CurvaMeses";
 import { Numero } from "../ui/Numero";
 import { Rosca } from "../ui/Rosca";
 import { Rotulo } from "../ui/Rotulo";
@@ -61,6 +62,7 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
           fluxo: receita - gasto,
           comprometido: 0,
           fatias: [] as const,
+          curva: curvaDeResumoMensal(resumoMensal ?? [], competencia),
           frase: fraseDiagnostico({ gasto, receita, problemas: [] }),
         };
       })()
@@ -149,7 +151,17 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
           <section className="casal-painel casal-painel-6 mt-8 lg:mt-0">
             <Rotulo>gastos por categoria</Rotulo>
             {vazio ? (
-              <Vazio frase="Nenhum movimento neste mês." />
+              <Vazio
+                frase="Nenhum movimento neste mês."
+                acao={
+                  <Link
+                    href="/lancar"
+                    className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                  >
+                    Novo gasto
+                  </Link>
+                }
+              />
             ) : r.fatias.length === 0 ? (
               <Vazio
                 frase={
@@ -163,6 +175,13 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
                 <Rosca fatias={r.fatias} />
               </div>
             )}
+          </section>
+
+          <section className="casal-painel casal-painel-12 mt-8 lg:mt-0">
+            <Rotulo>últimos 6 meses</Rotulo>
+            <div className="mt-3">
+              <CurvaMeses pontos={r.curva} />
+            </div>
           </section>
         </div>
       </div>

@@ -44,13 +44,6 @@ function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
   return categoriasVisiveis(custom, tipo);
 }
 
-/** Query `?tipo=gasto|despesa|receita` → tipo interno do lançamento. */
-export function tipoLancarDaQuery(raw?: string | null): "despesa" | "receita" | undefined {
-  if (raw === "receita") return "receita";
-  if (raw === "gasto" || raw === "despesa") return "despesa";
-  return undefined;
-}
-
 function classeSelect() {
   return "relative z-10 mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 }

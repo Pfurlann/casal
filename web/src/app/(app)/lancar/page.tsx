@@ -1,4 +1,5 @@
-import { Lancar, tipoLancarDaQuery } from "@/components/telas/Lancar";
+import { Lancar } from "@/components/telas/Lancar";
+import { tipoLancarDaQuery } from "@/lib/lancarTipo";
 
 export default async function PaginaLancar({
   searchParams,

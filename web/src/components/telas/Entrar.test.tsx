@@ -45,12 +45,13 @@ describe("Entrar", () => {
     expect(screen.getByRole("img", { name: "casal" })).toBeInTheDocument();
   });
 
-  it("no desktop o formulário usa painel largo, não coluna de telefone", () => {
+  it("no desktop o formulário usa card estreito centralizado, não painel largo", () => {
     const { container } = render(<Entrar />);
     const painel = container.firstElementChild;
+    expect(painel?.className).toContain("mx-auto");
     expect(painel?.className).toContain("max-w-[430px]");
-    expect(painel?.className).toContain("lg:max-w-[1120px]");
-    expect(painel?.className).not.toContain("lg:max-w-[720px]");
+    expect(painel?.className).toContain("lg:max-w-[440px]");
+    expect(painel?.className).not.toContain("lg:max-w-[1120px]");
   });
 
   it("explica e-mail inválido ao clicar em Entrar", async () => {

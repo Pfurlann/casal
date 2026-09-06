@@ -13,6 +13,7 @@ private final class RepositorioCartoesFalso: RepositorioCartoes {
     func arquivarCartao(id: UUID) throws { cartoesSalvos.removeAll { $0.id == id } }
     func salvarConta(_ conta: Conta) throws { contasSalvas.append(conta) }
     func listarContas() throws -> [Conta] { contasSalvas }
+    func arquivarConta(id: UUID) throws { contasSalvas.removeAll { $0.id == id } }
 }
 
 @Suite("CartaoFormModelo")

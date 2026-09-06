@@ -906,11 +906,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       donoID: c.donoID ?? usuario?.id,
       visibilidade: c.visibilidade ?? visibilidadePadraoDaCarteira(estado.carteira),
     };
+    const jaExistia = (estado.cartoesTodos ?? estado.cartoes).some((x) => x.id === gravado.id);
     const cartoesTodos = mesclarPorId(estado.cartoesTodos ?? estado.cartoes, gravado).filter((x) => !x.arquivado);
     const cartoes = filtrarOrigensDaCarteira(cartoesTodos, estado.carteira, usuario?.id);
     await commit({ ...estado, cartoesTodos, cartoes });
     if (sb) {
-      await sb.from("cards").upsert({
+      const agora = new Date().toISOString();
+      const linha = {
         id: gravado.id,
         wallet_id: gravado.carteiraID,
         apelido: gravado.apelido,
@@ -924,9 +926,31 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         arquivado: gravado.arquivado,
         dono_id: gravado.donoID,
         visibilidade: gravado.visibilidade,
-        updated_at: new Date().toISOString(),
+        updated_at: agora,
         ...colunasDoPrograma(gravado.programa),
-      });
+      };
+      try {
+        const { error } = await sb.from("cards").upsert(linha);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          if (jaExistia) {
+            const { id: _id, ...patch } = linha;
+            enfileirarOp(
+              { op: "update", tabela: "cards", ids: [gravado.id], patch },
+              usuario?.id,
+            );
+          } else {
+            enfileirarOp(
+              { op: "insert", tabela: "cards", linhas: [linha] },
+              usuario?.id,
+            );
+          }
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -971,11 +995,13 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       visibilidade: c.visibilidade ?? visibilidadePadraoDaCarteira(estado.carteira),
       cor: corValida(c.cor),
     };
+    const jaExistia = (estado.contasTodas ?? estado.contas).some((x) => x.id === gravada.id);
     const contasTodas = mesclarPorId(estado.contasTodas ?? estado.contas, gravada).filter((x) => !x.arquivada);
     const contas = filtrarOrigensDaCarteira(contasTodas, estado.carteira, usuario?.id);
     await commit({ ...estado, contasTodas, contas });
     if (sb) {
-      await sb.from("accounts").upsert({
+      const agora = new Date().toISOString();
+      const linha = {
         id: gravada.id,
         wallet_id: gravada.carteiraID,
         nome: gravada.nome,
@@ -985,8 +1011,30 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         dono_id: gravada.donoID,
         visibilidade: gravada.visibilidade,
         cor: corValida(gravada.cor),
-        updated_at: new Date().toISOString(),
-      });
+        updated_at: agora,
+      };
+      try {
+        const { error } = await sb.from("accounts").upsert(linha);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          if (jaExistia) {
+            const { id: _id, ...patch } = linha;
+            enfileirarOp(
+              { op: "update", tabela: "accounts", ids: [gravada.id], patch },
+              usuario?.id,
+            );
+          } else {
+            enfileirarOp(
+              { op: "insert", tabela: "accounts", linhas: [linha] },
+              usuario?.id,
+            );
+          }
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -1204,19 +1252,32 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     await commit({ ...estado, transacoes, metasTodas, metas });
     if (sb) {
       const agora = new Date().toISOString();
-      const { error } = await sb.from("transactions").update({
+      const patch = {
         account_id: transacao.contaID ?? null,
         card_id: transacao.cartaoID ?? null,
-        status: "liquidado",
+        status: "liquidado" as const,
         goal_id: transacao.metaID ?? metaID ?? null,
         updated_at: agora,
-      }).eq("id", transacao.id);
-      if (error) throw error;
-      const mudou = metasTodas.filter((m) => {
-        const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
-        return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
-      });
-      await persistirMetas(mudou);
+      };
+      try {
+        const { error } = await sb.from("transactions").update(patch).eq("id", transacao.id);
+        if (error) throw error;
+        const mudou = metasTodas.filter((m) => {
+          const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
+          return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
+        });
+        await persistirMetas(mudou);
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "update", tabela: "transactions", ids: [transacao.id], patch },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -1296,18 +1357,16 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     const compromissos = compromissosTodos.filter((x) => x.carteiraID === estado.carteira.id);
     await commit({ ...estado, transacoes, compromissosTodos, compromissos });
     if (sb) {
-      const { error: errTx } = existente
-        ? await sb.from("transactions").update({
-            descricao: tx.descricao,
-            valor_centavos: tx.valor,
-            data: tx.data,
-            category_id: tx.categoriaID ?? null,
-            status: c.status,
-            updated_at: new Date().toISOString(),
-          }).eq("id", tx.id)
-        : await sb.from("transactions").insert(linhaDaTransacao(tx));
-      if (errTx) throw errTx;
-      const { error } = await sb.from("commitments").upsert({
+      const agora = new Date().toISOString();
+      const patchTx = {
+        descricao: tx.descricao,
+        valor_centavos: tx.valor,
+        data: tx.data,
+        category_id: tx.categoriaID ?? null,
+        status: c.status,
+        updated_at: agora,
+      };
+      const linhaComp = {
         id: c.id,
         wallet_id: c.carteiraID,
         nome: c.nome,
@@ -1317,9 +1376,45 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         transaction_id: c.transacaoID,
         status: c.status,
         deleted_at: null,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+        updated_at: agora,
+      };
+      const compromissoJaExistia = (estado.compromissosTodos ?? estado.compromissos ?? []).some(
+        (x) => x.id === c.id,
+      );
+      try {
+        const { error: errTx } = existente
+          ? await sb.from("transactions").update(patchTx).eq("id", tx.id)
+          : await sb.from("transactions").insert(linhaDaTransacao(tx));
+        if (errTx) throw errTx;
+        const { error } = await sb.from("commitments").upsert(linhaComp);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          if (existente) {
+            enfileirarOp(
+              { op: "update", tabela: "transactions", ids: [tx.id], patch: patchTx },
+              usuario?.id,
+            );
+          } else {
+            enfileirarOutbox([linhaDaTransacao(tx)], usuario?.id);
+          }
+          if (compromissoJaExistia) {
+            const { id: _cid, ...patchComp } = linhaComp;
+            enfileirarOp(
+              { op: "update", tabela: "commitments", ids: [c.id], patch: patchComp },
+              usuario?.id,
+            );
+          } else {
+            enfileirarOp(
+              { op: "insert", tabela: "commitments", linhas: [linhaComp] },
+              usuario?.id,
+            );
+          }
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -1334,16 +1429,30 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     await commit({ ...estado, compromissosTodos, compromissos, transacoes });
     if (sb) {
       const agora = new Date().toISOString();
-      const { error } = await sb.from("commitments").update({
-        deleted_at: agora,
-        updated_at: agora,
-      }).eq("id", id);
-      if (error) throw error;
-      if (apagaTx && alvo) {
-        await sb.from("transactions").update({
-          deleted_at: agora,
-          updated_at: agora,
-        }).eq("id", alvo.transacaoID);
+      const patch = { deleted_at: agora, updated_at: agora };
+      try {
+        const { error } = await sb.from("commitments").update(patch).eq("id", id);
+        if (error) throw error;
+        if (apagaTx && alvo) {
+          const { error: errTx } = await sb.from("transactions").update(patch).eq("id", alvo.transacaoID);
+          if (errTx) throw errTx;
+        }
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "soft_delete", tabela: "commitments", ids: [id], patch },
+            usuario?.id,
+          );
+          if (apagaTx && alvo) {
+            enfileirarOp(
+              { op: "soft_delete", tabela: "transactions", ids: [alvo.transacaoID], patch },
+              usuario?.id,
+            );
+          }
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
       }
     }
   };
@@ -1375,24 +1484,39 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     await commit({ ...estado, compromissosTodos, compromissos, transacoes, metasTodas, metas });
     if (sb) {
       const agora = new Date().toISOString();
-      const { error: errC } = await sb.from("commitments").update({
-        status: "liquidado",
-        updated_at: agora,
-      }).eq("id", id);
-      if (errC) throw errC;
-      const { error: errT } = await sb.from("transactions").update({
+      const patchComp = { status: "liquidado" as const, updated_at: agora };
+      const patchTx = {
         account_id: transacao.contaID ?? null,
         card_id: transacao.cartaoID ?? null,
-        status: "liquidado",
+        status: "liquidado" as const,
         goal_id: transacao.metaID ?? metaID ?? null,
         updated_at: agora,
-      }).eq("id", transacao.id);
-      if (errT) throw errT;
-      const mudou = metasTodas.filter((m) => {
-        const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
-        return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
-      });
-      await persistirMetas(mudou);
+      };
+      try {
+        const { error: errC } = await sb.from("commitments").update(patchComp).eq("id", id);
+        if (errC) throw errC;
+        const { error: errT } = await sb.from("transactions").update(patchTx).eq("id", transacao.id);
+        if (errT) throw errT;
+        const mudou = metasTodas.filter((m) => {
+          const antes = (estado.metasTodas ?? estado.metas ?? []).find((x) => x.id === m.id);
+          return !antes || (antes.alocado ?? 0) !== (m.alocado ?? 0);
+        });
+        await persistirMetas(mudou);
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "update", tabela: "commitments", ids: [id], patch: patchComp },
+            usuario?.id,
+          );
+          enfileirarOp(
+            { op: "update", tabela: "transactions", ids: [transacao.id], patch: patchTx },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 
@@ -1470,6 +1594,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     let persistida = estado.faturas.find(
       (f) => f.cartaoID === cartao.id && f.ano === fatura.ano && f.mes === fatura.mes,
     );
+    const faturaJaExistia = !!persistida;
     const faturas = [...estado.faturas];
     if (!persistida) {
       persistida = { ...fatura, id: fatura.id || uuid() };
@@ -1494,7 +1619,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     };
     await commit({ ...estado, faturas, transacoes: [...estado.transacoes, tx] });
     if (sb) {
-      await sb.from("invoices").upsert({
+      const agora = new Date().toISOString();
+      const linhaInv = {
         id: atualizada.id,
         card_id: atualizada.cartaoID,
         competencia_ano: atualizada.ano,
@@ -1503,9 +1629,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         vence_em: atualizada.venceEm,
         status: atualizada.status,
         valor_pago_centavos: atualizada.valorPago,
-        updated_at: new Date().toISOString(),
-      });
-      await sb.from("transactions").insert({
+        updated_at: agora,
+      };
+      const linhaTx = {
         id: tx.id,
         wallet_id: tx.carteiraID,
         tipo: tx.tipo,
@@ -1515,7 +1641,35 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         account_id: contaID,
         invoice_id: atualizada.id,
         hash_dedup: tx.hashDedup,
-      });
+      };
+      try {
+        const { error: errInv } = await sb.from("invoices").upsert(linhaInv);
+        if (errInv) throw errInv;
+        const { error: errTx } = await sb.from("transactions").insert(linhaTx);
+        if (errTx && errTx.code !== "23505") throw errTx;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          if (faturaJaExistia) {
+            const { id: _id, ...patchInv } = linhaInv;
+            enfileirarOp(
+              { op: "update", tabela: "invoices", ids: [atualizada.id], patch: patchInv },
+              usuario?.id,
+            );
+          } else {
+            enfileirarOp(
+              { op: "insert", tabela: "invoices", linhas: [linhaInv] },
+              usuario?.id,
+            );
+          }
+          enfileirarOp(
+            { op: "insert", tabela: "transactions", linhas: [linhaTx] },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
     }
   };
 

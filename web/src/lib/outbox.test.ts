@@ -59,16 +59,35 @@ describe("outbox", () => {
     expect(lerOutbox("u1")).toHaveLength(0);
   });
 
-  it("trata 23505 como sucesso", async () => {
-    enfileirarOutbox([{ id: "a" }], "u1");
+  it("trata 23505 como sucesso e reaplica update by id", async () => {
+    const updates: string[] = [];
+    let insertCalls = 0;
+    enfileirarOutbox([{ id: "a", descricao: "Padaria", updated_at: "2026-09-06T12:00:00.000Z" }], "u1");
     const r = await drenarOutbox(
-      clienteMock({
-        insert: async () => ({ error: { code: "23505", message: "dup" } }),
-      }),
+      {
+        from: () => ({
+          insert: async () => {
+            insertCalls += 1;
+            return { error: { code: "23505", message: "dup" } };
+          },
+          update: (patch) => {
+            void patch;
+            return {
+              eq: async (_col: string, id: string) => {
+                updates.push(id);
+                return { error: null };
+              },
+              in: async () => ({ error: null }),
+            };
+          },
+        }),
+      },
       "u1",
     );
     expect(r.enviados).toBe(1);
     expect(lerOutbox("u1")).toHaveLength(0);
+    expect(insertCalls).toBeGreaterThanOrEqual(2); // lote + individual
+    expect(updates).toEqual(["a"]);
   });
 
   it("mantém item se o insert falhar", async () => {
@@ -182,5 +201,20 @@ describe("outbox", () => {
     const item = lerOutbox("u1")[0];
     expect(item?.op).toBe("insert");
     expect(item?.tabela).toBe("transactions");
+  });
+
+  it("drena update de commitments", async () => {
+    enfileirarOp(
+      {
+        op: "update",
+        tabela: "commitments",
+        ids: ["c1"],
+        patch: { status: "liquidado", updated_at: "2026-09-06T12:00:00.000Z" },
+      },
+      "u1",
+    );
+    const r = await drenarOutbox(clienteMock({}), "u1");
+    expect(r.enviados).toBe(1);
+    expect(lerOutbox("u1")).toHaveLength(0);
   });
 });

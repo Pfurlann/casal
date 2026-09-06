@@ -21,6 +21,7 @@ private final class RepositorioCartoesFalso: RepositorioCartoes {
     func arquivarCartao(id: UUID) throws {}
     func salvarConta(_ conta: Conta) throws {}
     func listarContas() throws -> [Conta] { [] }
+    func arquivarConta(id: UUID) throws {}
 }
 
 @Suite("LancamentoModelo")

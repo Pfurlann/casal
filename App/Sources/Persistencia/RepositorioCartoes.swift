@@ -8,6 +8,8 @@ protocol RepositorioCartoes {
     func arquivarCartao(id: UUID) throws
     func salvarConta(_ conta: Conta) throws
     func listarContas() throws -> [Conta]
+    /// Soft-delete: arquivada + removidoEm (espelha deleted_at SQL).
+    func arquivarConta(id: UUID) throws
 }
 
 final class RepositorioCartoesSwiftData: RepositorioCartoes {
@@ -73,5 +75,18 @@ final class RepositorioCartoesSwiftData: RepositorioCartoes {
             sortBy: [SortDescriptor(\.nome)]
         )
         return try contexto.fetch(descritor).map { $0.paraDominio() }
+    }
+
+    /// Soft-delete de conta: marca arquivada + removidoEm (não apaga o registro).
+    func arquivarConta(id: UUID) throws {
+        var descritor = FetchDescriptor<ContaRegistro>(predicate: #Predicate { $0.id == id })
+        descritor.fetchLimit = 1
+
+        guard let registro = try contexto.fetch(descritor).first else { return }
+        let agora = Date()
+        registro.arquivada = true
+        registro.removidoEm = agora
+        registro.atualizadoEm = agora
+        try contexto.save()
     }
 }

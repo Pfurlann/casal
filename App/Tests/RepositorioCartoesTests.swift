@@ -61,6 +61,15 @@ struct RepositorioCartoesTests {
         #expect(encontradas.first?.nome == "Corrente")
     }
 
+    @Test("conta arquivada (soft-delete) sai da listagem")
+    func arquivarConta() throws {
+        let repo = try repositorio()
+        let conta = Conta(carteiraID: UUID(), nome: "Poupança", saldoInicial: Money(centavos: 10_000))
+        try repo.salvarConta(conta)
+        try repo.arquivarConta(id: conta.id)
+        #expect(try repo.listarContas().isEmpty)
+    }
+
     @Test("cartões sobrevivem a fechar e reabrir o armazenamento")
     func persistencia() throws {
         let url = URL.temporaryDirectory.appending(path: "\(UUID()).store")

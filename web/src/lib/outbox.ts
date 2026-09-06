@@ -1,7 +1,7 @@
 /** Fila offline→online (localStorage por user). Ops: insert | update | soft_delete. */
 
 export type OpOutbox = "insert" | "update" | "soft_delete";
-export type TabelaOutbox = "transactions" | "cards" | "accounts" | "invoices";
+export type TabelaOutbox = "transactions" | "cards" | "accounts" | "invoices" | "commitments";
 
 export type ItemOutbox = {
   id: string;
@@ -98,7 +98,7 @@ export function enfileirarOutbox(
   );
 }
 
-/** Enfileira insert | update | soft_delete em transactions|cards|accounts|invoices. */
+/** Enfileira insert | update | soft_delete em transactions|cards|accounts|invoices|commitments. */
 export function enfileirarOp(
   p: {
     op: OpOutbox;
@@ -183,13 +183,35 @@ function contagemItem(item: ItemOutbox): number {
   return item.ids?.length ?? 0;
 }
 
+function patchSemId(linha: Record<string, unknown>): Record<string, unknown> {
+  const patch: Record<string, unknown> = { ...linha };
+  delete patch.id;
+  return patch;
+}
+
+/**
+ * insert: tenta o lote; em 23505 reaplica linha a linha —
+ * insert individual e, se ainda 23505, update by id (upsert semântico).
+ */
 async function aplicarItem(sb: ClienteOutbox, item: ItemOutbox): Promise<ErroSb> {
   const op = item.op ?? "insert";
   const tabela = item.tabela ?? "transactions";
   if (op === "insert") {
     const { error } = await sb.from(tabela).insert(item.linhas);
-    if (error && error.code === "23505") return null;
-    return error;
+    if (!error) return null;
+    if (error.code !== "23505") return error;
+    for (const linha of item.linhas) {
+      const { error: errIns } = await sb.from(tabela).insert([linha]);
+      if (!errIns) continue;
+      if (errIns.code !== "23505") return errIns;
+      const id = linha.id;
+      if (typeof id !== "string" || !id) continue;
+      const patch = patchSemId(linha);
+      if (Object.keys(patch).length === 0) continue;
+      const { error: errUp } = await sb.from(tabela).update(patch).eq("id", id);
+      if (errUp) return errUp;
+    }
+    return null;
   }
   const ids = item.ids ?? [];
   const patch = item.patch ?? {};
@@ -202,7 +224,7 @@ async function aplicarItem(sb: ClienteOutbox, item: ItemOutbox): Promise<ErroSb>
   return error;
 }
 
-/** Envia a fila; remove itens ok; 23505 em insert conta como sucesso. */
+/** Envia a fila; remove itens ok. Insert com 23505 → reaplicar update by id. */
 export async function drenarOutbox(
   sb: ClienteOutbox,
   userId?: string | null,

@@ -1,7 +1,7 @@
-# AVISO — Contrato: outbox offline→online (P1 BACK)
+# AVISO — Contrato: outbox offline→online (P1.5 BACK)
 
 **Data:** 2026-09-06  
-**Escopo:** fila localStorage por user (`casal-outbox[:userId]`), drain idempotente, soft-delete SQL `deleted_at`, SwiftData upsert in-place.
+**Escopo:** fila localStorage por user (`casal-outbox[:userId]`), drain idempotente com reapply pós-23505, soft-delete SQL `deleted_at`, SwiftData upsert in-place + soft-delete de conta.
 
 ## Soft-delete no SQL
 
@@ -13,42 +13,62 @@ No domínio iOS / SwiftData o espelho é **`removidoEm`**.
 
 ## Mapa de ops × tabelas (outbox web)
 
-| Op | `transactions` | `cards` | `accounts` | `invoices` |
-| --- | --- | --- | --- | --- |
-| `insert` | ✅ drain + callers (`lancar`, OFX, … via `enfileirarOutbox`) | ✅ drain + `enfileirarOp` | ✅ drain + `enfileirarOp` | ✅ drain + `enfileirarOp` |
-| `update` | ✅ drain + caller `editar` | ✅ drain (API) | ✅ drain (API) | ✅ drain (API) |
-| `soft_delete` | ✅ drain + caller `apagar` (`deleted_at`) | ✅ drain + caller `apagarCartao` | ✅ drain (API) | ✅ drain (API) |
+| Op | `transactions` | `cards` | `accounts` | `invoices` | `commitments` |
+| --- | --- | --- | --- | --- | --- |
+| `insert` | ✅ drain + callers | ✅ drain + `salvarCartao` | ✅ drain + `salvarConta` | ✅ drain + `pagarFatura` | ✅ drain + `salvarCompromisso` |
+| `update` | ✅ `editar` / `liquidar*` | ✅ `salvarCartao` | ✅ `salvarConta` | ✅ `pagarFatura` | ✅ `liquidarCompromisso` / `salvarCompromisso` |
+| `soft_delete` | ✅ `apagar` (+ compromisso a_pagar) | ✅ `apagarCartao` | ✅ drain (API) | ✅ drain (API) | ✅ `apagarCompromisso` |
 
-- **23505** em `insert` = sucesso (idempotência por id / hash único parcial).
+- **23505 em `insert`:** após conflito, o drain **reaplica** linha a linha — insert individual e, se ainda 23505, **`update` by `id`** com o payload da linha (sem `id`). Antes (P1) 23505 = sucesso vazio sem reaplicar patch.
 - Item legado (só `linhas`, sem `op`/`tabela`) normaliza para `insert` + `transactions`.
 - Contagem `tamanhoOutbox` / `FaixaOffline`: insert conta `linhas.length`; update/soft_delete conta `ids.length`.
 
-API: `web/src/lib/outbox.ts` — `enfileirarOutbox` (legado insert txs), `enfileirarOp`, `drenarOutbox`, `eErroRede`.
+API: `web/src/lib/outbox.ts` — `enfileirarOutbox` (legado insert txs), `enfileirarOp`, `drenarOutbox`, `eErroRede`.  
+`TabelaOutbox` inclui `commitments` (P1.5).
 
-## Callers store (este P1)
+## Callers store (P1 + P1.5)
 
 | Fluxo | Comportamento offline (rede) |
 | --- | --- |
-| `lancar` / OFX / OFX conta | já enfileirava insert txs |
-| `editar` | agora enfileira `update` txs |
-| `apagar` | agora enfileira `soft_delete` txs |
-| `apagarCartao` | agora enfileira `soft_delete` cards |
+| `lancar` / OFX / OFX conta | insert txs |
+| `editar` | `update` txs |
+| `apagar` | `soft_delete` txs |
+| `apagarCartao` | `soft_delete` cards |
+| `salvarCartao` | `insert` ou `update` cards (conforme já existia local) |
+| `salvarConta` | `insert` ou `update` accounts |
+| `pagarFatura` | `insert`/`update` invoices + `insert` tx transferência |
+| `liquidarLancamento` | `update` txs (`status: liquidado` + conta/cartão/meta) |
+| `liquidarCompromisso` | `update` commitments + `update` txs |
+| `salvarCompromisso` | insert/update txs + insert/update commitments |
+| `apagarCompromisso` | `soft_delete` commitments (+ txs se `a_pagar`) |
 
-## SwiftData (feito neste P1)
+Payloads derivados do DDL (`accounts` / `cards` / `invoices` / `transactions` / `commitments`).
 
-`RepositorioTransacoes` / `RepositorioCartoes` (cartão + conta): **update-in-place** no lugar de delete-then-insert.
+## SwiftData
+
+`RepositorioTransacoes` / `RepositorioCartoes` (cartão + conta): **update-in-place** (P1).
+
+`RepositorioCartoes.arquivarConta` (P1.5): soft-delete local — `arquivada = true` + `removidoEm = agora` (espelha `deleted_at`).
 
 Regra seção 12: se `removidoEm` local já está setado, **não ressuscita** ao aplicar um domínio sem remoção (`aplicar(dominio:)` em `Mapeamento.swift`).
 
-`RepositorioFaturas.atualizarFatura` já era in-place — sem mudança de estratégia.
+`RepositorioFaturas.atualizarFatura` já era in-place.
 
 ## O que ficou para depois
 
-1. **Callers store** de upsert/update/soft-delete para `accounts` e `invoices` (e update de `cards` além do soft-delete) — API de fila já aceita; falta try/catch + `enfileirarOp` nos fluxos `salvarConta` / `pagarFatura` / `salvarCartao`.
-2. **Liquidar / compromisso / totais de fatura** — updates online-only; enfileirar se rede cair.
-3. **Drain com upsert true** (PostgREST) para cards/accounts quando a linha ainda não existe no servidor — hoje insert trata 23505 como ok sem reaplicar patch.
-4. **Domínio Swift** `Cartao` / `Conta` ainda não carregam `removidoEm` — preservamos só o valor local no registro; espelhar no domínio quando o sync M3 precisar round-trip.
-5. Soft-delete explícito de **conta** no iOS (hoje só arquivar cartão / remover tx).
+1. **Caller web `apagarConta` / soft_delete accounts** — API de fila já aceita; store ainda não expõe fluxo de apagar conta com enqueue (só `salvarConta`).
+2. **Metas / goals no outbox** — `liquidar*` enfileira txs/commitments; `persistirMetas` continua online-only (goals fora do mapa).
+3. **Domínio Swift** `Cartao` / `Conta` ainda não carregam `removidoEm` — preservamos só o valor local no registro; espelhar no domínio quando o sync M3 precisar round-trip.
+4. **`arquivarCartao` iOS** ainda só seta `arquivado` (não `removidoEm`); alinhar ao soft-delete de conta se o sync exigir `deleted_at` no cartão.
+5. **Totais de fatura** (`persistirTotaisFatura`) — updates de invoice/tx online; OFX já enfileira txs de total quando a rede cai no insert em lote.
+
+## Mudança de comportamento (drain)
+
+| Antes (P1) | Agora (P1.5) |
+| --- | --- |
+| Insert com erro `23505` → item removido da fila **sem** reaplicar campos | Insert com `23505` → para cada linha: tenta insert; se `23505`, **update by id** com o patch da linha |
+
+Motivo: upsert offline→online de cards/accounts/invoices/commitments (e txs com mesmo id) precisa reaplicar o payload enfileirado, não só “já existe = ok”.
 
 ## Fora de propósito (este commit)
 

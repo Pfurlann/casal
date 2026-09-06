@@ -35,9 +35,15 @@ select {
 
 .casal-principal {
   width: 100%;
-  max-width: 560px;
-  margin-inline: auto;
   padding-bottom: 132px;
+}
+
+/* tablet/phone: coluna centrada. Nunca vaza para o desktop (≥1024). */
+@media (max-width: 1023px) {
+  .casal-principal {
+    max-width: 560px;
+    margin-inline: auto;
+  }
 }
 
 .casal-tabela-cabeca {

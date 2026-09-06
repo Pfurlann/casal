@@ -30,14 +30,20 @@ function ShellCarregando({ mensagem }: { mensagem: string }) {
         {["mês", "relatórios", "cartões", "metas", "mais"].map((nome) => (
           <div
             key={nome}
-            className="flex flex-1 flex-col items-center justify-center gap-1 lg:mt-1 lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2"
+            className="flex flex-1 flex-col items-center justify-center gap-1 lg:mt-1 lg:w-full lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2"
           >
             <BlocoEsqueleto className="h-5 w-5 rounded-full" />
             <BlocoEsqueleto className="h-2.5 w-10 lg:w-16" />
           </div>
         ))}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-[68px] lg:static lg:mt-auto lg:mb-8 lg:translate-x-0">
-          <BlocoEsqueleto className="h-[52px] w-[52px] rounded-etiqueta lg:h-[44px] lg:w-full lg:rounded-controle" />
+        <div className="absolute left-1/2 -translate-x-1/2 -top-[68px] lg:hidden">
+          <BlocoEsqueleto className="h-[52px] w-[52px] rounded-etiqueta" />
+        </div>
+        <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-8 lg:pt-6">
+          <BlocoEsqueleto className="h-6 w-20 rounded-etiqueta" />
+          <BlocoEsqueleto className="h-3 w-36" />
+          <BlocoEsqueleto className="h-3 w-10" />
+          <BlocoEsqueleto className="h-[44px] w-full rounded-controle" />
         </div>
       </nav>
       <main className="casal-principal">

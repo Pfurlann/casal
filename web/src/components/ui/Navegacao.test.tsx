@@ -7,6 +7,25 @@ vi.mock("next/navigation", () => ({
   usePathname: () => caminho.atual,
 }));
 
+const loja = vi.hoisted(() => ({
+  valor: { carteira: { id: "c1", nome: "Nosso" } } as Record<string, unknown>,
+}));
+vi.mock("@/lib/store", async (original) => {
+  const real = await original<typeof import("@/lib/store")>();
+  return { ...real, useLoja: () => loja.valor };
+});
+
+const auth = vi.hoisted(() => ({
+  valor: {
+    usuario: { email: "pedro@exemplo.com" },
+    sair: vi.fn(),
+  } as Record<string, unknown>,
+}));
+vi.mock("@/lib/auth", async (original) => {
+  const real = await original<typeof import("@/lib/auth")>();
+  return { ...real, useAuth: () => auth.valor };
+});
+
 describe("Navegacao", () => {
   it("oferece os destinos sem duplicar home", () => {
     caminho.atual = "/mes";
@@ -60,10 +79,21 @@ describe("Navegacao", () => {
   it("dá à ação de lançar um alvo próprio, fora das abas", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
-    const lancar = screen.getByRole("link", { name: "Novo lançamento" });
-    expect(lancar).toHaveAttribute("href", "/lancar");
-    expect(lancar.textContent).toContain("Novo lançamento");
-    expect(lancar.textContent).not.toContain("Novo gasto");
+    const lancar = screen.getAllByRole("link", { name: "Novo lançamento" });
+    expect(lancar.length).toBeGreaterThanOrEqual(1);
+    for (const a of lancar) {
+      expect(a).toHaveAttribute("href", "/lancar");
+      expect(a.textContent).not.toContain("Novo gasto");
+    }
+  });
+
+  it("não coloca Sair na bottom nav — Sair fica no trilho desktop e em Mais", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    const sair = screen.getByRole("button", { name: "Sair" });
+    expect(sair.parentElement?.className).toContain("hidden");
+    expect(sair.parentElement?.className).toContain("lg:flex");
+    expect(screen.queryByRole("link", { name: "Sair" })).not.toBeInTheDocument();
   });
 });
 
@@ -91,6 +121,30 @@ describe("Navegacao — trilho de desktop", () => {
     );
   });
 
+  it("links do trilho alinham à esquerda no desktop", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    const mes = screen.getByRole("link", { name: "mês" });
+    expect(mes.className).toContain("lg:justify-start");
+    expect(mes.className).toContain("lg:text-left");
+    expect(mes.className).toContain("lg:w-full");
+  });
+
+  it("rodapé do trilho tem carteira, e-mail, Sair e Novo lançamento", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    expect(screen.getByRole("link", { name: "Nosso" })).toHaveAttribute(
+      "href",
+      "/mais/carteiras",
+    );
+    expect(screen.getByText("pedro@exemplo.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
+    const lancar = screen.getAllByRole("link", { name: "Novo lançamento" });
+    expect(lancar.some((a) => a.textContent?.includes("Novo lançamento"))).toBe(
+      true,
+    );
+  });
+
   it("abas e lançar têm press e alvo de 44px", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
@@ -101,7 +155,7 @@ describe("Navegacao — trilho de desktop", () => {
       "min-h-[44px]",
     );
     expect(
-      screen.getByRole("link", { name: "Novo lançamento" }).className,
+      screen.getAllByRole("link", { name: "Novo lançamento" })[0].className,
     ).toContain("casal-toque");
   });
 });

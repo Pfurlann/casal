@@ -6,6 +6,7 @@ import {
   dataLocalISO,
   hrefDoCartao,
   hrefDoMes,
+  hrefDoRelatorio,
   planejarParcelas,
   rotuloDaCompetencia,
   transacoesDoLancamento,
@@ -62,6 +63,7 @@ describe("competenciaDaConsulta / hrefDoMes / hrefDoCartao", () => {
       mes: new Date().getMonth() + 1,
     }));
     expect(hrefDoMes({ ano: 2026, mes: 8 })).toBe("/mes?c=2026-08");
+    expect(hrefDoRelatorio({ ano: 2026, mes: 8 })).toBe("/relatorios?c=2026-08");
     expect(hrefDoCartao("k1", { ano: 2026, mes: 8 })).toBe("/cartoes/k1?c=2026-08");
   });
 });

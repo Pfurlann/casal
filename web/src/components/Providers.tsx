@@ -27,7 +27,7 @@ function ShellCarregando({ mensagem }: { mensagem: string }) {
         <div className="hidden lg:mb-10 lg:block lg:px-2">
           <BlocoEsqueleto className="h-8 w-28" />
         </div>
-        {["mês", "cartões", "metas", "mais"].map((nome) => (
+        {["mês", "relatórios", "cartões", "metas", "mais"].map((nome) => (
           <div
             key={nome}
             className="flex flex-1 flex-col items-center justify-center gap-1 lg:mt-1 lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2"

@@ -193,7 +193,7 @@ export function IconeCategoria({ nome, size = 16 }: { nome?: string; size?: numb
   return <>{desenhar(size)}</>;
 }
 
-export type NomeAba = "visao" | "inicio" | "cartoes" | "metas" | "mais";
+export type NomeAba = "visao" | "inicio" | "relatorios" | "cartoes" | "metas" | "mais";
 
 export function IconeAba({ nome }: { nome: NomeAba }) {
   const comum = { viewBox: "0 0 24 24", width: 22, height: 22, "aria-hidden": true } as const;
@@ -209,6 +209,13 @@ export function IconeAba({ nome }: { nome: NomeAba }) {
         <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">
           <circle cx="12" cy="12" r="8.2" />
           <circle cx="12" cy="12" r="3.6" />
+        </svg>
+      );
+    case "relatorios":
+      return (
+        <svg {...comum} fill="none" stroke="currentColor" strokeWidth="var(--traco-icone)">
+          <circle cx="12" cy="12" r="8.2" />
+          <path d="M12 4v8h8" />
         </svg>
       );
     case "cartoes":

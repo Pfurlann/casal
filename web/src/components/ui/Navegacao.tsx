@@ -37,10 +37,10 @@ export function Navegacao() {
         "fixed inset-x-0 bottom-0 z-20 flex items-stretch border-t border-nevoa bg-ar " +
         "pb-[env(safe-area-inset-bottom)] " +
         "lg:sticky lg:top-0 lg:h-dvh lg:w-[260px] lg:shrink-0 lg:flex-col lg:items-stretch " +
-        "lg:overflow-y-auto lg:border-r lg:border-t-0 lg:px-4 lg:pt-8 lg:pb-0"
+        "lg:overflow-y-auto lg:border-r lg:border-t-0 lg:px-4 lg:pt-5 lg:pb-0"
       }
     >
-      <div className="hidden lg:mb-10 lg:block lg:px-2 lg:text-left">
+      <div className="hidden lg:mb-6 lg:block lg:px-2 lg:text-left">
         <Assinatura variante="base" largura={112} />
       </div>
 
@@ -82,7 +82,7 @@ export function Navegacao() {
       </Link>
 
       {/* Desktop rail footer: um bloco de conta/carteira + Novo lançamento. Não copia no mobile. */}
-      <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-8 lg:pt-6">
+      <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-[var(--e-7)] lg:pt-6">
         <div className="flex flex-col gap-2 rounded-controle border border-nevoa bg-ar px-3 py-3">
           <Link
             href="/mais/carteiras"

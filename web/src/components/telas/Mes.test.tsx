@@ -100,6 +100,21 @@ describe("Mes", () => {
     expect(cat?.textContent).toMatch(/Mercado/);
     expect(cat?.textContent).not.toMatch(/Corrente/);
     expect(origem?.textContent).toMatch(/Corrente/);
+    expect(container.querySelector(".casal-linha-mes-estado-slot")).toBeTruthy();
+  });
+
+  it("origem vazia não preenche com travessão", () => {
+    const { container } = montar({
+      contas: [],
+      transacoes: [
+        {
+          ...despesa(21490, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1"),
+          contaID: undefined,
+        },
+      ],
+    });
+    const origem = container.querySelector(".casal-linha-mes-origem");
+    expect(origem?.textContent ?? "").not.toContain("—");
   });
 
   it("no cabeçalho do mês só a competência, sem repetir a carteira", () => {

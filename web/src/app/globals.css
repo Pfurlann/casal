@@ -84,6 +84,12 @@ select {
   display: none;
 }
 
+.casal-linha-mes-estado-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .casal-painel {
   /* mobile: sem card — continua fluxo natural */
 }
@@ -111,9 +117,10 @@ select {
     width: 100%;
     max-width: 1280px;
     margin-inline: 0;
+    /* topo do card = pt do trilho (e-5); padding-top ≈ Assinatura+mb para alinhar h1 à aba mês */
     margin-block: var(--e-5);
     padding-inline: var(--e-6);
-    padding-block: var(--e-5) var(--e-8);
+    padding-block: calc(62px + var(--e-6)) var(--e-8);
     padding-bottom: var(--e-8);
     border: 1px solid var(--nevoa);
     border-radius: 22px;
@@ -166,13 +173,13 @@ select {
     padding-block: 0.5rem;
   }
 
-  /* Mesma grade no cabeçalho e em cada linha — sem max-content (largura por conteúdo). */
+  /* Mesma grade no cabeçalho e em cada linha — valor/estado com largura fixa. */
   .casal-tabela-cabeca,
   .casal-linha-mes {
-    --casal-cols-mes: minmax(0, 2.6fr) minmax(0, 1.2fr) minmax(0, 1.5fr) 7.5rem 5.5rem;
+    --casal-cols-mes: minmax(0, 2.4fr) minmax(0, 1.15fr) minmax(0, 1.35fr) 7rem 5.75rem;
     display: grid;
     grid-template-columns: var(--casal-cols-mes);
-    column-gap: var(--e-4);
+    column-gap: var(--e-5);
     align-items: center;
     width: 100%;
   }
@@ -237,19 +244,29 @@ select {
   .casal-tabela-cabeca > :nth-child(4),
   .casal-linha-mes-valor {
     justify-self: stretch;
+    padding-right: var(--e-2);
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
 
   .casal-tabela-cabeca > :nth-child(5),
   .casal-linha-mes-estado {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
     justify-self: stretch;
-    text-align: right;
+  }
+
+  /* Slot fixo: Pagar e ✓ compartilham o mesmo eixo. */
+  .casal-linha-mes-estado-slot {
+    width: 4.75rem;
+    min-height: 28px;
   }
 
   .casal-btn-pagar-desktop {
     display: inline-flex;
     min-height: 28px;
+    width: 100%;
     align-items: center;
     justify-content: center;
     border-radius: 999px;

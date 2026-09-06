@@ -302,17 +302,29 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
           />
         ) : null
       ) : (
-        <div className="mt-8 px-4 lg:px-0">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="mt-10 px-4 lg:mt-12 lg:px-0">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
             <Rotulo>lançamentos</Rotulo>
             <div className="flex gap-2" role="group" aria-label="Filtro dos lançamentos">
-              <Etiqueta ativa={filtro === "todos"} aoClicar={() => setFiltro("todos")}>
+              <Etiqueta
+                className="lg:min-h-[32px] lg:py-1"
+                ativa={filtro === "todos"}
+                aoClicar={() => setFiltro("todos")}
+              >
                 Todos
               </Etiqueta>
-              <Etiqueta ativa={filtro === "pagos"} aoClicar={() => setFiltro("pagos")}>
+              <Etiqueta
+                className="lg:min-h-[32px] lg:py-1"
+                ativa={filtro === "pagos"}
+                aoClicar={() => setFiltro("pagos")}
+              >
                 Pagos
               </Etiqueta>
-              <Etiqueta ativa={filtro === "a_pagar"} aoClicar={() => setFiltro("a_pagar")}>
+              <Etiqueta
+                className="lg:min-h-[32px] lg:py-1"
+                ativa={filtro === "a_pagar"}
+                aoClicar={() => setFiltro("a_pagar")}
+              >
                 A pagar
               </Etiqueta>
             </div>
@@ -340,7 +352,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                   ? "fatura"
                   : (cat?.nome ?? "Sem categoria");
                 const parcela = t.parcelaTotal > 1 ? `${t.parcelaN}/${t.parcelaTotal}` : null;
-                const origemRotulo = origem?.nome ?? "—";
+                const origemRotulo = origem?.nome ?? "";
                 const partes = [categoriaRotulo, parcela, origem?.nome, quem].filter(Boolean);
                 const titulo = t.descricao || cat?.nome || "Sem descrição";
                 const podePagar = !pago && !compraCartao && Boolean(liquidarLancamento);
@@ -374,34 +386,40 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                         {parcela ? ` · ${parcela}` : ""}
                       </span>
                       <span className="casal-linha-mes-origem">
-                        {origem?.cor && <BolinhaCor cor={origem.cor} />}
-                        <span className="truncate">
-                          {[origemRotulo, quem].filter(Boolean).join(" · ")}
-                        </span>
+                        {origemRotulo || quem ? (
+                          <>
+                            {origem?.cor && <BolinhaCor cor={origem.cor} />}
+                            <span className="truncate">
+                              {[origemRotulo, quem].filter(Boolean).join(" · ")}
+                            </span>
+                          </>
+                        ) : null}
                       </span>
                       <span className="casal-linha-mes-valor">
                         <Numero centavos={t.valor} tamanho="corpo" />
                       </span>
                       <span className="casal-linha-mes-estado">
-                        {pago ? (
-                          <span aria-label="pago" className="text-[14px] text-pago">
-                            ✓
-                          </span>
-                        ) : podePagar && desktop ? (
-                          <button
-                            type="button"
-                            className="casal-btn-pagar-desktop"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setPagando(t);
-                            }}
-                          >
-                            Pagar
-                          </button>
-                        ) : (
-                          <span className="casal-linha-mes-estado-texto">a pagar</span>
-                        )}
+                        <span className="casal-linha-mes-estado-slot">
+                          {pago ? (
+                            <span aria-label="pago" className="text-[14px] text-pago">
+                              ✓
+                            </span>
+                          ) : podePagar && desktop ? (
+                            <button
+                              type="button"
+                              className="casal-btn-pagar-desktop"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPagando(t);
+                              }}
+                            >
+                              Pagar
+                            </button>
+                          ) : (
+                            <span className="casal-linha-mes-estado-texto">a pagar</span>
+                          )}
+                        </span>
                       </span>
                     </Link>
                   </LinhaDeslizavel>

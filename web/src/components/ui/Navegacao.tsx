@@ -74,7 +74,7 @@ export function Navegacao() {
         }
       >
         <span aria-hidden className="lg:hidden">+</span>
-        <span className="hidden lg:inline">Novo gasto</span>
+        <span className="hidden lg:inline">Novo lançamento</span>
       </Link>
     </nav>
   );

@@ -60,9 +60,10 @@ describe("Navegacao", () => {
   it("dá à ação de lançar um alvo próprio, fora das abas", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
-    expect(
-      screen.getByRole("link", { name: "Novo lançamento" }),
-    ).toHaveAttribute("href", "/lancar");
+    const lancar = screen.getByRole("link", { name: "Novo lançamento" });
+    expect(lancar).toHaveAttribute("href", "/lancar");
+    expect(lancar.textContent).toContain("Novo lançamento");
+    expect(lancar.textContent).not.toContain("Novo gasto");
   });
 });
 

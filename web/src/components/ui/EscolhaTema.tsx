@@ -14,7 +14,7 @@ export function EscolhaTema() {
   const { tema, escolher } = useTema();
   return (
     <div>
-      <Rotulo>tema</Rotulo>
+      <Rotulo>preferências</Rotulo>
       <div className="mt-2 flex w-full gap-2">
         {OPCOES.map((o) => (
           <Etiqueta

@@ -8,22 +8,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Navegacao", () => {
-  it("oferece os destinos do phone e a visão no desktop", () => {
+  it("oferece os destinos sem duplicar home", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
-    for (const nome of ["visão", "mês", "cartões", "metas", "mais"]) {
+    for (const nome of ["mês", "cartões", "metas", "mais"]) {
       expect(screen.getByRole("link", { name: nome })).toBeInTheDocument();
     }
-    expect(screen.getByRole("link", { name: "visão" })).toHaveAttribute("href", "/visao");
-  });
-
-  it("marca visão ativa na seção inteira", () => {
-    caminho.atual = "/visao";
-    render(<Navegacao />);
-    expect(screen.getByRole("link", { name: "visão" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.queryByRole("link", { name: "visão" })).not.toBeInTheDocument();
   });
 
   it("marca o destino ativo com aria-current, não só com cor", () => {

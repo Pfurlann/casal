@@ -30,13 +30,6 @@ export function Mais() {
           <EscolhaTema />
         </div>
         <div className="mt-8">
-          <div className="lg:hidden">
-            <LinhaLista
-              titulo="Visão"
-              subtitulo={`diagnóstico da carteira · ${carteira.nome}`}
-              href="/visao"
-            />
-          </div>
           <LinhaLista
             titulo="Carteiras"
             subtitulo={`pessoal e conjunta · ${carteira.nome}`}

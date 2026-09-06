@@ -1,6 +1,6 @@
 import { CORES_CARTAO, type Cartao, type Conta, type Transacao } from "./domain";
 
-export const COR_ORIGEM_PADRAO = CORES_CARTAO[0] ?? "#7C5CFF";
+export const COR_ORIGEM_PADRAO = CORES_CARTAO[0] ?? "#0E0E0C";
 
 export function corValida(cor?: string | null): string {
   if (cor && CORES_CARTAO.includes(cor)) return cor;

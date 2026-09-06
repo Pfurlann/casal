@@ -192,7 +192,7 @@ export const CATEGORIAS: Categoria[] = [
   { id: "00000000-0000-0000-0000-000000000014", nome: "Reembolso", icone: "reembolso", cor: "#66D4CF", tipo: "receita" },
 ];
 
-export const CORES_CARTAO = ["#7C5CFF", "#8A2BE2", "#FF9F0A", "#FF453A", "#34C759", "#0A84FF", "#2C2C2E"];
+export const CORES_CARTAO = ["#0E0E0C", "#C98A2E", "#2F7D4A", "#6E6E66", "#FF9F0A", "#FF453A", "#0A84FF"];
 
 export const ROTULO_CARTEIRA: Record<RotuloCarteira, string> = {
   pessoal: "Pessoal",

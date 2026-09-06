@@ -111,7 +111,7 @@ function carteiraPadrao(parcial?: Partial<Carteira>): Carteira {
   return {
     id: parcial?.id ?? "",
     nome: parcial?.nome ?? "Nosso",
-    cor: parcial?.cor ?? "#7C5CFF",
+    cor: parcial?.cor ?? "#0E0E0C",
     rotulo: parcial?.rotulo ?? "compartilhada",
     visibilidade: parcial?.visibilidade ?? "aberta",
   };
@@ -138,7 +138,7 @@ function mapearCarteira(w: {
   return {
     id: w.id,
     nome: w.nome,
-    cor: w.cor ?? "#7C5CFF",
+    cor: w.cor ?? "#0E0E0C",
     rotulo,
     visibilidade,
     membrosN,

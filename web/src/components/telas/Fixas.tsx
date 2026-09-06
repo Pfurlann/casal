@@ -79,7 +79,7 @@ export function Fixas() {
             <div className="mt-6">
               <Rotulo>neste mês</Rotulo>
               <p className="mt-1 text-[12px] text-cinza">
-                Já viraram lançamento. Na aba mês, deslize os a pagar para marcar pago.
+                Já viraram lançamento. Na aba mês, use Pagar nos a pagar.
               </p>
               <div className="mt-2">
                 {vencimentos.map((v) => {

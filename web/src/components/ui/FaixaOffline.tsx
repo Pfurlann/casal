@@ -37,7 +37,7 @@ export function FaixaOffline({ pendencias = 0 }: { pendencias?: number }) {
   return (
     <div
       role="status"
-      className="border-b border-nevoa bg-areia px-4 py-2 text-center text-[12px] text-grafite"
+      className="border-b border-nevoa bg-nevoa px-4 py-2 text-center text-[12px] text-grafite"
     >
       {texto}
     </div>

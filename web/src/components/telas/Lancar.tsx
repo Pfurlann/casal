@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { categoriaPorId, categoriasVisiveis } from "@/lib/categorias";
 import {
   ROTULO_TIPO_CONTA,
@@ -85,6 +85,11 @@ export function Lancar({
   const [parcelas, setParcelas] = useState(1);
   const [pagadorEscolhido, setPagadorEscolhido] = useState<string | undefined>(undefined);
   const [salvando, setSalvando] = useState(false);
+  const campoValor = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    campoValor.current?.focus();
+  }, []);
   const mostraPagador = carteiraMostraPagador(carteira);
   const pagadorID = pagadorEscolhido ?? usuarioID ?? "";
   const contasPagador = useMemo(
@@ -321,111 +326,145 @@ export function Lancar({
     </div>
   );
 
+  const rotuloValor = ehReceita
+    ? "Valor da receita"
+    : valorParcela
+      ? "Valor da parcela"
+      : "Valor do gasto";
+
+  const teclado = (
+    <Teclado
+      aoDigitar={(d) => {
+        entrada.digitar(d);
+        tick((n) => n + 1);
+      }}
+      aoApagar={() => {
+        entrada.apagar();
+        tick((n) => n + 1);
+      }}
+      aoSalvar={salvar}
+      aoFechar={voltar}
+      podeSalvar={pode}
+      mostraSalvar
+    />
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Cabecalho titulo={titulo} aoVoltar={voltar} />
       {carteira?.nome && (
         <p className="px-4 pt-1 text-center text-[12px] text-cinza">em {carteira.nome}</p>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div
-          role="group"
-          aria-label="Tipo de lançamento"
-          className="mt-4 flex justify-center gap-2 px-4"
-        >
-          <Etiqueta ativa={!ehReceita} aoClicar={() => escolherTipo("despesa")}>
-            Gasto
-          </Etiqueta>
-          <Etiqueta ativa={ehReceita} aoClicar={() => escolherTipo("receita")}>
-            Receita
-          </Etiqueta>
-        </div>
-        <div
-          className="px-4 pt-6 text-center"
-          role="status"
-          aria-live="polite"
-          aria-label={
-            ehReceita
-              ? "Valor da receita"
-              : valorParcela
-                ? "Valor da parcela"
-                : "Valor do gasto"
-          }
-        >
-          <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
-          {valorParcela && (
-            <p className="mt-2 text-[12px] text-cinza">valor da parcela</p>
-          )}
-        </div>
-        <div className="px-4">
-          <Campo
-            label={ehReceita ? "De onde veio" : "Onde foi o gasto"}
-            value={descricao}
-            onChange={setDescricao}
-            erro={avisoDescricao}
-          />
-        </div>
-        <div className="mt-5 px-4">
-          <SeletorCategoria
-            tipo={tipo}
-            custom={categoriasCustom}
-            valor={categoriaID}
-            onChange={setCategoriaID}
-          />
-        </div>
-        {progresso && (
-          <p
-            className={`mt-3 px-4 text-center text-[12px] ${
-              progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
-            }`}
-          >
-            {fraseTeto(progresso, nomeTeto)}
-          </p>
-        )}
-        {mostraPagador && (
-          <div className="mt-4 px-4">
-            <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>
-            <SeletorPagador
-              membros={membros ?? []}
-              usuarioID={usuarioID}
-              valor={pagadorID}
-              onChange={setPagadorEscolhido}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div
+              role="group"
+              aria-label="Tipo de lançamento"
+              className="mt-4 flex justify-center gap-2 px-4"
+            >
+              <Etiqueta ativa={!ehReceita} aoClicar={() => escolherTipo("despesa")}>
+                Gasto
+              </Etiqueta>
+              <Etiqueta ativa={ehReceita} aoClicar={() => escolherTipo("receita")}>
+                Receita
+              </Etiqueta>
+            </div>
+            <div
+              className="relative px-4 pt-6 text-center"
+              role="status"
+              aria-live="polite"
+              aria-label={rotuloValor}
+            >
+              <input
+                ref={campoValor}
+                id="campo-valor-lancar"
+                readOnly
+                inputMode="numeric"
+                value={formatarBRL(entrada.centavos)}
+                onKeyDown={(e) => {
+                  if (/^[0-9]$/.test(e.key)) {
+                    e.preventDefault();
+                    entrada.digitar(Number(e.key));
+                    tick((n) => n + 1);
+                    return;
+                  }
+                  if (e.key === "Backspace") {
+                    e.preventDefault();
+                    entrada.apagar();
+                    tick((n) => n + 1);
+                    return;
+                  }
+                  if (e.key === "Enter" && pode) {
+                    e.preventDefault();
+                    void salvar();
+                  }
+                }}
+                className="absolute inset-x-4 top-6 z-10 h-[48px] w-[calc(100%-2rem)] cursor-text opacity-0"
+              />
+              <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
+              {valorParcela && (
+                <p className="mt-2 text-[12px] text-cinza">valor da parcela</p>
+              )}
+            </div>
+            <div className="px-4">
+              <Campo
+                label={ehReceita ? "De onde veio" : "Onde foi o gasto"}
+                value={descricao}
+                onChange={setDescricao}
+                erro={avisoDescricao}
+              />
+            </div>
+            <div className="mt-5 px-4">
+              <SeletorCategoria
+                tipo={tipo}
+                custom={categoriasCustom}
+                valor={categoriaID}
+                onChange={setCategoriaID}
+              />
+            </div>
+            {progresso && (
+              <p
+                className={`mt-3 px-4 text-center text-[12px] ${
+                  progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
+                }`}
+              >
+                {fraseTeto(progresso, nomeTeto)}
+              </p>
+            )}
+            {mostraPagador && (
+              <div className="mt-4 px-4">
+                <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>
+                <SeletorPagador
+                  membros={membros ?? []}
+                  usuarioID={usuarioID}
+                  valor={pagadorID}
+                  onChange={setPagadorEscolhido}
+                />
+              </div>
+            )}
+          </div>
+          <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3 pb-3">
+            <Rotulo>data</Rotulo>
+            <input
+              type="date"
+              value={dataISO}
+              onChange={(e) => setDataISO(e.target.value)}
+              aria-label="Data do lançamento"
+              className={classeSelect()}
             />
+            {corOrigem && nomeOrigem && (
+              <div className="mt-2 flex items-center gap-2 text-[12px] text-cinza">
+                <BolinhaCor cor={corOrigem} />
+                <span>{nomeOrigem}</span>
+              </div>
+            )}
+            {seletorOrigem}
           </div>
-        )}
-      </div>
-      <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3">
-        <Rotulo>data</Rotulo>
-        <input
-          type="date"
-          value={dataISO}
-          onChange={(e) => setDataISO(e.target.value)}
-          aria-label="Data do lançamento"
-          className={classeSelect()}
-        />
-        {corOrigem && nomeOrigem && (
-          <div className="mt-2 flex items-center gap-2 text-[12px] text-cinza">
-            <BolinhaCor cor={corOrigem} />
-            <span>{nomeOrigem}</span>
-          </div>
-        )}
-        {seletorOrigem}
-      </div>
-      <div className="relative z-0 shrink-0">
-        <Teclado
-          aoDigitar={(d) => {
-            entrada.digitar(d);
-            tick((n) => n + 1);
-          }}
-          aoApagar={() => {
-            entrada.apagar();
-            tick((n) => n + 1);
-          }}
-          aoSalvar={salvar}
-          aoFechar={voltar}
-          podeSalvar={pode}
-          mostraSalvar
-        />
+        </div>
+        <div className="relative z-0 shrink-0 border-t border-nevoa bg-ar lg:w-[300px] lg:shrink-0 lg:border-t-0 lg:border-l lg:overflow-y-auto">
+          {teclado}
+        </div>
       </div>
     </div>
   );

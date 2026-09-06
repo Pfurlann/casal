@@ -73,7 +73,7 @@ export function Carteiras() {
 
   function compartilhar() {
     if (!convite) return;
-    const texto = `Entra no ca$al com o código ${formatarCodigoConvite(convite.codigo)}`;
+    const texto = `Entra no casal com o código ${formatarCodigoConvite(convite.codigo)}`;
     const wa = `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(wa, "_blank", "noopener,noreferrer");
   }

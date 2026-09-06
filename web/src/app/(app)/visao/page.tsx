@@ -1,5 +1,5 @@
-import { Dashboard } from "@/components/telas/Dashboard";
+import { redirect } from "next/navigation";
 
 export default function PaginaVisao() {
-  return <Dashboard />;
+  redirect("/mes");
 }

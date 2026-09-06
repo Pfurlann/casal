@@ -167,7 +167,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
           }
         />
         <div className="px-4 pt-6">
-          <p className="rounded-controle border border-nevoa bg-areia px-3 py-2 text-[12px] text-cinza">
+          <p className="rounded-controle border border-nevoa bg-nevoa px-3 py-2 text-[12px] text-cinza">
             Carteira em modo resumo: você vê só os totais, sem cada lançamento.
           </p>
           <div className="mt-8">
@@ -270,7 +270,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
         <div className="mt-8 px-4 lg:px-0">
           <Rotulo>compromissos</Rotulo>
           <p className="mt-1 text-[12px] text-cinza">
-            Já lançados. Na lista do mês, deslize para marcar pago.
+            Já lançados. Na lista do mês, use Pagar para marcar pago.
           </p>
           <div className="casal-lista-densa mt-2 lg:grid lg:grid-cols-2 lg:gap-x-8">
             {aPagarComp.map((c) => (
@@ -289,7 +289,17 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
 
       {listaMes.length === 0 ? (
         aPagarComp.length === 0 ? (
-          <Vazio frase="Nenhum gasto este mês. Toque em + para registrar o primeiro." />
+          <Vazio
+            frase="Nenhum gasto este mês."
+            acao={
+              <Link
+                href="/lancar"
+                className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+              >
+                Novo gasto
+              </Link>
+            }
+          />
         ) : null
       ) : (
         <div className="mt-8 px-4 lg:px-0">

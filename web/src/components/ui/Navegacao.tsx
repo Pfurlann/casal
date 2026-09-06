@@ -11,7 +11,6 @@ const DESTINOS: readonly {
   icone: NomeAba;
   soDesktop?: boolean;
 }[] = [
-  { href: "/visao", nome: "visão", icone: "visao", soDesktop: true },
   { href: "/mes", nome: "mês", icone: "inicio" },
   { href: "/cartoes", nome: "cartões", icone: "cartoes" },
   { href: "/metas", nome: "metas", icone: "metas" },

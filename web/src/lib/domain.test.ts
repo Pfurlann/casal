@@ -19,7 +19,7 @@ const CARTAO: Cartao = {
   banco: "Nubank",
   ultimos4: "4417",
   bandeira: "mastercard",
-  cor: "#7C5CFF",
+  cor: "#0E0E0C",
   limite: 1_000_000,
   diaFechamento: 28,
   diaVencimento: 5,

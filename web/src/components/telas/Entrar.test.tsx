@@ -47,11 +47,16 @@ describe("Entrar", () => {
 
   it("no desktop o formulário usa card estreito centralizado, não painel largo", () => {
     const { container } = render(<Entrar />);
-    const painel = container.firstElementChild;
+    const shell = container.firstElementChild;
+    expect(shell?.className).toContain("min-h-dvh");
+    expect(shell?.className).toContain("items-center");
+    expect(shell?.className).toContain("justify-center");
+    const painel = shell?.firstElementChild;
     expect(painel?.className).toContain("mx-auto");
     expect(painel?.className).toContain("max-w-[430px]");
     expect(painel?.className).toContain("lg:max-w-[440px]");
     expect(painel?.className).not.toContain("lg:max-w-[1120px]");
+    expect(painel?.className).not.toContain("lg:my-10");
   });
 
   it("explica e-mail inválido ao clicar em Entrar", async () => {

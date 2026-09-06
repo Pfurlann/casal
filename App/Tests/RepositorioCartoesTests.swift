@@ -42,12 +42,27 @@ struct RepositorioCartoesTests {
         #expect(encontrados.first?.apelido == "Nosso renovado")
     }
 
-    @Test("cartão arquivado sai da listagem")
+    @Test("cartão arquivado (soft-delete) sai da listagem")
     func arquivar() throws {
         let repo = try repositorio()
         let alvo = cartao()
         try repo.salvarCartao(alvo)
         try repo.arquivarCartao(id: alvo.id)
+        #expect(try repo.listarCartoes().isEmpty)
+    }
+
+    @Test("salvar depois de arquivar cartão não ressuscita (removidoEm vence)")
+    func arquivarCartaoVenceEditar() throws {
+        let repo = try repositorio()
+        var alvo = cartao()
+        try repo.salvarCartao(alvo)
+        try repo.arquivarCartao(id: alvo.id)
+
+        // Outbox / sync reenvia edição sem removidoEm — não pode voltar à listagem.
+        alvo.apelido = "Ressuscitado"
+        alvo.arquivado = false
+        alvo.removidoEm = nil
+        try repo.salvarCartao(alvo)
         #expect(try repo.listarCartoes().isEmpty)
     }
 
@@ -67,6 +82,20 @@ struct RepositorioCartoesTests {
         let conta = Conta(carteiraID: UUID(), nome: "Poupança", saldoInicial: Money(centavos: 10_000))
         try repo.salvarConta(conta)
         try repo.arquivarConta(id: conta.id)
+        #expect(try repo.listarContas().isEmpty)
+    }
+
+    @Test("salvar depois de arquivar conta não ressuscita (removidoEm vence)")
+    func arquivarContaVenceEditar() throws {
+        let repo = try repositorio()
+        var conta = Conta(carteiraID: UUID(), nome: "Poupança", saldoInicial: Money(centavos: 10_000))
+        try repo.salvarConta(conta)
+        try repo.arquivarConta(id: conta.id)
+
+        conta.nome = "Ressuscitada"
+        conta.arquivada = false
+        conta.removidoEm = nil
+        try repo.salvarConta(conta)
         #expect(try repo.listarContas().isEmpty)
     }
 

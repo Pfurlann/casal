@@ -5,6 +5,7 @@ import SwiftData
 protocol RepositorioCartoes {
     func salvarCartao(_ cartao: Cartao) throws
     func listarCartoes() throws -> [Cartao]
+    /// Soft-delete: arquivado + removidoEm (espelha deleted_at SQL).
     func arquivarCartao(id: UUID) throws
     func salvarConta(_ conta: Conta) throws
     func listarContas() throws -> [Conta]
@@ -42,15 +43,17 @@ final class RepositorioCartoesSwiftData: RepositorioCartoes {
         return try contexto.fetch(descritor).map { $0.paraDominio() }
     }
 
-    /// Arquivar é o "apagar" de cartão: a fatura antiga continua existindo e
-    /// precisa continuar somando no histórico, então o registro nunca sai.
+    /// Soft-delete de cartão: arquivado + removidoEm (espelha deleted_at SQL).
+    /// Fatura antiga continua no histórico — o registro nunca sai do store.
     func arquivarCartao(id: UUID) throws {
         var descritor = FetchDescriptor<CartaoRegistro>(predicate: #Predicate { $0.id == id })
         descritor.fetchLimit = 1
 
         guard let registro = try contexto.fetch(descritor).first else { return }
+        let agora = Date()
         registro.arquivado = true
-        registro.atualizadoEm = Date()
+        registro.removidoEm = agora
+        registro.atualizadoEm = agora
         try contexto.save()
     }
 

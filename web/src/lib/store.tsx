@@ -35,6 +35,7 @@ import {
   type PeriodoMeta,
   type Transacao,
   type VisibilidadeCarteira,
+  estadoCanonico,
 } from "./domain";
 import { COR_CATEGORIA_CUSTOM } from "./categorias";
 import { liquidarCompromisso as aplicarLiquidacao, transacaoDoCompromisso } from "./compromissos";
@@ -289,7 +290,7 @@ function mapearCompromisso(r: {
     venceEm: r.vence_em.slice(0, 10),
     categoriaID: r.category_id,
     transacaoID: r.transaction_id,
-    status: r.status === "liquidado" ? "liquidado" : "a_pagar",
+    status: estadoCanonico(r.status),
   };
 }
 
@@ -825,7 +826,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
               grupoParcela: (t.grupo_parcela as string | null) ?? undefined,
               parcelaN: (t.parcela_n as number) ?? 1,
               parcelaTotal: (t.parcela_total as number) ?? 1,
-              status: t.status === "liquidado" ? "liquidado" as const : "a_pagar" as const,
+              status: estadoCanonico(t.status as string | null | undefined),
               metaID: (t.goal_id as string | null) ?? undefined,
             })),
       despesasFixasTodas,

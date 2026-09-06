@@ -16,7 +16,7 @@ final class TransacaoRegistro {
     var cartaoID: UUID?
     var faturaID: UUID?
     var criadoPor: UUID = UUID()
-    var estadoBruto: String = "confirmada"
+    var estadoBruto: String = "liquidado"
     var origemBruta: String = "manual"
     var idExterno: String?
     var hashDedup: String = ""

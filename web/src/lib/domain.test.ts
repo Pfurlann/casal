@@ -8,6 +8,7 @@ import {
   planejarParcelas,
   rotuloDaCompetencia,
   transacoesDoLancamento,
+  estadoCanonico,
   type Cartao,
 } from "./domain";
 
@@ -196,5 +197,15 @@ describe("data local do lançamento", () => {
   it("formata e relê o dia sem virar UTC", () => {
     expect(dataLocalISO(data(2026, 8, 15))).toBe("2026-08-15");
     expect(dataDeLocalISO("2026-08-15")).toEqual(data(2026, 8, 15));
+  });
+});
+
+describe("estadoCanonico", () => {
+  it("mapeia legado iOS e canônico", () => {
+    expect(estadoCanonico("liquidado")).toBe("liquidado");
+    expect(estadoCanonico("a_pagar")).toBe("a_pagar");
+    expect(estadoCanonico("confirmada")).toBe("liquidado");
+    expect(estadoCanonico("pendente")).toBe("a_pagar");
+    expect(estadoCanonico(undefined)).toBe("a_pagar");
   });
 });

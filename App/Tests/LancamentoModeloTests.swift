@@ -57,7 +57,7 @@ struct LancamentoModeloTests {
         #expect(gravada.valor == Money(centavos: 4200))
         #expect(gravada.categoriaID == mercado.id)
         #expect(gravada.tipo == .despesa)
-        #expect(gravada.estado == .confirmada)
+        #expect(gravada.estado == .liquidado)
         #expect(gravada.origem == .manual)
     }
 

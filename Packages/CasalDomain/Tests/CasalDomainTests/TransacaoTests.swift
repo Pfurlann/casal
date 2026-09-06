@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Transacao")
 struct TransacaoTests {
-    @Test("padrões do inicializador refletem o caso comum: manual, confirmada, à vista")
+    @Test("padrões do inicializador refletem o caso comum: manual, liquidado, à vista")
     func padroes() {
         let t = Transacao(
             carteiraID: UUID(),
@@ -14,7 +14,7 @@ struct TransacaoTests {
             criadoPor: UUID(),
             hashDedup: "x"
         )
-        #expect(t.estado == .confirmada)
+        #expect(t.estado == .liquidado)
         #expect(t.origem == .manual)
         #expect(t.parcelaN == 1)
         #expect(t.parcelaTotal == 1)
@@ -34,8 +34,10 @@ struct TransacaoTests {
         #expect(OrigemTransacao.ofx.rawValue == "ofx")
         #expect(OrigemTransacao.openFinance.rawValue == "open_finance")
 
-        #expect(EstadoTransacao.confirmada.rawValue == "confirmada")
-        #expect(EstadoTransacao.pendente.rawValue == "pendente")
+        #expect(EstadoTransacao.liquidado.rawValue == "liquidado")
+        #expect(EstadoTransacao.aPagar.rawValue == "a_pagar")
+        #expect(EstadoTransacao(persistido: "confirmada") == .liquidado)
+        #expect(EstadoTransacao(persistido: "pendente") == .aPagar)
 
         #expect(TipoCategoria.despesa.rawValue == "despesa")
         #expect(TipoCategoria.receita.rawValue == "receita")

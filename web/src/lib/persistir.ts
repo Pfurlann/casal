@@ -1,4 +1,5 @@
 import {
+  estadoCanonico,
   transacoesDoLancamento,
   type Cartao,
   type TipoTransacao,
@@ -47,7 +48,7 @@ export function linhaDaTransacao(t: Transacao) {
     grupo_parcela: t.grupoParcela ?? null,
     parcela_n: t.parcelaN,
     parcela_total: t.parcelaTotal,
-    status: t.status ?? "a_pagar",
+    status: estadoCanonico(t.status),
     goal_id: t.metaID ?? null,
   };
 }

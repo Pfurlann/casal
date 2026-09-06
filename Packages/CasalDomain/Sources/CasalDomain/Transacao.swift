@@ -38,7 +38,7 @@ public struct Transacao: Identifiable, Hashable, Sendable {
         cartaoID: UUID? = nil,
         faturaID: UUID? = nil,
         criadoPor: UUID,
-        estado: EstadoTransacao = .confirmada,
+        estado: EstadoTransacao = .liquidado,
         origem: OrigemTransacao = .manual,
         idExterno: String? = nil,
         hashDedup: String,

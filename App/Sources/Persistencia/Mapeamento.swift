@@ -54,7 +54,7 @@ extension TransacaoRegistro {
             cartaoID: cartaoID,
             faturaID: faturaID,
             criadoPor: criadoPor,
-            estado: decodificar(estadoBruto, campo: "estadoBruto", padrao: .confirmada),
+            estado: EstadoTransacao(persistido: estadoBruto),
             origem: decodificar(origemBruta, campo: "origemBruta", padrao: .manual),
             idExterno: idExterno,
             hashDedup: hashDedup,

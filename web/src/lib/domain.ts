@@ -85,7 +85,20 @@ export type Fatura = {
   valorPago: Centavos;
 };
 
-export type StatusLancamento = "liquidado" | "a_pagar";
+/** Estado canônico da transação (contrato iOS ↔ web ↔ SQL). */
+export type EstadoTransacao = "liquidado" | "a_pagar";
+/** @deprecated Alias — preferir `EstadoTransacao`. */
+export type StatusLancamento = EstadoTransacao;
+
+/**
+ * Normaliza legado iOS (`confirmada`|`pendente`) e canônico para o contrato.
+ * Ver AVISO-CONTRATO-ESTADO-TX.md.
+ */
+export function estadoCanonico(v: string | null | undefined): EstadoTransacao {
+  if (v === "liquidado" || v === "confirmada") return "liquidado";
+  if (v === "a_pagar" || v === "pendente") return "a_pagar";
+  return "a_pagar";
+}
 
 export type Transacao = {
   id: string;

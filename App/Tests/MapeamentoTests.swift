@@ -31,7 +31,7 @@ struct MapeamentoTests {
             cartaoID: cartaoID,
             faturaID: faturaID,
             criadoPor: criadoPor,
-            estado: .pendente,
+            estado: .aPagar,
             origem: .walletShortcut,
             idExterno: "ext-123",
             hashDedup: "chave",

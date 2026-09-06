@@ -15,7 +15,7 @@ struct ResumoMensalTests {
         _ tipo: TipoTransacao,
         _ centavos: Int,
         dia n: Int,
-        estado: EstadoTransacao = .confirmada,
+        estado: EstadoTransacao = .liquidado,
         removida: Bool = false
     ) -> Transacao {
         Transacao(
@@ -75,12 +75,12 @@ struct ResumoMensalTests {
         #expect(resumo.totalDespesas == Money(centavos: 4200))
     }
 
-    @Test("captura pendente não entra no resumo até ser confirmada")
-    func pendenteIgnorada() {
+    @Test("a_pagar não entra no resumo até ser liquidado")
+    func aPagarIgnorada() {
         let resumo = ResumoMensal.calcular(
             transacoes: [
                 fazer(.despesa, 4200, dia: 5),
-                fazer(.despesa, 8740, dia: 5, estado: .pendente)
+                fazer(.despesa, 8740, dia: 5, estado: .aPagar)
             ],
             de: dia(0),
             ate: dia(30)

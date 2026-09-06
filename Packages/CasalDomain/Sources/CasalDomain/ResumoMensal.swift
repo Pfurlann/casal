@@ -14,8 +14,8 @@ public struct ResumoMensal: Hashable, Sendable {
     }
 
     /// Agrega o período. Transferência nunca entra: mover dinheiro entre
-    /// potes não é gasto nem ganho. Removidas e pendentes também ficam fora
-    /// — pendente é captura ainda não confirmada por uma pessoa.
+    /// potes não é gasto nem ganho. Removidas e a pagar também ficam fora
+    /// — a_pagar ainda não liquidou (legado iOS: pendente).
     ///
     /// O intervalo é meio-aberto: `[inicio, fim)`. `fim` é exclusivo, então
     /// uma transação no instante exato de `fim` pertence ao próximo período.
@@ -26,7 +26,7 @@ public struct ResumoMensal: Hashable, Sendable {
     ) -> ResumoMensal {
         let elegiveis = transacoes.filter { transacao in
             !transacao.estaRemovida
-                && transacao.estado == .confirmada
+                && transacao.estado == .liquidado
                 && transacao.tipo != .transferencia
                 && transacao.data >= inicio
                 && transacao.data < fim

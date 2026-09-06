@@ -1,4 +1,4 @@
-import { tipoLancarDaQuery } from "@/components/telas/Lancar";
+import { tipoLancarDaQuery } from "@/lib/lancarTipo";
 import { FolhaLancar } from "./FolhaLancar";
 
 export default async function PaginaFolhaLancar({

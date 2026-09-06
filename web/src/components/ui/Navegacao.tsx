@@ -28,6 +28,7 @@ export function Navegacao() {
   const caminho = usePathname();
   const { carteira } = useLoja();
   const { usuario, sair } = useAuth();
+  const emLancar = caminho === "/lancar" || caminho.startsWith("/lancar/");
 
   return (
     <nav
@@ -68,18 +69,20 @@ export function Navegacao() {
         );
       })}
 
-      {/* Mobile FAB — só +; Sair fica em Mais, não na bottom nav. */}
-      <Link
-        href="/lancar"
-        aria-label="Novo lançamento"
-        className={
-          "casal-toque absolute left-1/2 -translate-x-1/2 -top-[68px] flex h-[52px] w-[52px] items-center justify-center " +
-          "rounded-etiqueta bg-grafite text-[24px] text-ar shadow-elevacao " +
-          "lg:hidden"
-        }
-      >
-        <span aria-hidden>+</span>
-      </Link>
+      {/* Mobile FAB — só +; escondido em /lancar. Sair fica em Mais. */}
+      {!emLancar && (
+        <Link
+          href="/lancar"
+          aria-label="Novo lançamento"
+          className={
+            "casal-toque absolute left-1/2 -translate-x-1/2 -top-[68px] flex h-[52px] w-[52px] items-center justify-center " +
+            "rounded-etiqueta bg-grafite text-[24px] text-ar shadow-elevacao " +
+            "lg:hidden"
+          }
+        >
+          <span aria-hidden>+</span>
+        </Link>
+      )}
 
       {/* Desktop rail footer: bloco plano de conta/carteira + Novo lançamento. Não copia no mobile. */}
       <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-[var(--e-7)] lg:pt-6">
@@ -104,16 +107,18 @@ export function Navegacao() {
             Sair
           </button>
         </div>
-        <Link
-          href="/lancar"
-          aria-label="Novo lançamento"
-          className={
-            "casal-toque flex h-[44px] w-full items-center justify-center rounded-controle " +
-            "bg-grafite text-[14px] font-semibold text-ar"
-          }
-        >
-          Novo lançamento
-        </Link>
+        {!emLancar && (
+          <Link
+            href="/lancar"
+            aria-label="Novo lançamento"
+            className={
+              "casal-toque flex h-[44px] w-full items-center justify-center rounded-controle " +
+              "bg-grafite text-[14px] font-semibold text-ar"
+            }
+          >
+            Novo lançamento
+          </Link>
+        )}
       </div>
     </nav>
   );

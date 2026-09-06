@@ -73,10 +73,11 @@ describe("Folha", () => {
     expect(aoFechar).not.toHaveBeenCalled();
   });
 
-  it("no desktop a folha ganha largura útil sem virar telefone cortado", () => {
+  it("no desktop a folha fica coluna centrada (~520), sem layout 860", () => {
     render(<Cena aoFechar={() => {}} />);
     const folha = screen.getByRole("dialog");
-    expect(folha.className).toContain("lg:max-w-[860px]");
+    expect(folha.className).toContain("lg:max-w-[520px]");
+    expect(folha.className).not.toContain("lg:max-w-[860px]");
     expect(folha.className).toContain("overflow-y-auto");
   });
 

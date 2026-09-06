@@ -12,7 +12,7 @@ const FOCAVEIS =
 export function Folha({
   aoFechar,
   children,
-  rotulo = "Novo gasto",
+  rotulo = "Novo lançamento",
   trava = false,
 }: {
   aoFechar: () => void;

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useLoja } from "@/lib/store";
 import { Marca } from "../marca/marca-viva";
 import { IconeVoltar } from "../Icones";
 
@@ -9,6 +12,7 @@ export function Cabecalho({
   acao,
   marca = false,
   folga,
+  chipCarteira = true,
 }: {
   titulo: string;
   voltarPara?: string;
@@ -17,7 +21,12 @@ export function Cabecalho({
   acao?: React.ReactNode;
   marca?: boolean;
   folga?: number;
+  /** Chip da carteira no header mobile. No desktop a carteira fica no trilho. */
+  chipCarteira?: boolean;
 }) {
+  const { carteira } = useLoja();
+  const nomeCarteira = carteira?.nome;
+
   return (
     <div className="flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] lg:min-h-[52px] lg:gap-4 lg:px-0 lg:pt-0">
       {aoVoltar ? (
@@ -43,6 +52,15 @@ export function Cabecalho({
       <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-semibold tracking-[-0.02em] text-grafite lg:text-[22px] lg:tracking-[-0.03em]">
         {titulo}
       </h1>
+      {chipCarteira && nomeCarteira ? (
+        <Link
+          href="/mais/carteiras"
+          aria-label={`Carteira ${nomeCarteira}`}
+          className="casal-toque inline-flex max-w-[40%] shrink-0 items-center truncate rounded-etiqueta border border-nevoa px-2.5 py-1 text-[12px] font-semibold text-grafite lg:hidden"
+        >
+          {nomeCarteira}
+        </Link>
+      ) : null}
       {marca && <Marca tamanho={26} folga={folga} />}
       {acao}
     </div>

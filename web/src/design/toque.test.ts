@@ -19,6 +19,8 @@ describe("toque — tokens e reduced-motion", () => {
     expect(globals).toContain(".casal-principal");
     expect(globals).toMatch(/max-width:\s*1280px/);
     expect(globals).toMatch(/max-width:\s*1600px/);
+    // 560 só abaixo de lg — não vaza como coluna fantasma no desktop
+    expect(globals).toMatch(/@media \(max-width:\s*1023px\)/);
     expect(globals).toContain(".casal-paineis");
     expect(globals).toContain(".casal-painel");
     expect(globals).toContain(".casal-linha-mes");

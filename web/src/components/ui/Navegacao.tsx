@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { useLoja } from "@/lib/store";
 import { IconeAba, type NomeAba } from "../Icones";
 import { Assinatura } from "../marca/Assinatura";
 
@@ -24,6 +26,8 @@ function ativa(caminho: string, href: string): boolean {
 
 export function Navegacao() {
   const caminho = usePathname();
+  const { carteira } = useLoja();
+  const { usuario, sair } = useAuth();
 
   return (
     <nav
@@ -36,7 +40,7 @@ export function Navegacao() {
         "lg:overflow-y-auto lg:border-r lg:border-t-0 lg:px-4 lg:pt-8 lg:pb-0"
       }
     >
-      <div className="hidden lg:mb-10 lg:block lg:px-2">
+      <div className="hidden lg:mb-10 lg:block lg:px-2 lg:text-left">
         <Assinatura variante="base" largura={112} />
       </div>
 
@@ -50,13 +54,13 @@ export function Navegacao() {
             className={
               "casal-toque min-h-[44px] flex-1 flex-col items-center justify-center gap-1 text-[10px] " +
               (d.soDesktop ? "hidden lg:flex " : "flex ") +
-              "lg:min-h-[40px] lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:py-2 lg:text-[14px] " +
+              "lg:min-h-[40px] lg:w-full lg:flex-none lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:py-2 lg:text-left lg:text-[14px] " +
               (atual
                 ? "text-grafite lg:bg-nevoa"
                 : "text-cinza lg:hover:bg-nevoa lg:hover:text-grafite")
             }
           >
-            <span aria-hidden>
+            <span aria-hidden className="shrink-0">
               <IconeAba nome={d.icone} />
             </span>
             <span className={atual ? "font-semibold" : undefined}>{d.nome}</span>
@@ -64,18 +68,50 @@ export function Navegacao() {
         );
       })}
 
+      {/* Mobile FAB — só +; Sair fica em Mais, não na bottom nav. */}
       <Link
         href="/lancar"
         aria-label="Novo lançamento"
         className={
           "casal-toque absolute left-1/2 -translate-x-1/2 -top-[68px] flex h-[52px] w-[52px] items-center justify-center " +
           "rounded-etiqueta bg-grafite text-[24px] text-ar shadow-elevacao " +
-          "lg:static lg:mt-auto lg:mb-8 lg:h-[44px] lg:w-full lg:translate-x-0 lg:rounded-controle lg:text-[14px] lg:font-semibold lg:shadow-none"
+          "lg:hidden"
         }
       >
-        <span aria-hidden className="lg:hidden">+</span>
-        <span className="hidden lg:inline">Novo lançamento</span>
+        <span aria-hidden>+</span>
       </Link>
+
+      {/* Desktop rail footer: carteira + e-mail + Sair + Novo lançamento. Não copia no mobile. */}
+      <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-8 lg:pt-6">
+        <Link
+          href="/mais/carteiras"
+          className="casal-toque inline-flex max-w-full items-center self-start rounded-etiqueta border border-nevoa px-2.5 py-1 text-[12px] font-semibold text-grafite"
+        >
+          <span className="truncate">{carteira?.nome ?? "carteira"}</span>
+        </Link>
+        {usuario?.email ? (
+          <p className="truncate text-[12px] text-cinza" title={usuario.email}>
+            {usuario.email}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => void sair()}
+          className="casal-toque self-start text-left text-[13px] font-semibold text-cinza hover:text-grafite"
+        >
+          Sair
+        </button>
+        <Link
+          href="/lancar"
+          aria-label="Novo lançamento"
+          className={
+            "casal-toque flex h-[44px] w-full items-center justify-center rounded-controle " +
+            "bg-grafite text-[14px] font-semibold text-ar"
+          }
+        >
+          Novo lançamento
+        </Link>
+      </div>
     </nav>
   );
 }

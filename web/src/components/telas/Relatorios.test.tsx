@@ -134,10 +134,12 @@ describe("Relatorios", () => {
     expect(screen.getByRole("img", { name: "Gasto e receita nos últimos meses" })).toBeInTheDocument();
   });
 
-  it("empty state tem CTA Novo gasto para /lancar", () => {
+  it("empty state tem CTAs de gasto e receita para /lancar", () => {
     montar();
-    const cta = screen.getByRole("link", { name: "Novo gasto" });
-    expect(cta).toHaveAttribute("href", "/lancar");
+    const gasto = screen.getByRole("link", { name: "Novo gasto" });
+    expect(gasto).toHaveAttribute("href", "/lancar?tipo=gasto");
+    const receita = screen.getByRole("link", { name: "Nova receita" });
+    expect(receita).toHaveAttribute("href", "/lancar?tipo=receita");
   });
 
   it("respeita a competência da rota", () => {

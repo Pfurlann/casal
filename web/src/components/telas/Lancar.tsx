@@ -44,6 +44,13 @@ function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
   return categoriasVisiveis(custom, tipo);
 }
 
+/** Query `?tipo=gasto|despesa|receita` → tipo interno do lançamento. */
+export function tipoLancarDaQuery(raw?: string | null): "despesa" | "receita" | undefined {
+  if (raw === "receita") return "receita";
+  if (raw === "gasto" || raw === "despesa") return "despesa";
+  return undefined;
+}
+
 function classeSelect() {
   return "relative z-10 mt-1 min-h-[44px] w-full rounded-controle border border-nevoa bg-ar px-3 font-texto text-[16px] text-grafite";
 }
@@ -51,10 +58,13 @@ function classeSelect() {
 export function Lancar({
   comoFolha = false,
   aoSair,
+  tipoInicial,
 }: {
   comoFolha?: boolean;
   /** Fecha a folha interceptada com a mesma lógica do backdrop. */
   aoSair?: () => void;
+  /** Vindo de /lancar?tipo=gasto|receita. */
+  tipoInicial?: "despesa" | "receita";
 } = {}) {
   const {
     cartoes,
@@ -74,9 +84,10 @@ export function Lancar({
 
   const [entrada] = useState(() => new EntradaValor());
   const [, tick] = useState(0);
-  const [tipo, setTipo] = useState<"despesa" | "receita">("despesa");
+  const tipoPartida = tipoInicial ?? "despesa";
+  const [tipo, setTipo] = useState<"despesa" | "receita">(tipoPartida);
   const [categoriaID, setCategoriaID] = useState(
-    () => categoriasDoTipo("despesa", categoriasCustom)[0]?.id ?? "",
+    () => categoriasDoTipo(tipoPartida, categoriasCustom)[0]?.id ?? "",
   );
   const [descricao, setDescricao] = useState("");
   const [dataISO, setDataISO] = useState(() => dataLocalISO());

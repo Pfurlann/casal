@@ -154,12 +154,20 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
               <Vazio
                 frase="Nenhum movimento neste mês."
                 acao={
-                  <Link
-                    href="/lancar"
-                    className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
-                  >
-                    Novo gasto
-                  </Link>
+                  <div className="flex flex-col items-center gap-2">
+                    <Link
+                      href="/lancar?tipo=gasto"
+                      className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                    >
+                      Novo gasto
+                    </Link>
+                    <Link
+                      href="/lancar?tipo=receita"
+                      className="flex min-h-[44px] items-center rounded-controle border border-nevoa px-4 font-texto text-[14px] font-semibold text-grafite"
+                    >
+                      Nova receita
+                    </Link>
+                  </div>
                 }
               />
             ) : r.fatias.length === 0 ? (

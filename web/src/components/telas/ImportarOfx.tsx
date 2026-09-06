@@ -6,6 +6,7 @@ import { categoriasVisiveis } from "@/lib/categorias";
 import {
   competenciaDaCompra,
   dataDeLocalISO,
+  dataLocalISO,
   hrefDoMes,
   rotuloCurto,
   type Cartao,
@@ -54,6 +55,9 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
   const [escolhas, setEscolhas] = useState<Record<string, string>>({});
   const [marcar, setMarcar] = useState<Record<string, boolean>>({});
+  /** Override opcional da data OFX — a API já aceita `data` por linha. */
+  const [datasEfetivas, setDatasEfetivas] = useState<Record<string, string>>({});
+  const [dataLote, setDataLote] = useState(() => dataLocalISO());
   const [salvando, setSalvando] = useState(false);
 
   const extraido = useMemo(() => (texto ? parseOfx(texto) : null), [texto]);
@@ -71,21 +75,44 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         ? extraidas.map((g) => {
             const hash = hashDedupOfx(cartao.id, g.fitId);
             const jaTem = jaImportada(transacoes, hash);
+            const dataEfetiva = datasEfetivas[hash] ?? g.data;
             return {
               ...g,
               hashDedup: hash,
+              dataOriginal: g.data,
+              dataEfetiva,
               categoriaID: escolhas[hash] ?? classificarCategoria(g.descricao, categorias),
               jaTem,
               lancar: jaTem ? false : (marcar[hash] ?? marcarPorPadrao(g)),
             };
           })
         : [],
-    [cartao, extraidas, escolhas, marcar, categorias, transacoes],
+    [cartao, extraidas, escolhas, marcar, datasEfetivas, categorias, transacoes],
   );
 
+  const marcaveis = linhas.filter((l) => !l.jaTem);
+  const todosMarcados =
+    marcaveis.length > 0 && marcaveis.every((l) => l.lancar);
   const escolhidas = linhas.filter((l) => l.lancar && !l.jaTem);
   const totalNovos = escolhidas.reduce((s, l) => s + l.valorCentavos, 0);
   const lancamentosNovos = escolhidas.reduce((s, l) => s + lancamentosDaLinha(l), 0);
+
+  function marcarTodos(v: boolean) {
+    setMarcar((xs) => {
+      const next = { ...xs };
+      for (const l of marcaveis) next[l.hashDedup] = v;
+      return next;
+    });
+  }
+
+  function aplicarDataSelecionados() {
+    if (!dataLote || escolhidas.length === 0) return;
+    setDatasEfetivas((xs) => {
+      const next = { ...xs };
+      for (const l of escolhidas) next[l.hashDedup] = dataLote;
+      return next;
+    });
+  }
 
   async function lerArquivo(file: File | undefined) {
     setErroArquivo(null);
@@ -115,6 +142,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
       }
       setEscolhas(iniciais);
       setMarcar(marcas);
+      setDatasEfetivas({});
       setTexto(raw);
     } catch {
       setErroArquivo("Não deu para ler esse arquivo.");
@@ -131,7 +159,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         linhas: escolhidas.map((l) => ({
           descricao: l.descricao,
           valor: l.valorCentavos,
-          data: l.data,
+          data: l.dataEfetiva,
           categoriaID: l.categoriaID,
           hashDedup: l.hashDedup,
           tipo: l.tipo,
@@ -145,7 +173,9 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           ? "Esses gastos já estavam na fatura."
           : `${r.importados} gasto${r.importados === 1 ? "" : "s"} na fatura.`,
       );
-      const comps = escolhidas.map((l) => competenciaDaCompra(dataDeLocalISO(l.data), cartao));
+      const comps = escolhidas.map((l) =>
+        competenciaDaCompra(dataDeLocalISO(l.dataEfetiva), cartao),
+      );
       const destino = comps.reduce<Competencia | undefined>((acc, c) => {
         if (!acc) return c;
         return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
@@ -204,6 +234,39 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
               </p>
             </div>
 
+            <div className="mt-5 flex flex-col gap-3 rounded-controle border border-nevoa p-3">
+              <label className="flex min-h-[44px] items-center gap-3 text-[14px] text-grafite">
+                <input
+                  type="checkbox"
+                  checked={todosMarcados}
+                  disabled={marcaveis.length === 0}
+                  aria-label="Selecionar todos"
+                  onChange={(e) => marcarTodos(e.target.checked)}
+                  className="h-5 w-5"
+                />
+                Selecionar todos
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <label className="min-w-0 flex-1">
+                  <Rotulo>aplicar data aos selecionados</Rotulo>
+                  <input
+                    type="date"
+                    value={dataLote}
+                    aria-label="Data a aplicar aos selecionados"
+                    onChange={(e) => setDataLote(e.target.value)}
+                    className={SELECT}
+                  />
+                </label>
+                <Botao
+                  variante="secundario"
+                  onClick={aplicarDataSelecionados}
+                  disabled={escolhidas.length === 0 || !dataLote}
+                >
+                  Aplicar data
+                </Botao>
+              </div>
+            </div>
+
             <ul className="mt-6">
               {linhas.map((l) => (
                 <LinhaRevisao
@@ -242,16 +305,23 @@ function LinhaRevisao({
   onCategoria,
   onLancar,
 }: {
-  linha: LinhaOfx & { jaTem: boolean; hashDedup: string; lancar: boolean };
+  linha: LinhaOfx & {
+    jaTem: boolean;
+    hashDedup: string;
+    lancar: boolean;
+    dataOriginal: string;
+    dataEfetiva: string;
+  };
   categoriaID: string;
   categorias: { id: string; nome: string }[];
   cartao: Cartao;
   onCategoria: (id: string) => void;
   onLancar: (v: boolean) => void;
 }) {
-  const competencia = competenciaDaCompra(dataDeLocalISO(linha.data), cartao);
+  const competencia = competenciaDaCompra(dataDeLocalISO(linha.dataEfetiva), cartao);
   const parcela = fraseParcelaOfx(linha.parcelaN, linha.parcelaTotal);
   const credito = linha.tipo === "credito";
+  const dataMudou = linha.dataEfetiva !== linha.dataOriginal;
   return (
     <li className="border-b border-nevoa py-3">
       <div className="flex items-start justify-between gap-3">
@@ -268,7 +338,11 @@ function LinhaRevisao({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px] text-grafite">{linha.descricao}</span>
           <span className="block text-[12px] text-cinza">
-            {dataBr(linha.data)} · fatura {rotuloCurto(competencia)}
+            {dataMudou
+              ? `OFX ${dataBr(linha.dataOriginal)} → efetiva ${dataBr(linha.dataEfetiva)}`
+              : dataBr(linha.dataOriginal)}
+            {" · fatura "}
+            {rotuloCurto(competencia)}
             {credito ? " · crédito" : ""}
             {parcela ? ` · ${parcela}` : ""}
             {linha.jaTem ? " · já na fatura" : ""}

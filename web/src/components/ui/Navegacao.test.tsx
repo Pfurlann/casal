@@ -153,6 +153,18 @@ describe("Navegacao — trilho de desktop", () => {
       true,
     );
     expect(container.querySelectorAll('a[href="/mais/carteiras"]').length).toBe(1);
+    // FAB desktop: padding inferior do trilho ≥ 24px (--e-6; usamos --e-7)
+    const rodape = carteira.closest(".mt-auto");
+    expect(rodape?.className).toMatch(/lg:pb-\[var\(--e-7\)\]/);
+  });
+
+  it("topo do trilho alinha a marca com o miolo (pt-5 + mb-6 na assinatura)", () => {
+    caminho.atual = "/mes";
+    render(<Navegacao />);
+    const nav = screen.getByRole("navigation", { name: "Seções" });
+    expect(nav.className).toContain("lg:pt-5");
+    const marca = screen.getByRole("img", { name: "casal" }).parentElement;
+    expect(marca?.className).toContain("lg:mb-6");
   });
 
   it("abas e lançar têm press e alvo de 44px", () => {

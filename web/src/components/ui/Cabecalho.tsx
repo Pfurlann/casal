@@ -49,7 +49,7 @@ export function Cabecalho({
           </Link>
         )
       )}
-      <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-semibold tracking-[-0.02em] text-grafite lg:text-[22px] lg:tracking-[-0.03em]">
+      <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-semibold leading-none tracking-[-0.02em] text-grafite lg:text-[22px] lg:tracking-[-0.03em]">
         {titulo}
       </h1>
       {chipCarteira && nomeCarteira ? (
@@ -61,8 +61,12 @@ export function Cabecalho({
           {nomeCarteira}
         </Link>
       ) : null}
-      {marca && <Marca tamanho={26} folga={folga} />}
-      {acao}
+      {(marca || acao) && (
+        <div className="flex shrink-0 items-center gap-1">
+          {marca && <Marca tamanho={26} folga={folga} />}
+          {acao}
+        </div>
+      )}
     </div>
   );
 }

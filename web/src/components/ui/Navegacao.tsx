@@ -56,14 +56,14 @@ export function Navegacao() {
               (d.soDesktop ? "hidden lg:flex " : "flex ") +
               "lg:min-h-[40px] lg:w-full lg:flex-none lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:py-2 lg:text-left lg:text-[14px] " +
               (atual
-                ? "text-grafite lg:bg-nevoa"
+                ? "font-semibold text-grafite lg:bg-nevoa lg:shadow-[inset_3px_0_0_0_var(--grafite)]"
                 : "text-cinza lg:hover:bg-nevoa lg:hover:text-grafite")
             }
           >
             <span aria-hidden className="shrink-0">
               <IconeAba nome={d.icone} />
             </span>
-            <span className={atual ? "font-semibold" : undefined}>{d.nome}</span>
+            <span>{d.nome}</span>
           </Link>
         );
       })}
@@ -81,26 +81,29 @@ export function Navegacao() {
         <span aria-hidden>+</span>
       </Link>
 
-      {/* Desktop rail footer: carteira + e-mail + Sair + Novo lançamento. Não copia no mobile. */}
+      {/* Desktop rail footer: um bloco de conta/carteira + Novo lançamento. Não copia no mobile. */}
       <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-8 lg:pt-6">
-        <Link
-          href="/mais/carteiras"
-          className="casal-toque inline-flex max-w-full items-center self-start rounded-etiqueta border border-nevoa px-2.5 py-1 text-[12px] font-semibold text-grafite"
-        >
-          <span className="truncate">{carteira?.nome ?? "carteira"}</span>
-        </Link>
-        {usuario?.email ? (
-          <p className="truncate text-[12px] text-cinza" title={usuario.email}>
-            {usuario.email}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => void sair()}
-          className="casal-toque self-start text-left text-[13px] font-semibold text-cinza hover:text-grafite"
-        >
-          Sair
-        </button>
+        <div className="flex flex-col gap-2 rounded-controle border border-nevoa bg-ar px-3 py-3">
+          <Link
+            href="/mais/carteiras"
+            aria-label={`Carteira ${carteira?.nome ?? "carteira"}`}
+            className="casal-toque inline-flex max-w-full items-center self-start rounded-etiqueta border border-nevoa px-2.5 py-1 text-[12px] font-semibold text-grafite"
+          >
+            <span className="truncate">{carteira?.nome ?? "carteira"}</span>
+          </Link>
+          {usuario?.email ? (
+            <p className="truncate text-[12px] text-cinza" title={usuario.email}>
+              {usuario.email}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void sair()}
+            className="casal-toque self-start text-left text-[13px] font-semibold text-cinza hover:text-grafite"
+          >
+            Sair
+          </button>
+        </div>
         <Link
           href="/lancar"
           aria-label="Novo lançamento"

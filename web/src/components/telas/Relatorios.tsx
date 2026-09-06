@@ -114,80 +114,86 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
           </p>
         )}
 
-        <div className="casal-paineis mt-6 lg:mt-8">
-          <section className="casal-painel casal-painel-6 mt-8 lg:mt-0">
+        <div className="casal-paineis mt-6 space-y-6 lg:mt-8 lg:space-y-0">
+          <section className="casal-painel casal-painel-6">
             <Rotulo>gasto</Rotulo>
             <div className="mt-2">
               <Numero centavos={r.gasto} tamanho="heroi" subordinaCentavos />
             </div>
-            <div className="mt-6">
-              <Rotulo>receita</Rotulo>
-              <div className="mt-1">
-                <Numero centavos={r.receita} tamanho="secao" />
-              </div>
-            </div>
-            <div className="mt-6">
-              <Rotulo>fluxo</Rotulo>
-              <div className="mt-1">
-                <Numero
-                  centavos={r.fluxo}
-                  tamanho="secao"
-                  tom={r.fluxo < 0 ? "atencao" : "normal"}
-                />
-              </div>
-              <p className="mt-1 text-[12px] text-cinza">receitas − gastos</p>
-            </div>
-            {r.comprometido > 0 && (
-              <div className="mt-6">
-                <Rotulo>comprometido</Rotulo>
+            <div className="mt-5 space-y-5 border-t border-nevoa pt-5">
+              <div>
+                <Rotulo>receita</Rotulo>
                 <div className="mt-1">
-                  <Numero centavos={r.comprometido} tamanho="secao" tom="atencao" />
+                  <Numero centavos={r.receita} tamanho="secao" />
                 </div>
-                <p className="mt-1 text-[12px] text-cinza">saldo devedor das faturas deste mês</p>
               </div>
-            )}
+              <div>
+                <Rotulo>fluxo</Rotulo>
+                <div className="mt-1">
+                  <Numero
+                    centavos={r.fluxo}
+                    tamanho="secao"
+                    tom={r.fluxo < 0 ? "atencao" : "normal"}
+                  />
+                </div>
+                <p className="mt-1 text-[12px] text-cinza">receitas − gastos</p>
+              </div>
+              {r.comprometido > 0 && (
+                <div>
+                  <Rotulo>comprometido</Rotulo>
+                  <div className="mt-1">
+                    <Numero centavos={r.comprometido} tamanho="secao" tom="atencao" />
+                  </div>
+                  <p className="mt-1 text-[12px] text-cinza">saldo devedor das faturas deste mês</p>
+                </div>
+              )}
+            </div>
           </section>
 
-          <section className="casal-painel casal-painel-6 mt-8 lg:mt-0">
+          <section className="casal-painel casal-painel-6">
             <Rotulo>gastos por categoria</Rotulo>
             {vazio ? (
-              <Vazio
-                frase="Nenhum movimento neste mês."
-                acao={
-                  <div className="flex flex-col items-center gap-2">
-                    <Link
-                      href="/lancar?tipo=gasto"
-                      className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
-                    >
-                      Novo gasto
-                    </Link>
-                    <Link
-                      href="/lancar?tipo=receita"
-                      className="flex min-h-[44px] items-center rounded-controle border border-nevoa px-4 font-texto text-[14px] font-semibold text-grafite"
-                    >
-                      Nova receita
-                    </Link>
-                  </div>
-                }
-              />
+              <div className="mt-4">
+                <Vazio
+                  frase="Nenhum movimento neste mês."
+                  acao={
+                    <div className="flex flex-col items-center gap-2">
+                      <Link
+                        href="/lancar?tipo=gasto"
+                        className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                      >
+                        Novo gasto
+                      </Link>
+                      <Link
+                        href="/lancar?tipo=receita"
+                        className="flex min-h-[44px] items-center rounded-controle border border-nevoa px-4 font-texto text-[14px] font-semibold text-grafite"
+                      >
+                        Nova receita
+                      </Link>
+                    </div>
+                  }
+                />
+              </div>
             ) : r.fatias.length === 0 ? (
-              <Vazio
-                frase={
-                  modoResumo
-                    ? "No modo resumo não há detalhe por categoria."
-                    : "Nenhum gasto categorizado neste mês."
-                }
-              />
+              <div className="mt-4">
+                <Vazio
+                  frase={
+                    modoResumo
+                      ? "No modo resumo não há detalhe por categoria."
+                      : "Nenhum gasto categorizado neste mês."
+                  }
+                />
+              </div>
             ) : (
               <div className="mt-4">
-                <Rosca fatias={r.fatias} />
+                <Rosca fatias={r.fatias} competencia={competencia} />
               </div>
             )}
           </section>
 
-          <section className="casal-painel casal-painel-12 mt-8 lg:mt-0">
+          <section className="casal-painel casal-painel-12">
             <Rotulo>últimos 6 meses</Rotulo>
-            <div className="mt-3">
+            <div className="mt-4">
               <CurvaMeses pontos={r.curva} />
             </div>
           </section>

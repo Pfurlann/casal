@@ -81,9 +81,9 @@ export function Navegacao() {
         <span aria-hidden>+</span>
       </Link>
 
-      {/* Desktop rail footer: um bloco de conta/carteira + Novo lançamento. Não copia no mobile. */}
+      {/* Desktop rail footer: bloco plano de conta/carteira + Novo lançamento. Não copia no mobile. */}
       <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-[var(--e-7)] lg:pt-6">
-        <div className="flex flex-col gap-2 rounded-controle border border-nevoa bg-ar px-3 py-3">
+        <div data-conta-rail className="flex flex-col gap-2 px-1">
           <Link
             href="/mais/carteiras"
             aria-label={`Carteira ${carteira?.nome ?? "carteira"}`}

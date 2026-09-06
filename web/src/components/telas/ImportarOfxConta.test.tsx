@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ACCEPT_ARQUIVO_OFX } from "@/lib/ofx";
 import { FIXTURE_CONTA_OFX } from "@/lib/ofx-fixture";
@@ -103,4 +103,23 @@ describe("ImportarOfxConta", () => {
     expect(check).toBeDisabled();
     expect(check).not.toBeChecked();
   });
+
+  it("seleciona todos e aplica data efetiva na importação", async () => {
+    montar();
+    await enviarFixture();
+    const todos = screen.getByRole("checkbox", { name: "Selecionar todos" });
+    expect(todos).toBeChecked();
+    await userEvent.click(todos);
+    expect(screen.getByRole("button", { name: /Lançar 0 na conta/ })).toBeDisabled();
+    await userEvent.click(todos);
+    fireEvent.change(screen.getByLabelText("Data a aplicar aos selecionados"), {
+      target: { value: "2026-09-15" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar data" }));
+    expect(screen.getAllByText(/→ efetiva 15\/09\/2026/).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 4 na conta/ }));
+    const arg = importar.fn.mock.calls[0]?.[0] as { linhas: { data: string }[] };
+    expect(arg.linhas.every((l) => l.data === "2026-09-15")).toBe(true);
+  });
+
 });

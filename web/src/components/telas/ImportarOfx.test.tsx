@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ACCEPT_ARQUIVO_OFX } from "@/lib/ofx";
 import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX } from "@/lib/ofx-fixture";
@@ -104,7 +104,7 @@ describe("ImportarOfx", () => {
     expect(screen.getByRole("button", { name: /Lançar 3 gastos/ })).toBeEnabled();
   });
 
-  it("mostra compras CREDIT do cartão BR e deixa ajuste/pagamento desmarcados", async () => {
+  it("mostra compras CREDIT do cartão BR; ajuste relevante marcado, pagamento não", async () => {
     montar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(
@@ -115,9 +115,10 @@ describe("ImportarOfx", () => {
     expect(screen.getByText("AGENOR LOGISTICA")).toBeInTheDocument();
     expect(screen.getByText("AJUSTE CRED PARC S JUROS")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Lançar BARBEARIADOKEL VIN" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Lançar AJUSTE CRED PARC S JUROS" })).not.toBeChecked();
+    // crédito relevante (estorno/ajuste) entra marcado; pagamento de fatura não
+    expect(screen.getByRole("checkbox", { name: "Lançar AJUSTE CRED PARC S JUROS" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Lançar PAGAMENTO RECEBIDO" })).not.toBeChecked();
-    expect(screen.getByRole("button", { name: /Lançar 4 gastos/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Lançar 5 gastos/ })).toBeEnabled();
   });
 
   it("salva as categorias escolhidas na carteira atual", async () => {
@@ -179,6 +180,44 @@ describe("ImportarOfx", () => {
       categoriaID: "cat-pet",
       parcelaN: 3,
       parcelaTotal: 12,
+    });
+  });
+
+  it("seleciona todos os marcáveis e desmarca em lote", async () => {
+    montar();
+    await enviarFixture();
+    const todos = screen.getByRole("checkbox", { name: "Selecionar todos" });
+    // fixture: gastos marcados, pagamento não → select-all começa parcial/desmarcado
+    expect(todos).not.toBeChecked();
+    await userEvent.click(todos);
+    expect(todos).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Lançar IFOOD *PIZZA NAPOLI" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Lançar PAGAMENTO RECEBIDO" })).toBeChecked();
+    await userEvent.click(todos);
+    expect(todos).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Lançar IFOOD *PIZZA NAPOLI" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: /Lançar 0 gasto/ })).toBeDisabled();
+  });
+
+  it("aplica data aos selecionados e efetiva com a data ajustada", async () => {
+    montar();
+    await enviarFixture();
+    // deixa só o IFOOD marcado
+    await userEvent.click(screen.getByRole("checkbox", { name: "Lançar POSTO SHELL CENTRO" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Lançar LOJA GENERICA XYZ" }));
+    fireEvent.change(screen.getByLabelText("Data a aplicar aos selecionados"), {
+      target: { value: "2026-09-01" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar data" }));
+    expect(screen.getByText(/OFX .* → efetiva 01\/09\/2026/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 1 gasto/ }));
+    const arg = importar.fn.mock.calls[0]?.[0] as {
+      linhas: { descricao: string; data: string }[];
+    };
+    expect(arg.linhas).toHaveLength(1);
+    expect(arg.linhas[0]).toMatchObject({
+      descricao: "IFOOD *PIZZA NAPOLI",
+      data: "2026-09-01",
     });
   });
 });

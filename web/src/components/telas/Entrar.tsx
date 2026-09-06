@@ -135,7 +135,8 @@ export function Entrar() {
 
   return (
     <ForcarTemaClaro>
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-ar px-6 text-grafite lg:my-10 lg:min-h-0 lg:max-w-[440px] lg:rounded-2xl lg:border lg:border-nevoa lg:px-8 lg:py-10">
+      <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-ar lg:[background:color-mix(in_srgb,var(--nevoa)_55%,var(--ar))]">
+        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-ar px-6 text-grafite lg:min-h-0 lg:max-w-[440px] lg:rounded-2xl lg:border lg:border-nevoa lg:px-8 lg:py-10">
         <div className="pt-[max(48px,env(safe-area-inset-top))]">
           <Assinatura variante="base" largura={132} />
           <h1 className="mt-8 font-texto text-[17px] font-semibold tracking-[-0.02em] text-grafite">
@@ -220,6 +221,7 @@ export function Entrar() {
             </div>
           </form>
         )}
+        </div>
       </div>
     </ForcarTemaClaro>
   );

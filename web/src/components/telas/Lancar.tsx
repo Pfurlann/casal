@@ -27,6 +27,7 @@ import { EntradaValor, formatarBRL } from "@/lib/money";
 import { carteiraMostraPagador } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
 import { origensDoPagador } from "@/lib/visibilidade";
+import { Botao } from "../ui/Botao";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Campo } from "../ui/Campo";
 import { SeletorPagador } from "../ui/SeletorPagador";
@@ -39,6 +40,7 @@ import { Teclado } from "../ui/Teclado";
 import { useAviso } from "../ui/Aviso";
 import { Vazio } from "../ui/Vazio";
 import { fecharFolha } from "@/lib/folha-nav";
+import { useDesktop } from "@/lib/use-desktop";
 
 function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
   return categoriasVisiveis(custom, tipo);
@@ -74,6 +76,7 @@ export function Lancar({
   } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
+  const desktop = useDesktop();
 
   const [entrada] = useState(() => new EntradaValor());
   const [, tick] = useState(0);
@@ -389,121 +392,137 @@ export function Lancar({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      className={
+        comoFolha
+          ? "flex h-full min-h-0 flex-col"
+          : "mx-auto flex h-full min-h-0 w-full max-w-[520px] flex-col"
+      }
+    >
       <Cabecalho titulo={titulo} aoVoltar={voltar} />
       {carteira?.nome && (
         <p className="px-4 pt-1 text-center text-[12px] text-cinza">em {carteira.nome}</p>
       )}
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div
-              role="group"
-              aria-label="Tipo de lançamento"
-              className="mt-4 flex justify-center gap-2 px-4"
-            >
-              <Etiqueta ativa={!ehReceita} aoClicar={() => escolherTipo("despesa")}>
-                Gasto
-              </Etiqueta>
-              <Etiqueta ativa={ehReceita} aoClicar={() => escolherTipo("receita")}>
-                Receita
-              </Etiqueta>
-            </div>
-            <div
-              className="relative px-4 pt-6 text-center"
-              role="status"
-              aria-live="polite"
-              aria-label={rotuloValor}
-            >
-              <input
-                ref={campoValor}
-                id="campo-valor-lancar"
-                readOnly
-                inputMode="numeric"
-                value={formatarBRL(entrada.centavos)}
-                onKeyDown={(e) => {
-                  if (/^[0-9]$/.test(e.key)) {
-                    e.preventDefault();
-                    entrada.digitar(Number(e.key));
-                    tick((n) => n + 1);
-                    return;
-                  }
-                  if (e.key === "Backspace") {
-                    e.preventDefault();
-                    entrada.apagar();
-                    tick((n) => n + 1);
-                    return;
-                  }
-                  if (e.key === "Enter" && pode) {
-                    e.preventDefault();
-                    void salvar();
-                  }
-                }}
-                className="absolute inset-x-4 top-6 z-10 h-[48px] w-[calc(100%-2rem)] cursor-text opacity-0"
-              />
-              <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
-              {valorParcela && (
-                <p className="mt-2 text-[12px] text-cinza">valor da parcela</p>
-              )}
-            </div>
-            <div className="px-4">
-              <Campo
-                label={ehReceita ? "De onde veio" : "Onde foi o gasto"}
-                value={descricao}
-                onChange={setDescricao}
-                erro={avisoDescricao}
-              />
-            </div>
-            <div className="mt-5 px-4">
-              <SeletorCategoria
-                tipo={tipo}
-                custom={categoriasCustom}
-                valor={categoriaID}
-                onChange={setCategoriaID}
-              />
-            </div>
-            {progresso && (
-              <p
-                className={`mt-3 px-4 text-center text-[12px] ${
-                  progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
-                }`}
-              >
-                {fraseTeto(progresso, nomeTeto)}
-              </p>
-            )}
-            {mostraPagador && (
-              <div className="mt-4 px-4">
-                <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>
-                <SeletorPagador
-                  membros={membros ?? []}
-                  usuarioID={usuarioID}
-                  valor={pagadorID}
-                  onChange={setPagadorEscolhido}
-                />
-              </div>
-            )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            role="group"
+            aria-label="Tipo de lançamento"
+            className="mt-4 flex justify-center gap-2 px-4"
+          >
+            <Etiqueta ativa={!ehReceita} aoClicar={() => escolherTipo("despesa")}>
+              Gasto
+            </Etiqueta>
+            <Etiqueta ativa={ehReceita} aoClicar={() => escolherTipo("receita")}>
+              Receita
+            </Etiqueta>
           </div>
-          <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3 pb-3">
-            <Rotulo>data</Rotulo>
+          <div
+            className="relative px-4 pt-6 text-center"
+            role="status"
+            aria-live="polite"
+            aria-label={rotuloValor}
+          >
             <input
-              type="date"
-              value={dataISO}
-              onChange={(e) => setDataISO(e.target.value)}
-              aria-label="Data do lançamento"
-              className={classeSelect()}
+              ref={campoValor}
+              id="campo-valor-lancar"
+              readOnly
+              inputMode="numeric"
+              value={formatarBRL(entrada.centavos)}
+              onKeyDown={(e) => {
+                if (/^[0-9]$/.test(e.key)) {
+                  e.preventDefault();
+                  entrada.digitar(Number(e.key));
+                  tick((n) => n + 1);
+                  return;
+                }
+                if (e.key === "Backspace") {
+                  e.preventDefault();
+                  entrada.apagar();
+                  tick((n) => n + 1);
+                  return;
+                }
+                if (e.key === "Enter" && pode) {
+                  e.preventDefault();
+                  void salvar();
+                }
+              }}
+              className="absolute inset-x-4 top-6 z-10 h-[48px] w-[calc(100%-2rem)] cursor-text opacity-0"
             />
-            {corOrigem && nomeOrigem && (
-              <div className="mt-2 flex items-center gap-2 text-[12px] text-cinza">
-                <BolinhaCor cor={corOrigem} />
-                <span>{nomeOrigem}</span>
-              </div>
+            <Numero centavos={entrada.centavos} tamanho="heroi" subordinaCentavos />
+            {valorParcela && (
+              <p className="mt-2 text-[12px] text-cinza">valor da parcela</p>
             )}
-            {seletorOrigem}
           </div>
+          <div className="px-4">
+            <Campo
+              label={ehReceita ? "De onde veio" : "Onde foi o gasto"}
+              value={descricao}
+              onChange={setDescricao}
+              erro={avisoDescricao}
+            />
+          </div>
+          <div className="mt-5 px-4">
+            <SeletorCategoria
+              tipo={tipo}
+              custom={categoriasCustom}
+              valor={categoriaID}
+              onChange={setCategoriaID}
+            />
+          </div>
+          {progresso && (
+            <p
+              className={`mt-3 px-4 text-center text-[12px] ${
+                progresso.faixa === "folga" ? "text-cinza" : "text-ambar-texto"
+              }`}
+            >
+              {fraseTeto(progresso, nomeTeto)}
+            </p>
+          )}
+          {mostraPagador && (
+            <div className="mt-4 px-4">
+              <Rotulo>{ehReceita ? "quem recebeu" : "quem pagou"}</Rotulo>
+              <SeletorPagador
+                membros={membros ?? []}
+                usuarioID={usuarioID}
+                valor={pagadorID}
+                onChange={setPagadorEscolhido}
+              />
+            </div>
+          )}
         </div>
-        <div className="relative z-0 shrink-0 border-t border-nevoa bg-ar lg:w-[300px] lg:shrink-0 lg:border-t-0 lg:border-l lg:overflow-y-auto">
-          {teclado}
+        <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3 pb-3">
+          <Rotulo>data</Rotulo>
+          <input
+            type="date"
+            value={dataISO}
+            onChange={(e) => setDataISO(e.target.value)}
+            aria-label="Data do lançamento"
+            className={classeSelect()}
+          />
+          {corOrigem && nomeOrigem && (
+            <div className="mt-2 flex items-center gap-2 text-[12px] text-cinza">
+              <BolinhaCor cor={corOrigem} />
+              <span>{nomeOrigem}</span>
+            </div>
+          )}
+          {seletorOrigem}
+          {desktop && (
+            <div className="mt-3" data-testid="lancar-salvar-desktop">
+              <Botao variante="primario" onClick={() => void salvar()} disabled={!pode}>
+                Salvar
+              </Botao>
+            </div>
+          )}
         </div>
+        {!desktop && (
+          <div
+            className="relative z-0 shrink-0 border-t border-nevoa bg-ar"
+            data-testid="lancar-teclado"
+          >
+            {teclado}
+          </div>
+        )}
       </div>
     </div>
   );

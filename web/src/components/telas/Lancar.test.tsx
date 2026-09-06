@@ -561,4 +561,22 @@ describe("Lancar", () => {
     const chip = await screen.findByRole("button", { name: /Pet/ });
     expect(chip).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("hard /lancar: coluna centrada ~520; keypad no mobile (matchMedia false)", () => {
+    const { container } = montar();
+    const raiz = container.firstElementChild as HTMLElement;
+    expect(raiz.className).toContain("max-w-[520px]");
+    expect(raiz.className).toContain("mx-auto");
+    expect(raiz.className).not.toContain("lg:flex-row");
+    expect(screen.getByTestId("lancar-teclado")).toBeInTheDocument();
+    expect(screen.queryByTestId("lancar-salvar-desktop")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+  });
+
+  it("como folha: não força max-w na raiz (Folha controla a largura)", () => {
+    const { container } = montar({ comoFolha: true });
+    const raiz = container.firstElementChild as HTMLElement;
+    expect(raiz.className).not.toContain("max-w-[520px]");
+    expect(screen.getByTestId("lancar-teclado")).toBeInTheDocument();
+  });
 });

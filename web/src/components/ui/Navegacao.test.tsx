@@ -90,6 +90,12 @@ describe("Navegacao", () => {
     }
   });
 
+  it("esconde FAB e Novo lançamento na rota /lancar", () => {
+    caminho.atual = "/lancar";
+    render(<Navegacao />);
+    expect(screen.queryByRole("link", { name: "Novo lançamento" })).not.toBeInTheDocument();
+  });
+
   it("não coloca Sair na bottom nav — Sair fica no trilho desktop e em Mais", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);

@@ -58,12 +58,15 @@ describe("Navegacao", () => {
   it("marca o destino ativo com aria-current, não só com cor", () => {
     caminho.atual = "/cartoes";
     render(<Navegacao />);
-    expect(screen.getByRole("link", { name: "cartões" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    const cartoes = screen.getByRole("link", { name: "cartões" });
+    expect(cartoes).toHaveAttribute("aria-current", "page");
+    expect(cartoes.className).toContain("font-semibold");
+    expect(cartoes.className).toContain("lg:shadow-[inset_3px_0_0_0_var(--grafite)]");
     expect(screen.getByRole("link", { name: "mês" })).not.toHaveAttribute(
       "aria-current",
+    );
+    expect(screen.getByRole("link", { name: "mês" }).className).not.toContain(
+      "font-semibold",
     );
   });
 
@@ -91,8 +94,9 @@ describe("Navegacao", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
     const sair = screen.getByRole("button", { name: "Sair" });
-    expect(sair.parentElement?.className).toContain("hidden");
-    expect(sair.parentElement?.className).toContain("lg:flex");
+    const rodape = sair.closest(".mt-auto");
+    expect(rodape?.className).toContain("hidden");
+    expect(rodape?.className).toContain("lg:flex");
     expect(screen.queryByRole("link", { name: "Sair" })).not.toBeInTheDocument();
   });
 });
@@ -130,19 +134,25 @@ describe("Navegacao — trilho de desktop", () => {
     expect(mes.className).toContain("lg:w-full");
   });
 
-  it("rodapé do trilho tem carteira, e-mail, Sair e Novo lançamento", () => {
+  it("rodapé do trilho tem um bloco único de conta/carteira + Novo lançamento", () => {
     caminho.atual = "/mes";
-    render(<Navegacao />);
-    expect(screen.getByRole("link", { name: "Nosso" })).toHaveAttribute(
-      "href",
-      "/mais/carteiras",
-    );
+    const { container } = render(<Navegacao />);
+    const carteira = screen.getByRole("link", { name: /Carteira Nosso/ });
+    expect(carteira).toHaveAttribute("href", "/mais/carteiras");
     expect(screen.getByText("pedro@exemplo.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
+    // um único bloco agrupa carteira + e-mail + Sair
+    const bloco = carteira.closest("div.rounded-controle");
+    expect(bloco).toBeTruthy();
+    expect(bloco?.textContent).toMatch(/Nosso/);
+    expect(bloco?.textContent).toMatch(/pedro@exemplo.com/);
+    expect(bloco?.textContent).toMatch(/Sair/);
+    expect(bloco?.textContent).not.toMatch(/Novo lançamento/);
     const lancar = screen.getAllByRole("link", { name: "Novo lançamento" });
     expect(lancar.some((a) => a.textContent?.includes("Novo lançamento"))).toBe(
       true,
     );
+    expect(container.querySelectorAll('a[href="/mais/carteiras"]').length).toBe(1);
   });
 
   it("abas e lançar têm press e alvo de 44px", () => {

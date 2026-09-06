@@ -145,7 +145,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
     return (
       <div>
         <Cabecalho
-          titulo={`${MESES[competencia.mes - 1]} · ${carteira.nome}`}
+          titulo={MESES[competencia.mes - 1] ?? rotuloDaCompetencia(competencia)}
           marca
           acao={
             <div className="flex items-center">
@@ -195,7 +195,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
   return (
     <div>
       <Cabecalho
-        titulo={`${MESES[competencia.mes - 1]} · ${carteira.nome}`}
+        titulo={MESES[competencia.mes - 1] ?? rotuloDaCompetencia(competencia)}
         marca
         folga={folga}
         acao={
@@ -336,11 +336,12 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                   mostraPagador ? indicadorPagador(t.pagadorID, membros ?? [], usuarioID) : null;
                 const origem = origemDaTransacao(t, contas, cartoes);
                 const compraCartao = eCompraNoCartao(t);
-                const papel = eLancamentoDeFatura(t)
+                const categoriaRotulo = eLancamentoDeFatura(t)
                   ? "fatura"
-                  : t.tipo === "receita" ? "receita" : (cat?.nome ?? "Sem categoria");
+                  : (cat?.nome ?? "Sem categoria");
                 const parcela = t.parcelaTotal > 1 ? `${t.parcelaN}/${t.parcelaTotal}` : null;
-                const partes = [papel, parcela, origem?.nome, quem].filter(Boolean);
+                const origemRotulo = origem?.nome ?? "—";
+                const partes = [categoriaRotulo, parcela, origem?.nome, quem].filter(Boolean);
                 const titulo = t.descricao || cat?.nome || "Sem descrição";
                 const podePagar = !pago && !compraCartao && Boolean(liquidarLancamento);
                 return (
@@ -369,13 +370,13 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                         <span className="casal-linha-mes-sub">{partes.join(" · ")}</span>
                       </span>
                       <span className="casal-linha-mes-cat">
-                        {papel}
+                        {categoriaRotulo}
                         {parcela ? ` · ${parcela}` : ""}
                       </span>
                       <span className="casal-linha-mes-origem">
                         {origem?.cor && <BolinhaCor cor={origem.cor} />}
                         <span className="truncate">
-                          {[origem?.nome, quem].filter(Boolean).join(" · ")}
+                          {[origemRotulo, quem].filter(Boolean).join(" · ")}
                         </span>
                       </span>
                       <span className="casal-linha-mes-valor">

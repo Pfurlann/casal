@@ -209,6 +209,7 @@ select {
   }
 
   .casal-linha-mes-cat {
+    display: block;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

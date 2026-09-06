@@ -95,6 +95,21 @@ describe("Mes", () => {
     expect(container.querySelector(".casal-tabela-cabeca")?.textContent).toMatch(
       /descrição.*categoria.*origem.*valor.*estado/,
     );
+    const cat = container.querySelector(".casal-linha-mes-cat");
+    const origem = container.querySelector(".casal-linha-mes-origem");
+    expect(cat?.textContent).toMatch(/Mercado/);
+    expect(cat?.textContent).not.toMatch(/Corrente/);
+    expect(origem?.textContent).toMatch(/Corrente/);
+  });
+
+  it("no cabeçalho do mês só a competência, sem repetir a carteira", () => {
+    montar();
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent?.toLowerCase()).toMatch(
+      /janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro/,
+    );
+    expect(h1.textContent).not.toMatch(/Nosso/);
+    expect(h1.textContent).not.toContain("·");
   });
 
   it("mostra o estado vazio quando não houve gasto", () => {

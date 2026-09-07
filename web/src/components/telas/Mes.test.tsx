@@ -425,4 +425,27 @@ describe("Mes", () => {
     const semBola = container.innerHTML.replace(/data-cor-origem[\s\S]*?>/g, ">");
     expect(semBola).not.toMatch(/#[0-9a-fA-F]{3,8}/);
   });
+
+  it("total do mês atualiza quando transações mudam no store", () => {
+    const tx1 = despesa(100_00, "Mercado", "00000000-0000-0000-0000-000000000001", "tx-1");
+    const tx2 = despesa(50_00, "Padaria", "00000000-0000-0000-0000-000000000001", "tx-2");
+    const tx3 = despesa(30_00, "Farmácia", "00000000-0000-0000-0000-000000000001", "tx-3");
+    
+    const { rerender } = montar({ transacoes: [tx1, tx2, tx3] });
+    
+    expect(
+      screen.getByText((_, el) => el?.textContent === "R$ 180,00" && el.className.includes("text-[36px]")),
+    ).toBeInTheDocument();
+    
+    loja.valor = { ...loja.valor, transacoes: [tx1, tx3] };
+    rerender(
+      <ProvedorAviso>
+        <Mes />
+      </ProvedorAviso>,
+    );
+    
+    expect(
+      screen.getByText((_, el) => el?.textContent === "R$ 130,00" && el.className.includes("text-[36px]")),
+    ).toBeInTheDocument();
+  });
 });

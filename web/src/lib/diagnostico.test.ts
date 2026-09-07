@@ -99,6 +99,13 @@ describe("totaisDoMes", () => {
       ),
     ).toEqual({ gasto: 112_000, receita: 100_000, fluxo: -12_000 });
   });
+  it("nao dobra compra no cartao com total da fatura nem pagamento", () => {
+    const compra = tx({ id: "c", valor: 200_000, cartaoID: "k1", hashDedup: "ofx|k1|compra", data: "2026-09-08T15:00:00.000Z" });
+    const totalFatura = tx({ id: "f", valor: 200_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-07T15:00:00.000Z" });
+    const pagamento = tx({ id: "p", tipo: "transferencia", valor: 200_000, contaID: "a1", hashDedup: "pagamento|f1|200000", data: "2026-09-15T15:00:00.000Z" });
+    const conta = tx({ id: "d", valor: 50_000, contaID: "a1", hashDedup: "ofx|a1|ifood" });
+    expect(totaisDoMes([compra, totalFatura, pagamento, conta], C, [CARTAO])).toEqual({ gasto: 250_000, receita: 0, fluxo: -250_000 });
+  });
 });
 
 describe("saldoDasContas", () => {

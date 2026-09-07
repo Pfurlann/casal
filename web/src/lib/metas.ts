@@ -10,7 +10,7 @@ import {
   type TipoMeta,
   type Transacao,
 } from "./domain";
-import { competenciaDaTransacao } from "./faturas";
+import { competenciaDaTransacao, eLancamentoDeFatura } from "./faturas";
 import { formatarBRL, type Centavos } from "./money";
 
 export const ALERTA_TETO = 0.8;
@@ -51,6 +51,18 @@ export function transacoesDoMes(
   });
 }
 
+
+/** Despesas que entram no card do mês: sem total sintético de fatura (evita dobra com as compras). */
+export function despesasDoMes(
+  transacoes: Transacao[],
+  c: Competencia,
+  cartoes: Cartao[] = [],
+): Transacao[] {
+  return transacoesDoMes(transacoes, c, cartoes).filter(
+    (t) => t.tipo === "despesa" && !eLancamentoDeFatura(t),
+  );
+}
+
 export function gastoDaCategoria(
   transacoes: Transacao[],
   categoriaID: string,
@@ -63,7 +75,7 @@ export function gastoDaCategoria(
 }
 
 export function economiaDoMes(transacoes: Transacao[], c: Competencia, cartoes: Cartao[] = []): Centavos {
-  return transacoes.filter((t) => noMes(t, c, cartoes)).reduce((s, t) => {
+  return transacoes.filter((t) => noMes(t, c, cartoes) && !eLancamentoDeFatura(t)).reduce((s, t) => {
     switch (t.tipo) {
       case "receita":
         return s + t.valor;

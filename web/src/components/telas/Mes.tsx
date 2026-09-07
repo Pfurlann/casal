@@ -14,6 +14,7 @@ import {
   lancamentoDoTotalDaFatura,
 } from "@/lib/faturas";
 import {
+  despesasDoMes,
   folgaDoPeriodo,
   fraseTeto,
   gastoDaCategoria,
@@ -92,7 +93,8 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
     ...doMes,
     ...totaisFatura.filter((t) => !hashesMes.has(t.hashDedup)),
   ];
-  const gastos = doMes.filter((t) => t.tipo === "despesa" && !eLancamentoDeFatura(t));
+  // Card = despesas do mês sem total sintético de fatura (compras no cartão entram; fatura| e pagamento/transferência não).
+  const gastos = despesasDoMes(transacoes, competencia, cartoes);
   const receitas = doMes.filter((t) => t.tipo === "receita");
   const gasto = gastos.reduce((s, t) => s + t.valor, 0);
   const receita = receitas.reduce((s, t) => s + t.valor, 0);

@@ -19,6 +19,7 @@ import {
   jaImportada,
   lerTextoDoArquivo,
   parseOfxConta,
+  parecePagamentoDeFatura,
   type LinhaOfx,
 } from "@/lib/ofx";
 import { useLoja } from "@/lib/store";
@@ -34,6 +35,12 @@ const SELECT =
 function dataBr(iso: string): string {
   const [ano, mes, dia] = iso.split("-");
   return `${dia}/${mes}/${ano}`;
+}
+
+/** Pagamento de fatura no banco não entra marcado — senão o mês conta dobrado com o OFX do cartão. */
+function marcarPorPadrao(linha: LinhaOfx): boolean {
+  if (linha.tipo === "credito") return true;
+  return !parecePagamentoDeFatura(linha.descricao);
 }
 
 export function ImportarOfxConta({ contaId }: { contaId: string }) {
@@ -73,7 +80,7 @@ export function ImportarOfxConta({ contaId }: { contaId: string }) {
               dataEfetiva,
               categoriaID: escolhas[hash] ?? classificarCategoriaOfxConta(g.descricao, g.tipo, categorias),
               jaTem,
-              lancar: jaTem ? false : (marcar[hash] ?? true),
+              lancar: jaTem ? false : (marcar[hash] ?? marcarPorPadrao(g)),
             };
           })
         : [],

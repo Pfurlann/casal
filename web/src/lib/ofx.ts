@@ -8,6 +8,7 @@ import {
   uuid,
   type Cartao,
   type Categoria,
+  type Competencia,
   type Transacao,
 } from "./domain";
 import type { Centavos } from "./money";
@@ -75,20 +76,38 @@ export function parcelaDaLinha(l: { descricao: string; parcelaN?: number; parcel
   return parcelaDoTexto(l.descricao);
 }
 
-/** OFX cartão é 1:1 com o extrato — não inventa parcelas futuras. */
-export function lancamentosDaLinha(_l: { descricao: string; parcelaN?: number; parcelaTotal?: number }): number {
-  return 1;
+/** Quantas transações esta linha OFX gera (atual + futuras k>n). */
+export function lancamentosDaLinha(l: { descricao: string; parcelaN?: number; parcelaTotal?: number }): number {
+  const p = parcelaDaLinha(l);
+  return p ? p.m - p.n + 1 : 1;
 }
 
 export function fraseParcelaOfx(n: number, m: number): string | undefined {
   if (!eParcelaValida(n, m)) return undefined;
-  return `parcela ${n}/${m}`;
+  const lanca = m - n + 1;
+  return `parcela ${n}/${m} · lança ${lanca} restante${lanca === 1 ? "" : "s"}`;
 }
 
 /**
- * Competências da parcela n até m.
- * Âncora sempre = data original do OFX; futuras = fechamento a partir dessa competência.
- * `dataOverrideAtual` altera só a data da parcela n (fatura/mês atual), sem reancorar o cronograma.
+ * Se DTPOSTED não cai na competência do extrato (DTSTART/DTEND), carimba no
+ * fechamento dessa competência — assim totalDaFatura/CartaoDetalhe alinham ao PDF
+ * sem mudar a fronteira de competenciaDaCompra (P1).
+ */
+export function dataNaCompetenciaDoExtrato(
+  dataISO: string,
+  competenciaExtrato: Competencia | null | undefined,
+  cartao: Cartao,
+): string {
+  if (!competenciaExtrato) return dataISO;
+  const c = competenciaDaCompra(dataDeLocalISO(dataISO), cartao);
+  if (c.ano === competenciaExtrato.ano && c.mes === competenciaExtrato.mes) return dataISO;
+  return fechamento(competenciaExtrato, cartao);
+}
+
+/**
+ * Competências da parcela n até m (só k≥n).
+ * Âncora = competência do extrato se houver; senão competência da data OFX original.
+ * `dataOverrideAtual` altera só a data da parcela n, sem reancorar o cronograma.
  */
 export function expansaoParcelasOfx(
   dataISO: string,
@@ -96,10 +115,13 @@ export function expansaoParcelasOfx(
   m: number,
   cartao: Cartao,
   dataOverrideAtual?: string,
+  competenciaExtrato?: Competencia | null,
 ): { numero: number; data: string }[] {
-  const dataAtual = dataOverrideAtual ?? dataISO;
+  const stamped = dataNaCompetenciaDoExtrato(dataISO, competenciaExtrato, cartao);
+  const dataAtual = dataOverrideAtual ?? stamped;
   if (!eParcelaValida(n, m)) return [{ numero: 1, data: dataAtual }];
-  const atual = competenciaDaCompra(dataDeLocalISO(dataISO), cartao);
+  const atual =
+    competenciaExtrato ?? competenciaDaCompra(dataDeLocalISO(dataISO), cartao);
   const saida: { numero: number; data: string }[] = [];
   for (let k = n; k <= m; k++) {
     const competencia = avancando(atual, k - n);
@@ -477,31 +499,59 @@ export function transacoesDoOfx(p: {
   cartao?: Cartao;
   pagadorID?: string;
   existentes?: Transacao[];
+  /** Competência do extrato (mês do DTEND). Carimba parcela n e ancora k>n. */
+  competenciaExtrato?: Competencia | null;
 }): Transacao[] {
   const hashes = new Set((p.existentes ?? []).map((t) => t.hashDedup));
   const novas: Transacao[] = [];
   for (const linha of p.linhas) {
     if (hashes.has(linha.hashDedup)) continue;
-    hashes.add(linha.hashDedup);
     const parc = parcelaDaLinha(linha);
-    const dataISO = linha.dataOverride ?? linha.data;
-    const valor = linha.tipo === "credito" ? -linha.valor : linha.valor;
-    // 1:1 com o extrato — parcela N/M é rótulo; não inventa futuras
-    novas.push({
-      id: uuid(),
-      carteiraID: p.carteiraID,
-      tipo: "despesa",
-      valor,
-      data: dataDeLocalISO(dataISO).toISOString(),
-      categoriaID: linha.categoriaID,
-      descricao: linha.descricao,
-      cartaoID: p.cartaoID,
-      pagadorID: p.pagadorID,
-      hashDedup: linha.hashDedup,
-      parcelaN: parc?.n ?? 1,
-      parcelaTotal: parc?.m ?? 1,
-      status: "liquidado",
-    });
+    const partes =
+      parc && p.cartao
+        ? expansaoParcelasOfx(
+            linha.data,
+            parc.n,
+            parc.m,
+            p.cartao,
+            linha.dataOverride,
+            p.competenciaExtrato,
+          )
+        : [
+            {
+              numero: parc?.n ?? 1,
+              data:
+                linha.dataOverride ??
+                (p.cartao
+                  ? dataNaCompetenciaDoExtrato(linha.data, p.competenciaExtrato, p.cartao)
+                  : linha.data),
+            },
+          ];
+    const grupo = partes.length > 1 ? uuid() : undefined;
+    const total = parc?.m ?? 1;
+    const atual = parc?.n ?? 1;
+    for (const parte of partes) {
+      const hash = hashDedupOfxParcela(linha.hashDedup, atual, parte.numero, total);
+      if (hashes.has(hash)) continue;
+      hashes.add(hash);
+      const valor = linha.tipo === "credito" ? -linha.valor : linha.valor;
+      novas.push({
+        id: uuid(),
+        carteiraID: p.carteiraID,
+        tipo: "despesa",
+        valor,
+        data: dataDeLocalISO(parte.data).toISOString(),
+        categoriaID: linha.categoriaID,
+        descricao: linha.descricao,
+        cartaoID: p.cartaoID,
+        pagadorID: p.pagadorID,
+        hashDedup: hash,
+        grupoParcela: grupo,
+        parcelaN: parte.numero,
+        parcelaTotal: total,
+        status: "liquidado",
+      });
+    }
   }
   return novas;
 }

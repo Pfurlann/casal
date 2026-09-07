@@ -1626,13 +1626,16 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const apagar: Loja["apagar"] = async (p) => {
     const ids = idsParaApagar(estado.transacoes, p);
     const transacoes = aplicarApagar(estado.transacoes, p);
-    await commit({ ...estado, transacoes });
+    const base = { ...estado, transacoes };
+    const { estado: comFaturas, alteradas } = mesclarFaturasNoEstado(base);
+    await commit(comFaturas);
     if (sb && ids.length > 0) {
       const agora = new Date().toISOString();
       const patch = { deleted_at: agora, updated_at: agora };
       try {
         const { error } = await sb.from("transactions").update(patch).in("id", ids);
         if (error) throw error;
+        await persistirTotaisFatura([], alteradas);
       } catch (erro) {
         if (eErroRede(erro)) {
           enfileirarOp(
@@ -1651,13 +1654,16 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     const ids = idsParaApagarEmLote(estado.transacoes, p);
     if (ids.length === 0) return;
     const transacoes = aplicarApagarEmLote(estado.transacoes, p);
-    await commit({ ...estado, transacoes });
+    const base = { ...estado, transacoes };
+    const { estado: comFaturas, alteradas } = mesclarFaturasNoEstado(base);
+    await commit(comFaturas);
     if (sb) {
       const agora = new Date().toISOString();
       const patch = { deleted_at: agora, updated_at: agora };
       try {
         const { error } = await sb.from("transactions").update(patch).in("id", ids);
         if (error) throw error;
+        await persistirTotaisFatura([], alteradas);
       } catch (erro) {
         if (eErroRede(erro)) {
           enfileirarOp(

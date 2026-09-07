@@ -350,3 +350,38 @@ describe("montarDiagnostico", () => {
     expect(d.evolucao).toHaveLength(6);
   });
 });
+
+describe("totaisDoMes após deleção", () => {
+  it("reflete transações removidas do array", () => {
+    const t1 = tx({ id: "t1", valor: 100_000, cartaoID: "k1", hashDedup: "ofx|k1|compra1", data: "2026-09-08T15:00:00.000Z" });
+    const t2 = tx({ id: "t2", valor: 50_000, cartaoID: "k1", hashDedup: "ofx|k1|compra2", data: "2026-09-10T15:00:00.000Z" });
+    const t3 = tx({ id: "t3", valor: 30_000, cartaoID: "k1", hashDedup: "ofx|k1|compra3", data: "2026-09-12T15:00:00.000Z" });
+    
+    const antes = [t1, t2, t3];
+    const depois = antes.filter((t) => t.id !== "t2");
+    
+    expect(totaisDoMes(antes, C, [CARTAO])).toEqual({ gasto: 180_000, receita: 0, fluxo: -180_000 });
+    expect(totaisDoMes(depois, C, [CARTAO])).toEqual({ gasto: 130_000, receita: 0, fluxo: -130_000 });
+  });
+
+  it("recalcula total mesmo com transação sintética de fatura presente", () => {
+    const compra1 = tx({ id: "c1", valor: 100_000, cartaoID: "k1", hashDedup: "ofx|k1|compra1", data: "2026-09-08T15:00:00.000Z" });
+    const compra2 = tx({ id: "c2", valor: 50_000, cartaoID: "k1", hashDedup: "ofx|k1|compra2", data: "2026-09-10T15:00:00.000Z" });
+    const fatura = tx({ id: "f", valor: 150_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-28T15:00:00.000Z" });
+    
+    const antes = [compra1, compra2, fatura];
+    const depois = antes.filter((t) => t.id !== "c2");
+    
+    expect(totaisDoMes(antes, C, [CARTAO])).toEqual({ gasto: 150_000, receita: 0, fluxo: -150_000 });
+    expect(totaisDoMes(depois, C, [CARTAO])).toEqual({ gasto: 100_000, receita: 0, fluxo: -100_000 });
+  });
+
+  it("transação sintética de fatura desatualizada NÃO afeta totaisDoMes", () => {
+    const compra1 = tx({ id: "c1", valor: 100_000, cartaoID: "k1", hashDedup: "ofx|k1|compra1", data: "2026-09-08T15:00:00.000Z" });
+    const faturaDesatualizada = tx({ id: "f", valor: 150_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-28T15:00:00.000Z" });
+    
+    const depois = [compra1, faturaDesatualizada];
+    
+    expect(totaisDoMes(depois, C, [CARTAO])).toEqual({ gasto: 100_000, receita: 0, fluxo: -100_000 });
+  });
+});

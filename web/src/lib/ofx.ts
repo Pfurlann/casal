@@ -491,6 +491,41 @@ export function hashDedupOfxParcela(hashAtual: string, atual: number, numero: nu
   return numero === atual ? hashAtual : `${hashAtual}|p${numero}de${total}`;
 }
 
+/**
+ * Quantos lançamentos desta linha ainda faltam (parcela n + k>n).
+ * Se n já existe, conta só as futuras ausentes — base do "completar parcelas futuras".
+ */
+export function lancamentosPendentesDaLinha(
+  l: { hashDedup: string; descricao: string; parcelaN?: number; parcelaTotal?: number },
+  existentes: Transacao[],
+): number {
+  const hashes = new Set(existentes.map((t) => t.hashDedup));
+  const parc = parcelaDaLinha(l);
+  if (!parc) return hashes.has(l.hashDedup) ? 0 : 1;
+  let faltam = 0;
+  for (let k = parc.n; k <= parc.m; k++) {
+    if (!hashes.has(hashDedupOfxParcela(l.hashDedup, parc.n, k, parc.m))) faltam++;
+  }
+  return faltam;
+}
+
+/** n já na fatura, mas pelo menos uma k>n ausente. */
+export function precisaCompletarParcelas(
+  l: { hashDedup: string; descricao: string; parcelaN?: number; parcelaTotal?: number },
+  existentes: Transacao[],
+): boolean {
+  const parc = parcelaDaLinha(l);
+  if (!parc || parc.n >= parc.m) return false;
+  const hashes = new Set(existentes.map((t) => t.hashDedup));
+  if (!hashes.has(l.hashDedup)) return false;
+  return lancamentosPendentesDaLinha(l, existentes) > 0;
+}
+
+export function fraseCompletarParcelas(faltam: number): string | undefined {
+  if (faltam <= 0) return undefined;
+  return `completar ${faltam} parcela${faltam === 1 ? "" : "s"} futura${faltam === 1 ? "" : "s"}`;
+}
+
 /** `carteiraID` deve ser `cartao.carteiraID` (não a carteira só da UI). */
 export function transacoesDoOfx(p: {
   linhas: LinhaImportacaoOfx[];
@@ -502,10 +537,11 @@ export function transacoesDoOfx(p: {
   /** Competência do extrato (mês do DTEND). Carimba parcela n e ancora k>n. */
   competenciaExtrato?: Competencia | null;
 }): Transacao[] {
-  const hashes = new Set((p.existentes ?? []).map((t) => t.hashDedup));
+  const existentes = p.existentes ?? [];
+  const hashes = new Set(existentes.map((t) => t.hashDedup));
   const novas: Transacao[] = [];
   for (const linha of p.linhas) {
-    if (hashes.has(linha.hashDedup)) continue;
+    // Não aborta a linha se hash de n já existe: ainda pode faltar expansão k>n.
     const parc = parcelaDaLinha(linha);
     const partes =
       parc && p.cartao
@@ -527,12 +563,17 @@ export function transacoesDoOfx(p: {
                   : linha.data),
             },
           ];
-    const grupo = partes.length > 1 ? uuid() : undefined;
     const total = parc?.m ?? 1;
     const atual = parc?.n ?? 1;
-    for (const parte of partes) {
+    const pendentes = partes.filter(
+      (parte) => !hashes.has(hashDedupOfxParcela(linha.hashDedup, atual, parte.numero, total)),
+    );
+    if (pendentes.length === 0) continue;
+    const grupoExistente = existentes.find((t) => t.hashDedup === linha.hashDedup)?.grupoParcela;
+    const grupo =
+      partes.length > 1 ? (grupoExistente ?? uuid()) : undefined;
+    for (const parte of pendentes) {
       const hash = hashDedupOfxParcela(linha.hashDedup, atual, parte.numero, total);
-      if (hashes.has(hash)) continue;
       hashes.add(hash);
       const valor = linha.tipo === "credito" ? -linha.valor : linha.valor;
       novas.push({

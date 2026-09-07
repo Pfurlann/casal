@@ -22,8 +22,11 @@ import {
   dataNaCompetenciaDoExtrato,
   hashDedupOfx,
   hashDedupOfxConta,
+  hashDedupOfxParcela,
   jaImportada,
+  lancamentosPendentesDaLinha,
   parcelaDoTexto,
+  precisaCompletarParcelas,
   competenciaDoPeriodoOfx,
   parseOfx,
   parseOfxConta,
@@ -437,8 +440,9 @@ describe("transacoesDoOfx", () => {
     ]);
   });
 
-  it("não relança se o hash FITID+valor+memo já existe", () => {
-    const { gastos } = parseOfx(FIXTURE_PARCELA_OFX);
+  it("n já existe → cria só expansão k>n (completar parcelas futuras)", () => {
+    const { gastos, periodo } = parseOfx(FIXTURE_PARCELA_OFX);
+    const hash = hashDedupOfx("k1", gastos[0]!.fitId);
     const linhas = gastos.map((g) => ({
       descricao: g.descricao,
       valor: g.valorCentavos,
@@ -456,16 +460,64 @@ describe("transacoesDoOfx", () => {
       data: "2026-09-10T15:00:00.000Z",
       descricao: "MAGAZINE LUIZA PARC 3/12",
       cartaoID: "k1",
-      hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
+      hashDedup: hash,
+      grupoParcela: "grp-sofa",
       parcelaN: 3,
       parcelaTotal: 12,
     }];
+    expect(precisaCompletarParcelas(linhas[0]!, existentes)).toBe(true);
+    expect(lancamentosPendentesDaLinha(linhas[0]!, existentes)).toBe(9);
+    const txs = transacoesDoOfx({
+      linhas,
+      carteiraID: "w1",
+      cartaoID: "k1",
+      cartao: CARTAO,
+      existentes,
+      competenciaExtrato: competenciaDoPeriodoOfx(periodo),
+    });
+    expect(txs).toHaveLength(9);
+    expect(txs.map((t) => t.parcelaN)).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(txs.every((t) => t.hashDedup !== hash)).toBe(true);
+    expect(txs[0]?.hashDedup).toBe(hashDedupOfxParcela(hash, 3, 4, 12));
+    expect(txs.every((t) => t.grupoParcela === "grp-sofa")).toBe(true);
+    const comps = txs.map((t) => competenciaDaCompra(new Date(t.data), CARTAO));
+    expect(comps[0]).toEqual({ ano: 2026, mes: 10 });
+    expect(comps[8]).toEqual({ ano: 2027, mes: 6 });
+  });
+
+  it("n e todas k>n já existem → não relança nada", () => {
+    const { gastos, periodo } = parseOfx(FIXTURE_PARCELA_OFX);
+    const hash = hashDedupOfx("k1", gastos[0]!.fitId);
+    const linhas = gastos.map((g) => ({
+      descricao: g.descricao,
+      valor: g.valorCentavos,
+      data: g.data,
+      categoriaID: CATEGORIA_OUTROS_ID,
+      hashDedup: hashDedupOfx("k1", g.fitId),
+      parcelaN: g.parcelaN,
+      parcelaTotal: g.parcelaTotal,
+    }));
+    const existentes: Transacao[] = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => ({
+      id: `ja-${n}`,
+      carteiraID: "w1",
+      tipo: "despesa" as const,
+      valor: 25000,
+      data: "2026-09-10T15:00:00.000Z",
+      descricao: "MAGAZINE LUIZA PARC 3/12",
+      cartaoID: "k1",
+      hashDedup: hashDedupOfxParcela(hash, 3, n, 12),
+      parcelaN: n,
+      parcelaTotal: 12,
+    }));
+    expect(precisaCompletarParcelas(linhas[0]!, existentes)).toBe(false);
+    expect(lancamentosPendentesDaLinha(linhas[0]!, existentes)).toBe(0);
     expect(transacoesDoOfx({
       linhas,
       carteiraID: "w1",
       cartaoID: "k1",
       cartao: CARTAO,
       existentes,
+      competenciaExtrato: competenciaDoPeriodoOfx(periodo),
     })).toHaveLength(0);
   });
 

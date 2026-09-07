@@ -187,6 +187,44 @@ describe("ImportarOfx", () => {
     expect(arg.competenciaExtrato).toEqual({ ano: 2026, mes: 9 });
   });
 
+  it("n já na fatura → auto-marca completar parcelas futuras (só k>n)", async () => {
+    const { gastos } = parseOfx(FIXTURE_PARCELA_OFX);
+    montar({
+      transacoes: [
+        {
+          id: "ja",
+          hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
+          parcelaN: 3,
+          parcelaTotal: 12,
+        },
+      ],
+    });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(
+      input,
+      new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
+    );
+    expect(await screen.findByText(/completar 9 parcelas futuras/)).toBeInTheDocument();
+    expect(screen.getByText(/1 completar parcelas futuras/)).toBeInTheDocument();
+    expect(screen.queryByText(/já na fatura/)).not.toBeInTheDocument();
+    const cb = screen.getByRole("checkbox", {
+      name: /Completar parcelas futuras de MAGAZINE LUIZA/,
+    });
+    expect(cb).toBeChecked();
+    expect(cb).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Lançar 9 gastos/ })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 9 gastos/ }));
+    const arg = importar.fn.mock.calls[0]?.[0] as {
+      linhas: { parcelaN: number; parcelaTotal: number; hashDedup: string }[];
+    };
+    expect(arg.linhas).toHaveLength(1);
+    expect(arg.linhas[0]).toMatchObject({
+      parcelaN: 3,
+      parcelaTotal: 12,
+      hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
+    });
+  });
+
   it("seleciona todos os marcáveis e desmarca em lote", async () => {
     montar();
     await enviarFixture();

@@ -18,12 +18,13 @@ import {
   competenciaDoPeriodoOfx,
   creditoRelevanteNaFatura,
   erroSeNaoForOfx,
+  fraseCompletarParcelas,
   fraseParcelaOfx,
   hashDedupOfx,
-  jaImportada,
-  lancamentosDaLinha,
+  lancamentosPendentesDaLinha,
   lerTextoDoArquivo,
   parseOfx,
+  precisaCompletarParcelas,
   type LinhaOfx,
 } from "@/lib/ofx";
 import { useLoja } from "@/lib/store";
@@ -76,8 +77,19 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
       cartao
         ? extraidas.map((g) => {
             const hash = hashDedupOfx(cartao.id, g.fitId);
-            const jaTem = jaImportada(transacoes, hash);
+            const base = {
+              ...g,
+              hashDedup: hash,
+              descricao: g.descricao,
+              parcelaN: g.parcelaN,
+              parcelaTotal: g.parcelaTotal,
+            };
+            const pendentes = lancamentosPendentesDaLinha(base, transacoes);
+            const completar = precisaCompletarParcelas(base, transacoes);
+            // Completo = nada a criar (n e k>n já existem, ou linha avulsa já importada).
+            const jaTem = pendentes === 0;
             const dataEfetiva = datasEfetivas[hash] ?? g.data;
+            const padrao = completar ? true : marcarPorPadrao(g);
             return {
               ...g,
               hashDedup: hash,
@@ -85,7 +97,9 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
               dataEfetiva,
               categoriaID: escolhas[hash] ?? classificarCategoria(g.descricao, categorias),
               jaTem,
-              lancar: jaTem ? false : (marcar[hash] ?? marcarPorPadrao(g)),
+              completar,
+              pendentes,
+              lancar: jaTem ? false : (marcar[hash] ?? padrao),
             };
           })
         : [],
@@ -96,8 +110,13 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
   const todosMarcados =
     marcaveis.length > 0 && marcaveis.every((l) => l.lancar);
   const escolhidas = linhas.filter((l) => l.lancar && !l.jaTem);
-  const totalNovos = escolhidas.reduce((s, l) => s + l.valorCentavos, 0);
-  const lancamentosNovos = escolhidas.reduce((s, l) => s + lancamentosDaLinha(l), 0);
+  const totalNovos = escolhidas.reduce(
+    (s, l) => (l.completar ? s : s + l.valorCentavos),
+    0,
+  );
+  const lancamentosNovos = escolhidas.reduce((s, l) => s + l.pendentes, 0);
+  const completarCount = linhas.filter((l) => l.completar).length;
+  const jaNaFaturaCount = linhas.filter((l) => l.jaTem).length;
 
   function marcarTodos(v: boolean) {
     setMarcar((xs) => {
@@ -214,7 +233,8 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         <p className="mt-2 text-[14px] text-cinza">
           A competência da fatura vem do período do extrato (DTSTART/DTEND) — linhas com
           DTPOSTED fora dessa fatura são carimbadas nela. Parcelas N/M lançam as restantes
-          nas competências seguintes (só as que faltam). Desmarque o que não entra — créditos vêm
+          nas competências seguintes (só as que faltam). Se a parcela n já está na fatura,
+          dá para completar só as futuras. Desmarque o que não entra — créditos vêm
           desmarcados.
         </p>
 
@@ -239,9 +259,10 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
               <p className="mt-1 text-[12px] text-cinza">
                 {escolhidas.length} marcado{escolhidas.length === 1 ? "" : "s"}
                 {lancamentosNovos !== escolhidas.length ? ` · ${lancamentosNovos} lançamentos` : ""}
-                {linhas.filter((l) => l.jaTem).length > 0
-                  ? ` · ${linhas.filter((l) => l.jaTem).length} já na fatura`
+                {completarCount > 0
+                  ? ` · ${completarCount} completar parcelas futuras`
                   : ""}
+                {jaNaFaturaCount > 0 ? ` · ${jaNaFaturaCount} já na fatura` : ""}
               </p>
             </div>
 
@@ -329,6 +350,8 @@ function LinhaRevisao({
 }: {
   linha: LinhaOfx & {
     jaTem: boolean;
+    completar: boolean;
+    pendentes: number;
     hashDedup: string;
     lancar: boolean;
     dataOriginal: string;
@@ -344,6 +367,8 @@ function LinhaRevisao({
   const competencia =
     competenciaExtrato ?? competenciaDaCompra(dataDeLocalISO(linha.dataEfetiva), cartao);
   const parcela = fraseParcelaOfx(linha.parcelaN, linha.parcelaTotal);
+  const completar =
+    linha.completar ? fraseCompletarParcelas(linha.pendentes) : undefined;
   const credito = linha.tipo === "credito";
   const dataMudou = linha.dataEfetiva !== linha.dataOriginal;
   return (
@@ -354,7 +379,11 @@ function LinhaRevisao({
             type="checkbox"
             checked={linha.lancar}
             disabled={linha.jaTem}
-            aria-label={`Lançar ${linha.descricao}`}
+            aria-label={
+              linha.completar
+                ? `Completar parcelas futuras de ${linha.descricao}`
+                : `Lançar ${linha.descricao}`
+            }
             onChange={(e) => onLancar(e.target.checked)}
             className="pointer-events-auto h-5 w-5 shrink-0"
           />
@@ -368,7 +397,13 @@ function LinhaRevisao({
             {" · fatura "}
             {rotuloCurto(competencia)}
             {credito ? " · crédito" : ""}
-            {parcela ? ` · ${parcela}` : ""}
+            {linha.completar
+              ? completar
+                ? ` · ${completar}`
+                : ""
+              : parcela
+                ? ` · ${parcela}`
+                : ""}
             {linha.jaTem ? " · já na fatura" : ""}
           </span>
         </span>

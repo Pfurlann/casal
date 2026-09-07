@@ -83,6 +83,7 @@ describe("EditarLancamento", () => {
       descricao: "Padaria",
       categoriaID: "00000000-0000-0000-0000-000000000002",
       valor: 21490,
+      data: expect.any(String),
       carteiraID: "c1",
       contaID: undefined,
       cartaoID: undefined,
@@ -125,6 +126,7 @@ describe("EditarLancamento", () => {
       descricao: "Sofá novo",
       categoriaID: "00000000-0000-0000-0000-000000000002",
       valor: undefined,
+      data: expect.any(String),
       carteiraID: "c1",
       contaID: undefined,
       cartaoID: "k1",
@@ -300,6 +302,28 @@ describe("EditarLancamento", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(editar.fn).toHaveBeenCalledWith(
       expect.objectContaining({ id: "t1", pagadorID: "u1" }),
+    );
+  });
+
+
+  it("permite trocar a data de lançamento de cartão sem relançar", async () => {
+    montar({
+      ...AVISTA,
+      id: "k-data",
+      cartaoID: "k1",
+      data: "2026-08-10T15:00:00.000Z",
+    });
+    const campo = screen.getByLabelText("Data do lançamento") as HTMLInputElement;
+    expect(campo).toBeInTheDocument();
+    await userEvent.clear(campo);
+    await userEvent.type(campo, "2026-09-15");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(editar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "k-data",
+        cartaoID: "k1",
+        data: expect.stringMatching(/^2026-09-15T/),
+      }),
     );
   });
 

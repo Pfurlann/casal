@@ -1577,6 +1577,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         descricao: t.descricao,
         category_id: t.categoriaID ?? null,
         valor_centavos: t.valor,
+        data: t.data,
         wallet_id: t.carteiraID,
         account_id: t.contaID ?? null,
         card_id: t.cartaoID ?? null,

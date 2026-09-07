@@ -7,7 +7,7 @@ import {
   competenciaDaCompra,
   dataDeLocalISO,
   dataLocalISO,
-  hrefDoMes,
+  hrefDoCartao,
   rotuloCurto,
   type Cartao,
   type Competencia,
@@ -183,7 +183,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         if (!acc) return c;
         return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
       }, undefined) ?? competenciaDaCompra(new Date(), cartao);
-      router.push(hrefDoMes(destino));
+      router.push(hrefDoCartao(cartao.id, destino));
     } catch {
       avisar("erro", "Não deu para importar. Tente de novo.");
     } finally {

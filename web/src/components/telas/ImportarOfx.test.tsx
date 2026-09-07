@@ -141,7 +141,7 @@ describe("ImportarOfx", () => {
       ["POSTO SHELL CENTRO", "00000000-0000-0000-0000-000000000003", 12000],
       ["LOJA GENERICA XYZ", "cat-pet", 3250],
     ]);
-    expect(empurrar).toHaveBeenCalledWith("/mes?c=2026-08");
+    expect(empurrar).toHaveBeenCalledWith("/cartoes/k1?c=2026-08");
   });
 
   it("não relança linha já importada pelo FITID", async () => {

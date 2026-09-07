@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import { useAuth } from "./auth";
@@ -564,6 +565,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<Estado>(VAZIO);
   const [pronto, setPronto] = useState(false);
   const [pendenciasOutbox, setPendenciasOutbox] = useState(0);
+  /** Impede recarregar (dep usuario) de apagar commit otimista em voo. */
+  const mutacaoSeq = useRef(0);
   const sb = useMemo(() => clienteSupabase(), []);
   const localKey = chaveLocal(usuario?.id);
 
@@ -594,6 +597,8 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   );
 
   const recarregar = useCallback(async () => {
+    const seqAoIniciar = mutacaoSeq.current;
+    const aindaVale = () => seqAoIniciar === mutacaoSeq.current;
     if (!sb) {
       const bruto = localStorage.getItem(localKey);
       if (bruto) {
@@ -847,6 +852,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       resumoMensal,
     };
     if (modoResumo) {
+      if (!aindaVale()) {
+        setPronto(true);
+        return;
+      }
       persistirLocal(proximo);
       setEstado(proximo);
       setPronto(true);
@@ -869,6 +878,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       comFixos.transacoes,
     );
     const final = { ...comFixos, transacoes: totais.transacoes };
+    if (!aindaVale()) {
+      setPronto(true);
+      return;
+    }
     persistirLocal(final);
     setEstado(final);
     setPronto(true);
@@ -897,6 +910,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   }, [recarregar]);
 
   const commit = async (proximo: Estado) => {
+    mutacaoSeq.current += 1;
     setEstado(proximo);
     persistirLocal(proximo);
   };
@@ -1706,9 +1720,11 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const importarOfx: Loja["importarOfx"] = async ({ cartaoID, linhas }) => {
     const cartao = (estado.cartoesTodos ?? estado.cartoes).find((c) => c.id === cartaoID);
     if (!cartao) throw new Error("cartão não encontrado");
+    // wallet_id = carteira do cartão (não a carteira só da UI) — senão some no reload/troca
+    const carteiraID = cartao.carteiraID;
     const novas = transacoesDoOfx({
       linhas,
-      carteiraID: estado.carteira.id,
+      carteiraID,
       cartaoID: cartao.id,
       cartao,
       pagadorID: pagadorPadrao(undefined, usuario?.id),
@@ -1716,7 +1732,12 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     });
     const repetidos = linhas.filter((l) => estado.transacoes.some((t) => t.hashDedup === l.hashDedup)).length;
     if (novas.length === 0) return { importados: 0, repetidos };
-    const comOfx = { ...estado, transacoes: [...estado.transacoes, ...novas] };
+    const naCarteiraAtual = carteiraID === estado.carteira.id;
+    const comOfx = {
+      ...estado,
+      // lista na hora só se a carteira do cartão é a atual
+      transacoes: naCarteiraAtual ? [...estado.transacoes, ...novas] : estado.transacoes,
+    };
     const { estado: proximo, novas: totaisNovos, alteradas } = mesclarFaturasNoEstado(comOfx);
     const anterior = estado;
     await commit(proximo);

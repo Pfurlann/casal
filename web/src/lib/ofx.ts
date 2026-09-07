@@ -439,6 +439,7 @@ export function hashDedupOfxParcela(hashAtual: string, atual: number, numero: nu
   return numero === atual ? hashAtual : `${hashAtual}|p${numero}de${total}`;
 }
 
+/** `carteiraID` deve ser `cartao.carteiraID` (não a carteira só da UI). */
 export function transacoesDoOfx(p: {
   linhas: LinhaImportacaoOfx[];
   carteiraID: string;

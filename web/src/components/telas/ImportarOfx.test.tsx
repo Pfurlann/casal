@@ -212,12 +212,39 @@ describe("ImportarOfx", () => {
     expect(screen.getByText(/OFX .* → efetiva 01\/09\/2026/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Lançar 1 gasto/ }));
     const arg = importar.fn.mock.calls[0]?.[0] as {
-      linhas: { descricao: string; data: string }[];
+      linhas: { descricao: string; data: string; dataOverride?: string }[];
     };
     expect(arg.linhas).toHaveLength(1);
     expect(arg.linhas[0]).toMatchObject({
       descricao: "IFOOD *PIZZA NAPOLI",
-      data: "2026-09-01",
+      data: "2026-08-15",
+      dataOverride: "2026-09-01",
+    });
+  });
+
+  it("override de data em parcela envia data OFX + dataOverride (não reancora)", async () => {
+    montar();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(
+      input,
+      new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
+    );
+    await screen.findByRole("button", { name: /Lançar 10 gastos/ });
+    fireEvent.change(screen.getByLabelText("Data a aplicar aos selecionados"), {
+      target: { value: "2026-09-01" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar data" }));
+    expect(screen.getByText(/OFX .* → efetiva 01\/09\/2026/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 10 gastos/ }));
+    const arg = importar.fn.mock.calls[0]?.[0] as {
+      linhas: { data: string; dataOverride?: string; parcelaN: number; parcelaTotal: number }[];
+    };
+    expect(arg.linhas).toHaveLength(1);
+    expect(arg.linhas[0]).toMatchObject({
+      data: "2026-09-10",
+      dataOverride: "2026-09-01",
+      parcelaN: 3,
+      parcelaTotal: 12,
     });
   });
 });

@@ -159,7 +159,9 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         linhas: escolhidas.map((l) => ({
           descricao: l.descricao,
           valor: l.valorCentavos,
-          data: l.dataEfetiva,
+          // Âncora da expansão = OFX original; override só na parcela/mês atual.
+          data: l.dataOriginal,
+          ...(l.dataEfetiva !== l.dataOriginal ? { dataOverride: l.dataEfetiva } : {}),
           categoriaID: l.categoriaID,
           hashDedup: l.hashDedup,
           tipo: l.tipo,

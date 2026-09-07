@@ -10,16 +10,13 @@ import { CurvaMeses } from "../ui/CurvaMeses";
 import { Numero } from "../ui/Numero";
 import { Rosca } from "../ui/Rosca";
 import { Rotulo } from "../ui/Rotulo";
+import { Esqueleto } from "../ui/Esqueleto";
 import { Vazio } from "../ui/Vazio";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
-
-function BlocoEsqueleto({ className }: { className: string }) {
-  return <div aria-hidden className={`animate-pulse rounded-controle bg-nevoa ${className}`} />;
-}
 
 export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {}) {
   const {
@@ -39,10 +36,10 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
       <div>
         <Cabecalho titulo={`relatórios · ${carteira.nome}`} marca />
         <div role="status" aria-busy="true" className="space-y-4 px-4 pt-8 lg:px-0">
-          <BlocoEsqueleto className="h-3 w-40" />
-          <BlocoEsqueleto className="h-10 w-52" />
-          <BlocoEsqueleto className="h-3 w-full" />
-          <BlocoEsqueleto className="mt-6 h-40 w-full" />
+          <Esqueleto className="h-3 w-40" />
+          <Esqueleto className="h-10 w-52" />
+          <Esqueleto className="h-3 w-full" />
+          <Esqueleto className="mt-6 h-40 w-full" />
           <p className="pt-2 text-center text-[12px] text-cinza">Carregando relatório…</p>
         </div>
       </div>
@@ -118,7 +115,7 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
           <section className="casal-painel casal-painel-6">
             <Rotulo>gasto</Rotulo>
             <div className="mt-2">
-              <Numero centavos={r.gasto} tamanho="heroi" subordinaCentavos />
+              <Numero centavos={r.gasto} tamanho="heroi" subordinaCentavos animar />
             </div>
             <div className="mt-5 space-y-5 border-t border-nevoa pt-5">
               <div>

@@ -6,10 +6,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { LojaProvider, useLoja } from "@/lib/store";
 import { ForcarTemaClaro } from "@/lib/tema";
 import { FaixaOffline } from "@/components/ui/FaixaOffline";
-
-function BlocoEsqueleto({ className }: { className: string }) {
-  return <div aria-hidden className={`animate-pulse rounded-controle bg-nevoa ${className}`} />;
-}
+import { Esqueleto } from "@/components/ui/Esqueleto";
 
 /** Shell visível enquanto auth/loja carregam — evita tela morta só com “Carregando…”. */
 function ShellCarregando({ mensagem }: { mensagem: string }) {
@@ -25,34 +22,34 @@ function ShellCarregando({ mensagem }: { mensagem: string }) {
         }
       >
         <div className="hidden lg:mb-10 lg:block lg:px-2">
-          <BlocoEsqueleto className="h-8 w-28" />
+          <Esqueleto className="h-8 w-28" />
         </div>
         {["mês", "relatórios", "cartões", "metas", "mais"].map((nome) => (
           <div
             key={nome}
             className="flex flex-1 flex-col items-center justify-center gap-1 lg:mt-1 lg:w-full lg:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2"
           >
-            <BlocoEsqueleto className="h-5 w-5 rounded-full" />
-            <BlocoEsqueleto className="h-2.5 w-10 lg:w-16" />
+            <Esqueleto className="h-5 w-5 rounded-full" />
+            <Esqueleto className="h-2.5 w-10 lg:w-16" />
           </div>
         ))}
         <div className="absolute left-1/2 -translate-x-1/2 -top-[68px] lg:hidden">
-          <BlocoEsqueleto className="h-[52px] w-[52px] rounded-etiqueta" />
+          <Esqueleto className="h-[52px] w-[52px] rounded-etiqueta" />
         </div>
         <div className="mt-auto hidden lg:flex lg:flex-col lg:gap-3 lg:px-2 lg:pb-8 lg:pt-6">
-          <BlocoEsqueleto className="h-6 w-20 rounded-etiqueta" />
-          <BlocoEsqueleto className="h-3 w-36" />
-          <BlocoEsqueleto className="h-3 w-10" />
-          <BlocoEsqueleto className="h-[44px] w-full rounded-controle" />
+          <Esqueleto className="h-6 w-20 rounded-etiqueta" />
+          <Esqueleto className="h-3 w-36" />
+          <Esqueleto className="h-3 w-10" />
+          <Esqueleto className="h-[44px] w-full rounded-controle" />
         </div>
       </nav>
       <main className="casal-principal">
         <div role="status" className="space-y-4 px-4 pt-8 lg:px-0">
-          <BlocoEsqueleto className="h-4 w-36" />
-          <BlocoEsqueleto className="h-10 w-52" />
-          <BlocoEsqueleto className="h-3 w-full" />
-          <BlocoEsqueleto className="h-3 w-4/5" />
-          <BlocoEsqueleto className="mt-6 h-24 w-full" />
+          <Esqueleto className="h-4 w-36" />
+          <Esqueleto className="h-10 w-52" />
+          <Esqueleto className="h-3 w-full" />
+          <Esqueleto className="h-3 w-4/5" />
+          <Esqueleto className="mt-6 h-24 w-full" />
           <p className="pt-2 text-center text-[12px] text-cinza">{mensagem}</p>
         </div>
       </main>

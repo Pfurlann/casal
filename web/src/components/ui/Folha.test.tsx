@@ -103,4 +103,16 @@ describe("Folha", () => {
     unmount();
     expect(document.activeElement).toBe(origem);
   });
+
+  it("backdrop tem classe casal-folha-fundo", () => {
+    render(<Cena aoFechar={() => {}} />);
+    const fundo = screen.getByTestId("folha-fundo");
+    expect(fundo.className).toContain("casal-folha-fundo");
+  });
+
+  it("caixa do diálogo tem classe casal-folha-caixa", () => {
+    render(<Cena aoFechar={() => {}} />);
+    const folha = screen.getByRole("dialog");
+    expect(folha.className).toContain("casal-folha-caixa");
+  });
 });

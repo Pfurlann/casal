@@ -47,4 +47,29 @@ describe("Botao", () => {
     expect(cls).toContain("w-auto");
     expect(cls).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
   });
+
+  it("carregando mostra spinner, aria-busy e desabilita", () => {
+    const onClick = vi.fn();
+    render(
+      <Botao variante="primario" onClick={onClick} carregando>
+        Salvar
+      </Botao>,
+    );
+    const botao = screen.getByRole("button");
+    expect(botao).toHaveAttribute("aria-busy", "true");
+    expect(botao).toBeDisabled();
+    expect(botao.querySelector(".casal-spinner")).toBeInTheDocument();
+    expect(screen.queryByText("Salvar")).toBeNull();
+  });
+
+  it("carregando não dispara onClick", async () => {
+    const onClick = vi.fn();
+    render(
+      <Botao variante="primario" onClick={onClick} carregando>
+        Salvar
+      </Botao>,
+    );
+    await userEvent.click(screen.getByRole("button"));
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });

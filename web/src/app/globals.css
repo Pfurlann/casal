@@ -328,4 +328,153 @@ select {
   .casal-toque:active:not(:disabled) {
     transform: none;
   }
+
+  .casal-spinner {
+    animation: none !important;
+  }
+
+  .casal-esqueleto::after {
+    animation: none !important;
+  }
+
+  .casal-vazio {
+    animation: none !important;
+  }
+
+  .casal-folha-fundo,
+  .casal-folha-caixa {
+    animation: none !important;
+  }
+}
+
+/* Spinner Uiverse-style: 3 dots pulsando em sequência */
+.casal-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.casal-spinner::before,
+.casal-spinner::after,
+.casal-spinner span {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: casal-spinner-pulse 720ms ease-in-out infinite;
+}
+
+.casal-spinner::after {
+  animation-delay: 160ms;
+}
+
+.casal-spinner span {
+  animation-delay: 320ms;
+}
+
+@keyframes casal-spinner-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Esqueleto com sweep shimmer */
+.casal-esqueleto {
+  position: relative;
+  overflow: hidden;
+  background: var(--nevoa);
+  border-radius: var(--r-controle);
+}
+
+.casal-esqueleto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ar) 50%, transparent) 50%,
+    transparent 100%
+  );
+  animation: casal-esqueleto-sweep 1.4s ease-in-out infinite;
+  transform: translateX(-100%);
+}
+
+@keyframes casal-esqueleto-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Vazio: enter animation */
+.casal-vazio {
+  animation: casal-vazio-enter 360ms ease-out both;
+}
+
+@keyframes casal-vazio-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Folha: backdrop fade + sheet enter */
+.casal-folha-fundo {
+  animation: casal-folha-fade-in 200ms ease-out both;
+}
+
+@keyframes casal-folha-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.casal-folha-caixa {
+  animation: casal-folha-slide-up 280ms ease-out both;
+}
+
+@keyframes casal-folha-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 640px) {
+  .casal-folha-caixa {
+    animation-name: casal-folha-scale-in;
+  }
+
+  @keyframes casal-folha-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }

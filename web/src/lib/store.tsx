@@ -61,7 +61,17 @@ import {
   tamanhoOutbox,
 } from "./outbox";
 import { cartaoDoLancamento, cartoesDaLoja, linhaDaTransacao } from "./persistir";
-import { aplicarApagar, aplicarEdicao, idsParaApagar, idsParaEditar, type ApagarLancamento, type EdicaoLancamento } from "./transacoes";
+import {
+  aplicarApagar,
+  aplicarApagarEmLote,
+  aplicarEdicao,
+  idsParaApagar,
+  idsParaApagarEmLote,
+  idsParaEditar,
+  type ApagarLancamento,
+  type ApagarLancamentosEmLote,
+  type EdicaoLancamento,
+} from "./transacoes";
 import { cartoesAposApagar, eDonoDaOrigem, filtrarOrigensDaCarteira, normalizarVisibilidadeOrigem, visibilidadePadraoDaCarteira } from "./visibilidade";
 
 export type MembroCarteira = {
@@ -496,6 +506,7 @@ type Loja = Estado & {
   }) => Promise<void>;
   editar: (p: EdicaoLancamento) => Promise<void>;
   apagar: (p: ApagarLancamento) => Promise<void>;
+  apagarLancamentos: (p: ApagarLancamentosEmLote) => Promise<void>;
   pagarFatura: (p: {
     cartao: Cartao;
     fatura: Fatura;
@@ -1636,6 +1647,31 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const apagarLancamentos: Loja["apagarLancamentos"] = async (p) => {
+    const ids = idsParaApagarEmLote(estado.transacoes, p);
+    if (ids.length === 0) return;
+    const transacoes = aplicarApagarEmLote(estado.transacoes, p);
+    await commit({ ...estado, transacoes });
+    if (sb) {
+      const agora = new Date().toISOString();
+      const patch = { deleted_at: agora, updated_at: agora };
+      try {
+        const { error } = await sb.from("transactions").update(patch).in("id", ids);
+        if (error) throw error;
+      } catch (erro) {
+        if (eErroRede(erro)) {
+          enfileirarOp(
+            { op: "soft_delete", tabela: "transactions", ids, patch },
+            usuario?.id,
+          );
+          atualizarPendencias();
+          return;
+        }
+        throw erro;
+      }
+    }
+  };
+
   const pagarFatura: Loja["pagarFatura"] = async ({ cartao, fatura, valor, contaID }) => {
     let persistida = estado.faturas.find(
       (f) => f.cartaoID === cartao.id && f.ano === fatura.ano && f.mes === fatura.mes,
@@ -2102,6 +2138,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     lancar,
     editar,
     apagar,
+    apagarLancamentos,
     pagarFatura,
     criarConvite,
     aceitarConvite,

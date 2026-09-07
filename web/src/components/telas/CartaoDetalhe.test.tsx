@@ -37,6 +37,7 @@ function tela(extra: Record<string, unknown> = {}) {
     transacoes: [],
     usuarioID: "u1",
     apagarCartao: vi.fn().mockResolvedValue(undefined),
+    apagarLancamentos: vi.fn().mockResolvedValue(undefined),
     ...lojaExtra,
   };
   return render(
@@ -254,5 +255,162 @@ describe("CartaoDetalhe", () => {
       usuarioID: "u1",
     });
     expect(screen.queryByRole("button", { name: "Apagar cartão" })).toBeNull();
+  });
+
+  it("mostra checkbox 'Selecionar todos' quando há lançamentos", () => {
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
+    expect(screen.getByRole("checkbox", { name: "Selecionar todos" })).toBeInTheDocument();
+  });
+
+  it("não mostra checkbox quando não há lançamentos", () => {
+    tela({ transacoes: [] });
+    expect(screen.queryByRole("checkbox", { name: "Selecionar todos" })).toBeNull();
+  });
+
+  it("seleciona todos os lançamentos ao clicar em 'Selecionar todos'", async () => {
+    tela({
+      transacoes: [
+        parcela(1, new Date(2026, 8, 28, 12)),
+        {
+          id: "t2",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 1500,
+          data: new Date(2026, 8, 15, 12).toISOString(),
+          descricao: "Mercado",
+          cartaoID: "k1",
+          hashDedup: "merc",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+      ],
+    });
+    const todos = screen.getByRole("checkbox", { name: "Selecionar todos" });
+    expect(todos).not.toBeChecked();
+    await userEvent.click(todos);
+    expect(todos).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Selecionar Sofá" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Selecionar Mercado" })).toBeChecked();
+  });
+
+  it("desmarca todos ao clicar novamente em 'Selecionar todos'", async () => {
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
+    const todos = screen.getByRole("checkbox", { name: "Selecionar todos" });
+    await userEvent.click(todos);
+    expect(screen.getByRole("checkbox", { name: "Selecionar Sofá" })).toBeChecked();
+    await userEvent.click(todos);
+    expect(screen.getByRole("checkbox", { name: "Selecionar Sofá" })).not.toBeChecked();
+  });
+
+  it("mostra botão 'Excluir selecionados' quando há seleção", async () => {
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
+    expect(screen.queryByRole("button", { name: /Excluir .* selecionado/ })).toBeNull();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Sofá" }));
+    expect(screen.getByRole("button", { name: "Excluir 1 selecionado" })).toBeInTheDocument();
+  });
+
+  it("mostra contagem correta no botão de exclusão", async () => {
+    tela({
+      transacoes: [
+        parcela(1, new Date(2026, 8, 28, 12)),
+        {
+          id: "t2",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 1500,
+          data: new Date(2026, 8, 15, 12).toISOString(),
+          descricao: "Mercado",
+          cartaoID: "k1",
+          hashDedup: "merc",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+      ],
+    });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar todos" }));
+    expect(screen.getByRole("button", { name: "Excluir 2 selecionados" })).toBeInTheDocument();
+  });
+
+  it("abre confirmação ao clicar em 'Excluir selecionados'", async () => {
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Sofá" }));
+    await userEvent.click(screen.getByRole("button", { name: "Excluir 1 selecionado" }));
+    expect(screen.getByText(/Excluir 1 lançamento\? Esta ação é irreversível\./)).toBeInTheDocument();
+  });
+
+  it("chama apagarLancamentos com IDs selecionados ao confirmar", async () => {
+    const apagarLancamentos = vi.fn().mockResolvedValue(undefined);
+    tela({
+      transacoes: [parcela(1, new Date(2026, 8, 28, 12))],
+      apagarLancamentos,
+    });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Sofá" }));
+    await userEvent.click(screen.getByRole("button", { name: "Excluir 1 selecionado" }));
+    await userEvent.click(screen.getByRole("button", { name: "Excluir" }));
+    expect(apagarLancamentos).toHaveBeenCalledWith({ ids: ["p1"] });
+  });
+
+  it("exclui múltiplos lançamentos selecionados", async () => {
+    const apagarLancamentos = vi.fn().mockResolvedValue(undefined);
+    tela({
+      transacoes: [
+        parcela(1, new Date(2026, 8, 28, 12)),
+        {
+          id: "t2",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 1500,
+          data: new Date(2026, 8, 15, 12).toISOString(),
+          descricao: "Mercado",
+          cartaoID: "k1",
+          hashDedup: "merc",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+      ],
+      apagarLancamentos,
+    });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar todos" }));
+    await userEvent.click(screen.getByRole("button", { name: "Excluir 2 selecionados" }));
+    expect(screen.getByText(/Excluir 2 lançamentos\? Esta ação é irreversível\./)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Excluir" }));
+    expect(apagarLancamentos).toHaveBeenCalledWith({ ids: expect.arrayContaining(["p1", "t2"]) });
+    expect(apagarLancamentos.mock.calls[0][0].ids).toHaveLength(2);
+  });
+
+  it("fecha confirmação ao clicar em 'Cancelar'", async () => {
+    tela({ transacoes: [parcela(1, new Date(2026, 8, 28, 12))] });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Sofá" }));
+    await userEvent.click(screen.getByRole("button", { name: "Excluir 1 selecionado" }));
+    expect(screen.getByText(/Esta ação é irreversível/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByText(/Esta ação é irreversível/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Excluir 1 selecionado" })).toBeInTheDocument();
+  });
+
+  it("mostra contagem de selecionados ao lado de 'Selecionar todos'", async () => {
+    tela({
+      transacoes: [
+        parcela(1, new Date(2026, 8, 28, 12)),
+        {
+          id: "t2",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 1500,
+          data: new Date(2026, 8, 15, 12).toISOString(),
+          descricao: "Mercado",
+          cartaoID: "k1",
+          hashDedup: "merc",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          status: "liquidado",
+        },
+      ],
+    });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Sofá" }));
+    expect(screen.getByText("(1 de 2)")).toBeInTheDocument();
   });
 });

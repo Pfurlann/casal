@@ -30,6 +30,7 @@ import {
   saldoLivre,
   type FaixaTeto,
 } from "./metas";
+import { eLancamentoDeFatura } from "./faturas";
 import { saldoDaConta, saldoDasContas } from "./contas";
 import { formatarBRL, type Centavos } from "./money";
 
@@ -114,6 +115,7 @@ export function totaisDoMes(transacoes: Transacao[], c: Competencia, cartoes: Ca
   let gasto = 0;
   let receita = 0;
   for (const t of transacoes) {
+    if (eLancamentoDeFatura(t)) continue;
     if (!noMes(t, c, cartoes)) continue;
     switch (t.tipo) {
       case "despesa":
@@ -143,7 +145,7 @@ export function gastosPorCategoria(
 ): GastoCategoria[] {
   const totais = new Map<string, Centavos>();
   for (const t of transacoes) {
-    if (t.tipo !== "despesa" || !noMes(t, c, cartoes)) continue;
+    if (t.tipo !== "despesa" || eLancamentoDeFatura(t) || !noMes(t, c, cartoes)) continue;
     const id = t.categoriaID ?? "";
     totais.set(id, (totais.get(id) ?? 0) + t.valor);
   }

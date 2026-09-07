@@ -229,6 +229,14 @@ function normalizarTipo(raw: string): TipoStmt {
   }
 }
 
+/** Pagamento de fatura no extrato da conta — não é gasto (senão o mês conta dobrado). */
+export function parecePagamentoDeFatura(memo: string): boolean {
+  const t = memo.toLowerCase();
+  return /(?:pagamento|pagto|\bpgto\b|\bpayment\b).{0,24}(?:fatura|cart[aã]o|nubank|inter|c6|itin[eé]u|mastercard|visa|amex)|(?:fatura|cart[aã]o).{0,16}(?:paga|pago|pagamento)|pgto\s*fatura|pagto\s*fatura|pagamento\s+de\s+fatura/i.test(
+    t,
+  );
+}
+
 /** Pagamento, estorno, ajuste de crédito — não confundir com PADEIRO. */
 export function pareceCredito(memo: string): boolean {
   return /pagamento\b|pagto\b|\bpgto\b|\bpayment\b|pgto\s*fatura|fatura\s+paga|\bestorno\b|devolu[cç]|ajuste\s*cred|ajuste\s*cr[eé]dito|cred\s+parc/i.test(
@@ -614,13 +622,15 @@ export function transacoesDoOfxConta(p: {
     if (hashes.has(linha.hashDedup)) continue;
     hashes.add(linha.hashDedup);
     const credito = linha.tipo === "credito";
+    // Pagamento de fatura no banco: transferência (como pagarFatura), nunca despesa.
+    const pagamentoFatura = !credito && parecePagamentoDeFatura(linha.descricao);
     novas.push({
       id: uuid(),
       carteiraID: p.carteiraID,
-      tipo: credito ? "receita" : "despesa",
+      tipo: credito ? "receita" : pagamentoFatura ? "transferencia" : "despesa",
       valor: linha.valor,
       data: dataDeLocalISO(linha.data).toISOString(),
-      categoriaID: linha.categoriaID,
+      categoriaID: pagamentoFatura ? undefined : linha.categoriaID,
       descricao: linha.descricao,
       contaID: p.contaID,
       pagadorID: p.pagadorID,

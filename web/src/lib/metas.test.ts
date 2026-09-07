@@ -15,6 +15,7 @@ import {
   rotuloContaComReserva,
   saldoLivre,
   tetoDaCategoria,
+  despesasDoMes,
   transacoesDoMes,
   validarAlocacao,
   validarMeta,
@@ -111,6 +112,34 @@ describe("transacoesDoMes", () => {
     ];
     expect(transacoesDoMes(lista, C, [nanquim]).map((t) => t.id)).toEqual(["ofx-set"]);
     expect(transacoesDoMes(lista, { ano: 2026, mes: 8 }, [nanquim]).map((t) => t.id)).toEqual(["ofx-ago"]);
+  });
+});
+
+
+describe("despesasDoMes", () => {
+  it("card sem total de fatura e sem transferencia de pagamento", () => {
+    const nanquim: Cartao = {
+      id: "k1",
+      carteiraID: "w1",
+      apelido: "Nanquim",
+      banco: "Caixa",
+      ultimos4: "4687",
+      bandeira: "mastercard",
+      cor: "grafite",
+      limite: 1_000_000,
+      diaFechamento: 7,
+      diaVencimento: 15,
+      arquivado: false,
+    };
+    const lista = [
+      tx({ id: "compra", valor: 40_000, cartaoID: "k1", hashDedup: "ofx|k1|x", data: "2026-08-25T15:00:00.000Z" }),
+      tx({ id: "fatura", valor: 40_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-07T15:00:00.000Z" }),
+      tx({ id: "pag", tipo: "transferencia", valor: 40_000, hashDedup: "pagamento|f|1" }),
+      tx({ id: "conta", valor: 10_000, contaID: "a1", hashDedup: "ofx|a1|y" }),
+    ];
+    const gastos = despesasDoMes(lista, C, [nanquim]);
+    expect(gastos.map((t) => t.id).sort()).toEqual(["compra", "conta"]);
+    expect(gastos.reduce((s, t) => s + t.valor, 0)).toBe(50_000);
   });
 });
 

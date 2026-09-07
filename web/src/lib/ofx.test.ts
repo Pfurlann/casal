@@ -32,6 +32,7 @@ import {
   parseOfxConta,
   periodoDoOfx,
   pareceCredito,
+  parecePagamentoDeFatura,
   transacoesDoOfx,
   transacoesDoOfxConta,
 } from "./ofx";
@@ -654,6 +655,37 @@ describe("OFX de conta bancária", () => {
     expect(txs.filter((t) => t.tipo === "receita")).toHaveLength(2);
     expect(txs.every((t) => t.parcelaN === 1 && t.parcelaTotal === 1 && !t.grupoParcela)).toBe(true);
     expect(txs[0]?.hashDedup).toBe(hashDedupOfxConta("cta1", gastos[0]!.fitId));
+  });
+
+
+  it("pagamento de fatura no banco vira transferencia, nao despesa", () => {
+    expect(parecePagamentoDeFatura("PAGAMENTO FATURA NUBANK")).toBe(true);
+    expect(parecePagamentoDeFatura("PGTO FATURA INTER")).toBe(true);
+    expect(parecePagamentoDeFatura("IFOOD *BURGER")).toBe(false);
+    const txs = transacoesDoOfxConta({
+      linhas: [
+        {
+          descricao: "PAGAMENTO DE FATURA NUBANK",
+          valor: 284_730,
+          data: "2026-09-15",
+          categoriaID: CATEGORIA_OUTROS_ID,
+          hashDedup: hashDedupOfxConta("cta1", "FIT-PAGTO"),
+          tipo: "gasto",
+        },
+        {
+          descricao: "IFOOD",
+          valor: 8_990,
+          data: "2026-09-12",
+          categoriaID: CATEGORIA_OUTROS_ID,
+          hashDedup: hashDedupOfxConta("cta1", "FIT-IFOOD"),
+          tipo: "gasto",
+        },
+      ],
+      carteiraID: "w1",
+      contaID: "cta1",
+    });
+    expect(txs.find((x) => x.descricao.includes("FATURA"))?.tipo).toBe("transferencia");
+    expect(txs.find((x) => x.descricao === "IFOOD")?.tipo).toBe("despesa");
   });
 
   it("dedup por hash da conta e atualiza saldo", () => {

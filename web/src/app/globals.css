@@ -150,6 +150,11 @@ select {
     border-radius: 18px;
     background: var(--ar);
     padding: var(--e-5);
+    transition: border-color 160ms ease;
+  }
+
+  .casal-painel:hover {
+    border-color: color-mix(in srgb, var(--cinza) 40%, var(--nevoa));
   }
 
   .casal-painel-6 {

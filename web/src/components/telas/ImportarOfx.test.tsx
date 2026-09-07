@@ -187,16 +187,54 @@ describe("ImportarOfx", () => {
     montar();
     await enviarFixture();
     const todos = screen.getByRole("checkbox", { name: "Selecionar todos" });
+    const aplicar = screen.getByRole("button", { name: "Aplicar data" });
     // fixture: gastos marcados, pagamento não → select-all começa parcial/desmarcado
     expect(todos).not.toBeChecked();
+    expect(screen.getByText(/3 marcados/)).toBeInTheDocument();
+    expect(aplicar).toBeEnabled();
     await userEvent.click(todos);
     expect(todos).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Lançar IFOOD *PIZZA NAPOLI" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Lançar PAGAMENTO RECEBIDO" })).toBeChecked();
+    expect(screen.getByText(/4 marcados/)).toBeInTheDocument();
+    expect(aplicar).toBeEnabled();
     await userEvent.click(todos);
     expect(todos).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Lançar IFOOD *PIZZA NAPOLI" })).not.toBeChecked();
+    expect(screen.getByText(/0 marcados/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Lançar 0 gasto/ })).toBeDisabled();
+    expect(aplicar).toBeDisabled();
+  });
+
+  it("habilita Aplicar data só com ≥1 marcado e data preenchida", async () => {
+    montar();
+    await enviarFixture();
+    const aplicar = screen.getByRole("button", { name: "Aplicar data" });
+    const data = screen.getByLabelText("Data a aplicar aos selecionados") as HTMLInputElement;
+    expect(data.value.length).toBeGreaterThan(0);
+    // desmarca todos (fixture começa parcial → 1º click marca todos, 2º desmarca)
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar todos" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar todos" }));
+    expect(aplicar).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Lançar IFOOD *PIZZA NAPOLI" }));
+    expect(screen.getByText(/1 marcado(?!s)/)).toBeInTheDocument();
+    expect(aplicar).toBeEnabled();
+    fireEvent.change(data, { target: { value: "" } });
+    expect(aplicar).toBeDisabled();
+    fireEvent.change(data, { target: { value: "2026-09-06" } });
+    expect(aplicar).toBeEnabled();
+  });
+
+  it("toolbar de data usa flex row wrap e botão sem w-full", async () => {
+    montar();
+    await enviarFixture();
+    const aplicar = screen.getByRole("button", { name: "Aplicar data" });
+    expect(aplicar.className).toContain("w-auto");
+    expect(aplicar.className).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
+    const data = screen.getByLabelText("Data a aplicar aos selecionados");
+    const toolbar = data.closest("div.flex");
+    expect(toolbar?.className ?? "").toMatch(/flex-wrap/);
+    expect(toolbar?.className ?? "").toMatch(/flex-row/);
   });
 
   it("aplica data aos selecionados e efetiva com a data ajustada", async () => {

@@ -63,11 +63,12 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
   const extraido = useMemo(() => (texto ? parseOfx(texto) : null), [texto]);
   const cats = categoriasVisiveis(categorias, "despesa");
 
-  const extraidas = extraido
-    ? [...extraido.gastos, ...extraido.creditos].sort((a, b) =>
-        a.data < b.data ? -1 : a.data > b.data ? 1 : 0,
-      )
-    : [];
+  const extraidas = useMemo(() => {
+    if (!extraido) return [];
+    return [...extraido.gastos, ...extraido.creditos].sort((a, b) =>
+      a.data < b.data ? -1 : a.data > b.data ? 1 : 0,
+    );
+  }, [extraido]);
 
   const linhas = useMemo(
     () =>
@@ -237,30 +238,39 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
             </div>
 
             <div className="mt-5 flex flex-col gap-3 rounded-controle border border-nevoa p-3">
-              <label className="flex min-h-[44px] items-center gap-3 text-[14px] text-grafite">
+              <label
+                htmlFor="importar-ofx-selecionar-todos"
+                className="relative z-[1] flex min-h-[44px] cursor-pointer items-center gap-3 text-[14px] text-grafite"
+              >
                 <input
+                  id="importar-ofx-selecionar-todos"
                   type="checkbox"
                   checked={todosMarcados}
                   disabled={marcaveis.length === 0}
                   aria-label="Selecionar todos"
                   onChange={(e) => marcarTodos(e.target.checked)}
-                  className="h-5 w-5"
+                  className="pointer-events-auto h-5 w-5 shrink-0"
                 />
                 Selecionar todos
               </label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <label className="min-w-0 flex-1">
-                  <Rotulo>aplicar data aos selecionados</Rotulo>
+              {/* Botao w-full em flex-row esmagava o date — largura auto + wrap. */}
+              <div className="flex flex-row flex-wrap items-end gap-2">
+                <div className="min-w-[14rem] flex-1 basis-64">
+                  <label htmlFor="importar-ofx-data-lote" className="block whitespace-nowrap">
+                    <Rotulo>aplicar data aos selecionados</Rotulo>
+                  </label>
                   <input
+                    id="importar-ofx-data-lote"
                     type="date"
                     value={dataLote}
                     aria-label="Data a aplicar aos selecionados"
                     onChange={(e) => setDataLote(e.target.value)}
                     className={SELECT}
                   />
-                </label>
+                </div>
                 <Botao
                   variante="secundario"
+                  largura="auto"
                   onClick={aplicarDataSelecionados}
                   disabled={escolhidas.length === 0 || !dataLote}
                 >
@@ -327,14 +337,14 @@ function LinhaRevisao({
   return (
     <li className="border-b border-nevoa py-3">
       <div className="flex items-start justify-between gap-3">
-        <label className="flex min-h-[44px] min-w-[44px] shrink-0 items-center">
+        <label className="relative z-[1] flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer items-center justify-center">
           <input
             type="checkbox"
             checked={linha.lancar}
             disabled={linha.jaTem}
             aria-label={`Lançar ${linha.descricao}`}
             onChange={(e) => onLancar(e.target.checked)}
-            className="h-5 w-5"
+            className="pointer-events-auto h-5 w-5 shrink-0"
           />
         </label>
         <span className="min-w-0 flex-1">

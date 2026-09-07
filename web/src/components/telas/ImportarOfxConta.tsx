@@ -240,30 +240,38 @@ export function ImportarOfxConta({ contaId }: { contaId: string }) {
             </div>
 
             <div className="mt-5 flex flex-col gap-3 rounded-controle border border-nevoa p-3">
-              <label className="flex min-h-[44px] items-center gap-3 text-[14px] text-grafite">
+              <label
+                htmlFor="importar-ofx-conta-selecionar-todos"
+                className="relative z-[1] flex min-h-[44px] cursor-pointer items-center gap-3 text-[14px] text-grafite"
+              >
                 <input
+                  id="importar-ofx-conta-selecionar-todos"
                   type="checkbox"
                   checked={todosMarcados}
                   disabled={marcaveis.length === 0}
                   aria-label="Selecionar todos"
                   onChange={(e) => marcarTodos(e.target.checked)}
-                  className="h-5 w-5"
+                  className="pointer-events-auto h-5 w-5 shrink-0"
                 />
                 Selecionar todos
               </label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <label className="min-w-0 flex-1">
-                  <Rotulo>aplicar data aos selecionados</Rotulo>
+              <div className="flex flex-row flex-wrap items-end gap-2">
+                <div className="min-w-[14rem] flex-1 basis-64">
+                  <label htmlFor="importar-ofx-conta-data-lote" className="block whitespace-nowrap">
+                    <Rotulo>aplicar data aos selecionados</Rotulo>
+                  </label>
                   <input
+                    id="importar-ofx-conta-data-lote"
                     type="date"
                     value={dataLote}
                     aria-label="Data a aplicar aos selecionados"
                     onChange={(e) => setDataLote(e.target.value)}
                     className={SELECT}
                   />
-                </label>
+                </div>
                 <Botao
                   variante="secundario"
+                  largura="auto"
                   onClick={aplicarDataSelecionados}
                   disabled={escolhidas.length === 0 || !dataLote}
                 >
@@ -329,14 +337,14 @@ function LinhaRevisaoConta({
   return (
     <li className="border-b border-nevoa py-3">
       <div className="flex items-start justify-between gap-3">
-        <label className="flex min-h-[44px] min-w-[44px] shrink-0 items-center">
+        <label className="relative z-[1] flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer items-center justify-center">
           <input
             type="checkbox"
             checked={linha.lancar}
             disabled={linha.jaTem}
             aria-label={`Lançar ${linha.descricao}`}
             onChange={(e) => onLancar(e.target.checked)}
-            className="h-5 w-5"
+            className="pointer-events-auto h-5 w-5 shrink-0"
           />
         </label>
         <span className="min-w-0 flex-1">

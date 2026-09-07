@@ -17,12 +17,15 @@ import {
   classificarCategoria,
   competenciaDoPeriodoOfx,
   creditoRelevanteNaFatura,
+  deveDesmarcadoPadrao,
   erroSeNaoForOfx,
   fraseCompletarParcelas,
   fraseParcelaOfx,
   hashDedupOfx,
   lancamentosPendentesDaLinha,
   lerTextoDoArquivo,
+  parceladasCanceladasPorEstorno,
+  parcelaDaLinha,
   parseOfx,
   precisaCompletarParcelas,
   type LinhaOfx,
@@ -42,9 +45,14 @@ function dataBr(iso: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+/**
+ * Define se a linha vem marcada por padrão na UI de importação.
+ * Desmarca: pagamentos, valor pendente, encargos de atraso, créditos não-relevantes.
+ */
 function marcarPorPadrao(linha: LinhaOfx): boolean {
-  if (linha.tipo === "gasto") return true;
-  return creditoRelevanteNaFatura(linha.descricao);
+  if (deveDesmarcadoPadrao(linha.descricao)) return false;
+  if (linha.tipo === "credito") return creditoRelevanteNaFatura(linha.descricao);
+  return true;
 }
 
 export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
@@ -72,39 +80,44 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
     );
   }, [extraido]);
 
-  const linhas = useMemo(
-    () =>
-      cartao
-        ? extraidas.map((g) => {
-            const hash = hashDedupOfx(cartao.id, g.fitId);
-            const base = {
-              ...g,
-              hashDedup: hash,
-              descricao: g.descricao,
-              parcelaN: g.parcelaN,
-              parcelaTotal: g.parcelaTotal,
-            };
-            const pendentes = lancamentosPendentesDaLinha(base, transacoes);
-            const completar = precisaCompletarParcelas(base, transacoes);
-            // Completo = nada a criar (n e k>n já existem, ou linha avulsa já importada).
-            const jaTem = pendentes === 0;
-            const dataEfetiva = datasEfetivas[hash] ?? g.data;
-            const padrao = completar ? true : marcarPorPadrao(g);
-            return {
-              ...g,
-              hashDedup: hash,
-              dataOriginal: g.data,
-              dataEfetiva,
-              categoriaID: escolhas[hash] ?? classificarCategoria(g.descricao, categorias),
-              jaTem,
-              completar,
-              pendentes,
-              lancar: jaTem ? false : (marcar[hash] ?? padrao),
-            };
-          })
-        : [],
-    [cartao, extraidas, escolhas, marcar, datasEfetivas, categorias, transacoes],
-  );
+  const linhas = useMemo(() => {
+    if (!cartao) return [];
+    const comHashes = extraidas.map((g) => ({
+      ...g,
+      hashDedup: hashDedupOfx(cartao.id, g.fitId),
+    }));
+    const canceladasPorEstorno = parceladasCanceladasPorEstorno(comHashes);
+    return comHashes.map((g) => {
+      const hash = g.hashDedup;
+      const foiEstornada = canceladasPorEstorno.has(hash);
+      const parc = parcelaDaLinha(g);
+      const base = {
+        ...g,
+        descricao: g.descricao,
+        parcelaN: foiEstornada ? 1 : g.parcelaN,
+        parcelaTotal: foiEstornada ? 1 : g.parcelaTotal,
+      };
+      const pendentes = lancamentosPendentesDaLinha(base, transacoes);
+      const completar = precisaCompletarParcelas(base, transacoes);
+      const jaTem = pendentes === 0;
+      const dataEfetiva = datasEfetivas[hash] ?? g.data;
+      const padrao = completar ? true : marcarPorPadrao(g);
+      return {
+        ...g,
+        hashDedup: hash,
+        dataOriginal: g.data,
+        dataEfetiva,
+        categoriaID: escolhas[hash] ?? classificarCategoria(g.descricao, categorias),
+        jaTem,
+        completar,
+        pendentes,
+        lancar: jaTem ? false : (marcar[hash] ?? padrao),
+        estornada: foiEstornada,
+        parcelaNEfetiva: base.parcelaN,
+        parcelaTotalEfetiva: base.parcelaTotal,
+      };
+    });
+  }, [cartao, extraidas, escolhas, marcar, datasEfetivas, categorias, transacoes]);
 
   const marcaveis = linhas.filter((l) => !l.jaTem);
   const todosMarcados =
@@ -184,8 +197,8 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
         categoriaID: l.categoriaID,
         hashDedup: l.hashDedup,
         tipo: l.tipo,
-        parcelaN: l.parcelaN,
-        parcelaTotal: l.parcelaTotal,
+        parcelaN: l.parcelaNEfetiva,
+        parcelaTotal: l.parcelaTotalEfetiva,
       }));
       const compsParaDestino = escolhidas.map((l) =>
         competenciaDaCompra(dataDeLocalISO(l.dataEfetiva), cartao),
@@ -363,6 +376,9 @@ function LinhaRevisao({
     lancar: boolean;
     dataOriginal: string;
     dataEfetiva: string;
+    estornada?: boolean;
+    parcelaNEfetiva: number;
+    parcelaTotalEfetiva: number;
   };
   categoriaID: string;
   categorias: { id: string; nome: string }[];
@@ -373,7 +389,9 @@ function LinhaRevisao({
 }) {
   const competencia =
     competenciaExtrato ?? competenciaDaCompra(dataDeLocalISO(linha.dataEfetiva), cartao);
-  const parcela = fraseParcelaOfx(linha.parcelaN, linha.parcelaTotal);
+  const parcela = linha.estornada
+    ? undefined
+    : fraseParcelaOfx(linha.parcelaNEfetiva, linha.parcelaTotalEfetiva);
   const completar =
     linha.completar ? fraseCompletarParcelas(linha.pendentes) : undefined;
   const credito = linha.tipo === "credito";
@@ -411,6 +429,7 @@ function LinhaRevisao({
               : parcela
                 ? ` · ${parcela}`
                 : ""}
+            {linha.estornada ? " · estornada" : ""}
             {linha.jaTem ? " · já na fatura" : ""}
           </span>
         </span>

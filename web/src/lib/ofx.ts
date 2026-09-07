@@ -244,6 +244,91 @@ export function pareceCredito(memo: string): boolean {
   );
 }
 
+/**
+ * Valor pendente/saldo anterior da fatura passada (carry-forward).
+ * NÃO é gasto novo do ciclo — desmarcar por padrão.
+ */
+export function pareceValorPendente(memo: string): boolean {
+  return /\b(?:valor\s*)?pend[eê]nte\b|\bsaldo\s*(?:anterior|pend|dev|rotat|financ)|financ(?:iamento)?\s*saldo|\bsaldo\s*da?\s*fatura\s*ant|\bsaldo\s*parcel/i.test(
+    memo,
+  );
+}
+
+/**
+ * Juros, multa, IOF, encargos de atraso/rotativo.
+ * NÃO são compras do ciclo — desmarcar por padrão.
+ * Exclui "sem juros" / "s juros" (ajuste de crédito).
+ */
+export function pareceEncargosAtraso(memo: string): boolean {
+  const t = memo.toLowerCase();
+  if (/\bs(?:em)?\s*juros\b/i.test(t)) return false;
+  return /\bjuros\b|\bmulta\b|\biof\b|\bencarg|\bmora\b|\brotat(?:ivo)?\b|\btarifa\s*(?:juro|atraso|rotat)/i.test(t);
+}
+
+/**
+ * Linha que NÃO deve vir marcada por padrão na fatura:
+ * - Pagamento de fatura
+ * - Valor pendente / saldo anterior
+ * - Encargos de atraso (juros/multa/IOF)
+ */
+export function deveDesmarcadoPadrao(memo: string): boolean {
+  return pareceCredito(memo) && !creditoRelevanteNaFatura(memo)
+    || pareceValorPendente(memo)
+    || pareceEncargosAtraso(memo);
+}
+
+/** Extrai o "núcleo" do nome para matching de estorno (remove ESTORNO, PARC, dígitos etc). */
+function nucleoDescricao(memo: string): string {
+  return memo
+    .toLowerCase()
+    .replace(/\bestorno\b|\bdevolu[cç][aã]o\b|\bcancel\w*\b/gi, "")
+    .replace(/\bparc(?:ela|elado)?\.?\s*\d+\s*(?:\/|de)\s*\d+/gi, "")
+    .replace(/\b\d{1,2}\s*(?:\/|de)\s*\d{1,2}\b/g, "")
+    .replace(/[^\p{L}\p{N}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Verifica se um estorno (crédito) cancela uma compra parcelada.
+ * Retorna true se descrições têm núcleo similar e valores compatíveis.
+ */
+export function estornoCancelaParcelada(
+  estorno: { descricao: string; valorCentavos: number },
+  parcelada: { descricao: string; valorCentavos: number; parcelaN?: number; parcelaTotal?: number },
+): boolean {
+  if (!pareceCredito(estorno.descricao)) return false;
+  const parc = parcelaDaLinha(parcelada);
+  if (!parc) return false;
+  const nucleoEstorno = nucleoDescricao(estorno.descricao);
+  const nucleoParc = nucleoDescricao(parcelada.descricao);
+  if (nucleoEstorno.length < 3 || nucleoParc.length < 3) return false;
+  if (!nucleoEstorno.includes(nucleoParc) && !nucleoParc.includes(nucleoEstorno)) return false;
+  const tolerancia = parcelada.valorCentavos * 0.05;
+  return Math.abs(estorno.valorCentavos - parcelada.valorCentavos) <= tolerancia;
+}
+
+/**
+ * Dado o conjunto de linhas do OFX, retorna os hashes das parceladas
+ * cujas parcelas futuras NÃO devem ser projetadas (têm estorno correspondente).
+ */
+export function parceladasCanceladasPorEstorno(
+  linhas: { descricao: string; valorCentavos: number; hashDedup: string; parcelaN?: number; parcelaTotal?: number; tipo: TipoLinhaOfx }[],
+): Set<string> {
+  const canceladas = new Set<string>();
+  const estornos = linhas.filter((l) => l.tipo === "credito" && pareceCredito(l.descricao));
+  const parceladas = linhas.filter((l) => l.tipo === "gasto" && parcelaDaLinha(l) !== null);
+  for (const p of parceladas) {
+    for (const e of estornos) {
+      if (estornoCancelaParcelada(e, p)) {
+        canceladas.add(p.hashDedup);
+        break;
+      }
+    }
+  }
+  return canceladas;
+}
+
 /** Crédito que deve entrar na fatura abatendo total (ex.: estorno/ajuste). */
 export function creditoRelevanteNaFatura(memo: string): boolean {
   const t = memo.toLowerCase();

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Cartao, Categoria, Transacao } from "./domain";
 import { competenciaDaCompra, dataLocalISO } from "./domain";
 import { transacoesDoMes } from "./metas";
-import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX, FIXTURE_CONTA_OFX } from "./ofx-fixture";
+import { FIXTURE_FATURA_OFX, FIXTURE_FATURA_PENDENTE_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX, FIXTURE_CONTA_OFX } from "./ofx-fixture";
 import {
   ACCEPT_ARQUIVO_OFX,
   CATEGORIA_OUTROS_ID,
@@ -14,9 +14,11 @@ import {
   classificarTipoOfx,
   classificarTipoOfxConta,
   creditoRelevanteNaFatura,
+  deveDesmarcadoPadrao,
   eConteudoOfx,
   eNomeOfx,
   erroSeNaoForOfx,
+  estornoCancelaParcelada,
   expansaoParcelasOfx,
   fraseParcelaOfx,
   dataNaCompetenciaDoExtrato,
@@ -26,6 +28,9 @@ import {
   jaImportada,
   lancamentosPendentesDaLinha,
   parcelaDoTexto,
+  parceladasCanceladasPorEstorno,
+  pareceEncargosAtraso,
+  pareceValorPendente,
   precisaCompletarParcelas,
   competenciaDoPeriodoOfx,
   parseOfx,
@@ -163,6 +168,173 @@ describe("creditoRelevanteNaFatura", () => {
     expect(creditoRelevanteNaFatura("AJUSTE CRED PARC S JUROS")).toBe(true);
     expect(creditoRelevanteNaFatura("ESTORNO IFOOD")).toBe(true);
     expect(creditoRelevanteNaFatura("PAGAMENTO RECEBIDO")).toBe(false);
+  });
+});
+
+describe("pareceValorPendente", () => {
+  it("detecta valor pendente / saldo anterior", () => {
+    expect(pareceValorPendente("VALOR PENDENTE")).toBe(true);
+    expect(pareceValorPendente("SALDO ANTERIOR")).toBe(true);
+    expect(pareceValorPendente("SALDO PENDENTE")).toBe(true);
+    expect(pareceValorPendente("FINANC SALDO ROTATIVO")).toBe(true);
+    expect(pareceValorPendente("SALDO DEVEDOR FATURA")).toBe(true);
+    expect(pareceValorPendente("SALDO DA FATURA ANTERIOR")).toBe(true);
+    expect(pareceValorPendente("SALDO PARCELADO")).toBe(true);
+  });
+
+  it("não confunde com compras normais", () => {
+    expect(pareceValorPendente("IFOOD *PIZZA")).toBe(false);
+    expect(pareceValorPendente("MERCADO LIVRE")).toBe(false);
+    expect(pareceValorPendente("POSTO SHELL")).toBe(false);
+  });
+});
+
+describe("pareceEncargosAtraso", () => {
+  it("detecta juros, multa, IOF, encargos de atraso", () => {
+    expect(pareceEncargosAtraso("JUROS DE ATRASO")).toBe(true);
+    expect(pareceEncargosAtraso("MULTA POR ATRASO")).toBe(true);
+    expect(pareceEncargosAtraso("IOF ROTATIVO")).toBe(true);
+    expect(pareceEncargosAtraso("ENCARGOS ROTATIVOS")).toBe(true);
+    expect(pareceEncargosAtraso("MORA FATURA")).toBe(true);
+    expect(pareceEncargosAtraso("ROTATIVO MES ANTERIOR")).toBe(true);
+    expect(pareceEncargosAtraso("TARIFA JUROS")).toBe(true);
+  });
+
+  it("não confunde ajuste sem juros com encargo", () => {
+    expect(pareceEncargosAtraso("AJUSTE CRED PARC S JUROS")).toBe(false);
+    expect(pareceEncargosAtraso("AJUSTE PARC SEM JUROS")).toBe(false);
+  });
+
+  it("não confunde com compras normais", () => {
+    expect(pareceEncargosAtraso("IFOOD *PIZZA")).toBe(false);
+    expect(pareceEncargosAtraso("MERCADO LIVRE")).toBe(false);
+  });
+});
+
+describe("deveDesmarcadoPadrao", () => {
+  it("desmarca valor pendente, encargos e pagamento", () => {
+    expect(deveDesmarcadoPadrao("VALOR PENDENTE")).toBe(true);
+    expect(deveDesmarcadoPadrao("JUROS DE ATRASO")).toBe(true);
+    expect(deveDesmarcadoPadrao("IOF ROTATIVO")).toBe(true);
+    expect(deveDesmarcadoPadrao("PAGAMENTO RECEBIDO")).toBe(true);
+  });
+
+  it("não desmarca compras normais nem estornos relevantes", () => {
+    expect(deveDesmarcadoPadrao("IFOOD *PIZZA")).toBe(false);
+    expect(deveDesmarcadoPadrao("MERCADO LIVRE")).toBe(false);
+    expect(deveDesmarcadoPadrao("ESTORNO IFOOD")).toBe(false);
+    expect(deveDesmarcadoPadrao("AJUSTE CRED PARC S JUROS")).toBe(false);
+  });
+});
+
+describe("estornoCancelaParcelada", () => {
+  it("detecta estorno que cancela parcela pelo nome similar", () => {
+    expect(estornoCancelaParcelada(
+      { descricao: "ESTORNO ASSINY", valorCentavos: 5000 },
+      { descricao: "ASSINY PARC 1/12", valorCentavos: 5000, parcelaN: 1, parcelaTotal: 12 },
+    )).toBe(true);
+    expect(estornoCancelaParcelada(
+      { descricao: "DEVOLUCAO NETFLIX", valorCentavos: 4490 },
+      { descricao: "NETFLIX PARCELA 02/06", valorCentavos: 4490, parcelaN: 2, parcelaTotal: 6 },
+    )).toBe(true);
+  });
+
+  it("não cancela se valores muito diferentes", () => {
+    expect(estornoCancelaParcelada(
+      { descricao: "ESTORNO ASSINY", valorCentavos: 1000 },
+      { descricao: "ASSINY PARC 1/12", valorCentavos: 5000, parcelaN: 1, parcelaTotal: 12 },
+    )).toBe(false);
+  });
+
+  it("não cancela compra avulsa (sem parcela)", () => {
+    expect(estornoCancelaParcelada(
+      { descricao: "ESTORNO IFOOD", valorCentavos: 4590 },
+      { descricao: "IFOOD *PIZZA", valorCentavos: 4590 },
+    )).toBe(false);
+  });
+
+  it("não cancela se nomes não correspondem", () => {
+    expect(estornoCancelaParcelada(
+      { descricao: "ESTORNO NETFLIX", valorCentavos: 5000 },
+      { descricao: "ASSINY PARC 1/12", valorCentavos: 5000, parcelaN: 1, parcelaTotal: 12 },
+    )).toBe(false);
+  });
+});
+
+describe("parceladasCanceladasPorEstorno", () => {
+  it("retorna hashes das parceladas com estorno correspondente", () => {
+    const linhas = [
+      { descricao: "ASSINY PARC 1/12", valorCentavos: 5000, hashDedup: "h1", parcelaN: 1, parcelaTotal: 12, tipo: "gasto" as const },
+      { descricao: "ESTORNO ASSINY", valorCentavos: 5000, hashDedup: "h2", parcelaN: 1, parcelaTotal: 1, tipo: "credito" as const },
+      { descricao: "IFOOD *PIZZA", valorCentavos: 4590, hashDedup: "h3", parcelaN: 1, parcelaTotal: 1, tipo: "gasto" as const },
+    ];
+    const canceladas = parceladasCanceladasPorEstorno(linhas);
+    expect(canceladas.has("h1")).toBe(true);
+    expect(canceladas.has("h2")).toBe(false);
+    expect(canceladas.has("h3")).toBe(false);
+  });
+
+  it("retorna set vazio se não há estornos de parceladas", () => {
+    const linhas = [
+      { descricao: "MAGAZINE LUIZA PARC 3/12", valorCentavos: 25000, hashDedup: "h1", parcelaN: 3, parcelaTotal: 12, tipo: "gasto" as const },
+      { descricao: "IFOOD *PIZZA", valorCentavos: 4590, hashDedup: "h2", parcelaN: 1, parcelaTotal: 1, tipo: "gasto" as const },
+    ];
+    const canceladas = parceladasCanceladasPorEstorno(linhas);
+    expect(canceladas.size).toBe(0);
+  });
+});
+
+describe("OFX com valor pendente e encargos (cenário fatura atrasada)", () => {
+  it("parse separa gastos e créditos da fatura com pendente/juros/IOF", () => {
+    const { gastos, creditos } = parseOfx(FIXTURE_FATURA_PENDENTE_OFX);
+    expect(gastos).toHaveLength(8);
+    expect(creditos).toHaveLength(2);
+    expect(gastos.map((g) => g.descricao)).toContain("VALOR PENDENTE");
+    expect(gastos.map((g) => g.descricao)).toContain("JUROS DE ATRASO");
+    expect(gastos.map((g) => g.descricao)).toContain("MULTA POR ATRASO");
+    expect(gastos.map((g) => g.descricao)).toContain("IOF ROTATIVO");
+    expect(gastos.map((g) => g.descricao)).toContain("ASSINY PARC 1/12");
+  });
+
+  it("deveDesmarcadoPadrao identifica pendente e encargos corretamente", () => {
+    const { gastos, creditos } = parseOfx(FIXTURE_FATURA_PENDENTE_OFX);
+    const pendente = gastos.find((g) => g.descricao === "VALOR PENDENTE");
+    const juros = gastos.find((g) => g.descricao === "JUROS DE ATRASO");
+    const multa = gastos.find((g) => g.descricao === "MULTA POR ATRASO");
+    const iof = gastos.find((g) => g.descricao === "IOF ROTATIVO");
+    const mercado = gastos.find((g) => g.descricao === "MERCADO LIVRE PAY");
+    const pagamento = creditos.find((c) => c.descricao === "PAGAMENTO RECEBIDO");
+
+    expect(deveDesmarcadoPadrao(pendente!.descricao)).toBe(true);
+    expect(deveDesmarcadoPadrao(juros!.descricao)).toBe(true);
+    expect(deveDesmarcadoPadrao(multa!.descricao)).toBe(true);
+    expect(deveDesmarcadoPadrao(iof!.descricao)).toBe(true);
+    expect(deveDesmarcadoPadrao(mercado!.descricao)).toBe(false);
+    expect(deveDesmarcadoPadrao(pagamento!.descricao)).toBe(true);
+  });
+
+  it("seleção correta soma ≈ 430,27 (compras do ciclo, alinhado ao LEDGERBAL)", () => {
+    const { gastos } = parseOfx(FIXTURE_FATURA_PENDENTE_OFX);
+    const comprasDoCiclo = gastos.filter((g) => !deveDesmarcadoPadrao(g.descricao));
+    const total = comprasDoCiclo.reduce((s, g) => s + g.valorCentavos, 0);
+    const descricoes = comprasDoCiclo.map((g) => g.descricao);
+    expect(descricoes).toContain("MERCADO LIVRE PAY");
+    expect(descricoes).toContain("IFOOD *HAMBURGUER");
+    expect(descricoes).toContain("UBER *VIAGEM");
+    expect(descricoes).toContain("ASSINY PARC 1/12");
+    expect(descricoes).toHaveLength(4);
+    expect(total).toBe(46527);
+  });
+
+  it("estorno cancela projeção de parcelas futuras da ASSINY", () => {
+    const { gastos, creditos } = parseOfx(FIXTURE_FATURA_PENDENTE_OFX);
+    const todas = [...gastos, ...creditos].map((l) => ({
+      ...l,
+      hashDedup: hashDedupOfx("k1", l.fitId),
+    }));
+    const canceladas = parceladasCanceladasPorEstorno(todas);
+    const assiny = todas.find((l) => l.descricao === "ASSINY PARC 1/12");
+    expect(canceladas.has(assiny!.hashDedup)).toBe(true);
   });
 });
 

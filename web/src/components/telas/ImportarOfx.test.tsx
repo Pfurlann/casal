@@ -160,23 +160,23 @@ describe("ImportarOfx", () => {
     expect(screen.getByRole("button", { name: /Lançar 2 gastos/ })).toBeEnabled();
   });
 
-  it("mostra parcela 3/12 e lança 1:1 com a categoria escolhida", async () => {
+  it("mostra parcela 3/12 e lança o grupo com a categoria escolhida", async () => {
     montar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(
       input,
       new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
     );
-    expect(await screen.findByText(/parcela 3\/12/)).toBeInTheDocument();
-    expect(screen.queryByText(/lança 10 restantes/)).toBeNull();
-    expect(screen.getByRole("button", { name: /Lançar 1 gasto/ })).toBeEnabled();
+    expect(await screen.findByText(/parcela 3\/12 · lança 10 restantes/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Lançar 10 gastos/ })).toBeEnabled();
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: /Categoria de MAGAZINE LUIZA/ }),
       "Pet",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Lançar 1 gasto/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 10 gastos/ }));
     const arg = importar.fn.mock.calls[0]?.[0] as {
       linhas: { categoriaID: string; parcelaN: number; parcelaTotal: number }[];
+      competenciaExtrato?: { ano: number; mes: number } | null;
     };
     expect(arg.linhas).toHaveLength(1);
     expect(arg.linhas[0]).toMatchObject({
@@ -184,6 +184,7 @@ describe("ImportarOfx", () => {
       parcelaN: 3,
       parcelaTotal: 12,
     });
+    expect(arg.competenciaExtrato).toEqual({ ano: 2026, mes: 9 });
   });
 
   it("seleciona todos os marcáveis e desmarca em lote", async () => {
@@ -270,13 +271,13 @@ describe("ImportarOfx", () => {
       input,
       new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
     );
-    await screen.findByRole("button", { name: /Lançar 1 gasto/ });
+    await screen.findByRole("button", { name: /Lançar 10 gastos/ });
     fireEvent.change(screen.getByLabelText("Data a aplicar aos selecionados"), {
       target: { value: "2026-09-01" },
     });
     await userEvent.click(screen.getByRole("button", { name: "Aplicar data" }));
     expect(screen.getByText(/OFX .* → efetiva 01\/09\/2026/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Lançar 1 gasto/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 10 gastos/ }));
     const arg = importar.fn.mock.calls[0]?.[0] as {
       linhas: { data: string; dataOverride?: string; parcelaN: number; parcelaTotal: number }[];
     };

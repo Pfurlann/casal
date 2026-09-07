@@ -545,6 +545,7 @@ type Loja = Estado & {
   importarOfx: (p: {
     cartaoID: string;
     linhas: LinhaImportacaoOfx[];
+    competenciaExtrato?: { ano: number; mes: number } | null;
   }) => Promise<{ importados: number; repetidos: number }>;
   importarOfxConta: (p: {
     contaID: string;
@@ -1718,7 +1719,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const importarOfx: Loja["importarOfx"] = async ({ cartaoID, linhas }) => {
+  const importarOfx: Loja["importarOfx"] = async ({ cartaoID, linhas, competenciaExtrato }) => {
     const cartao = (estado.cartoesTodos ?? estado.cartoes).find((c) => c.id === cartaoID);
     if (!cartao) throw new Error("cartão não encontrado");
     // wallet_id = carteira do cartão (não a carteira só da UI) — senão some no reload/troca
@@ -1730,6 +1731,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       cartao,
       pagadorID: pagadorPadrao(undefined, usuario?.id),
       existentes: estado.transacoes,
+      competenciaExtrato,
     });
     const repetidos = linhas.filter((l) => estado.transacoes.some((t) => t.hashDedup === l.hashDedup)).length;
     if (novas.length === 0) return { importados: 0, repetidos };

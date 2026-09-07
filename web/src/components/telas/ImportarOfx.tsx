@@ -156,8 +156,10 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
     if (!cartao || escolhidas.length === 0 || salvando) return;
     setSalvando(true);
     try {
+      const doExtrato = competenciaDoPeriodoOfx(extraido?.periodo);
       const r = await importarOfx({
         cartaoID: cartao.id,
+        competenciaExtrato: doExtrato,
         linhas: escolhidas.map((l) => ({
           descricao: l.descricao,
           valor: l.valorCentavos,
@@ -177,7 +179,6 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           ? "Esses gastos já estavam na fatura."
           : `${r.importados} gasto${r.importados === 1 ? "" : "s"} na fatura.`,
       );
-      const doExtrato = competenciaDoPeriodoOfx(extraido?.periodo);
       const comps = escolhidas.map((l) =>
         competenciaDaCompra(dataDeLocalISO(l.dataEfetiva), cartao),
       );
@@ -211,9 +212,10 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
       <div className="px-4 pt-6">
         <Rotulo>{cartao.apelido} · em {carteira.nome}</Rotulo>
         <p className="mt-2 text-[14px] text-cinza">
-          A competência da fatura vem do período do extrato (DTSTART/DTEND) — fechamento do cartão
-          não é o vencimento. Cada linha do OFX vira um lançamento (sem inventar parcelas
-          futuras). Desmarque o que não entra — créditos vêm desmarcados.
+          A competência da fatura vem do período do extrato (DTSTART/DTEND) — linhas com
+          DTPOSTED fora dessa fatura são carimbadas nela. Parcelas N/M lançam as restantes
+          nas competências seguintes (só as que faltam). Desmarque o que não entra — créditos vêm
+          desmarcados.
         </p>
 
         <label className="casal-toque mt-5 flex min-h-[44px] cursor-pointer items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite">
@@ -293,6 +295,7 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
                   categoriaID={l.categoriaID}
                   categorias={cats.map((c) => ({ id: c.id, nome: c.nome }))}
                   cartao={cartao}
+                  competenciaExtrato={competenciaDoPeriodoOfx(extraido?.periodo)}
                   onCategoria={(id) => setEscolhas((xs) => ({ ...xs, [l.hashDedup]: id }))}
                   onLancar={(v) => setMarcar((xs) => ({ ...xs, [l.hashDedup]: v }))}
                 />
@@ -320,6 +323,7 @@ function LinhaRevisao({
   categoriaID,
   categorias,
   cartao,
+  competenciaExtrato,
   onCategoria,
   onLancar,
 }: {
@@ -333,10 +337,12 @@ function LinhaRevisao({
   categoriaID: string;
   categorias: { id: string; nome: string }[];
   cartao: Cartao;
+  competenciaExtrato?: Competencia | null;
   onCategoria: (id: string) => void;
   onLancar: (v: boolean) => void;
 }) {
-  const competencia = competenciaDaCompra(dataDeLocalISO(linha.dataEfetiva), cartao);
+  const competencia =
+    competenciaExtrato ?? competenciaDaCompra(dataDeLocalISO(linha.dataEfetiva), cartao);
   const parcela = fraseParcelaOfx(linha.parcelaN, linha.parcelaTotal);
   const credito = linha.tipo === "credito";
   const dataMudou = linha.dataEfetiva !== linha.dataOriginal;

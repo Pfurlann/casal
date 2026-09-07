@@ -19,6 +19,7 @@ import {
   erroSeNaoForOfx,
   expansaoParcelasOfx,
   fraseParcelaOfx,
+  dataNaCompetenciaDoExtrato,
   hashDedupOfx,
   hashDedupOfxConta,
   jaImportada,
@@ -195,6 +196,26 @@ describe("expansaoParcelasOfx", () => {
     expect(com[1]).toEqual({ numero: 4, data: "2026-10-28" });
     expect(com[9]).toEqual({ numero: 12, data: "2027-06-28" });
   });
+
+  it("competência do extrato ancora k>n e carimba parcela n (fech=1)", () => {
+    const cartao: Cartao = { ...CARTAO, diaFechamento: 1, diaVencimento: 10 };
+    // DTPOSTED 01/08 → ago pelo fechamento; extrato SET (DTEND)
+    expect(competenciaDaCompra(new Date(2026, 7, 1), cartao)).toEqual({ ano: 2026, mes: 8 });
+    expect(dataNaCompetenciaDoExtrato("2026-08-01", { ano: 2026, mes: 9 }, cartao)).toBe("2026-09-01");
+    const partes = expansaoParcelasOfx(
+      "2026-08-01",
+      3,
+      5,
+      cartao,
+      undefined,
+      { ano: 2026, mes: 9 },
+    );
+    expect(partes).toEqual([
+      { numero: 3, data: "2026-09-01" },
+      { numero: 4, data: "2026-10-01" },
+      { numero: 5, data: "2026-11-01" },
+    ]);
+  });
 });
 
 describe("classificarCategoria", () => {
@@ -270,10 +291,10 @@ describe("transacoesDoOfx", () => {
     expect(jaImportada(existentes, hashIfood)).toBe(true);
   });
 
-  it("PARC 3/12 materializa 1:1 — rótulo N/M, sem inventar futuras", () => {
+  it("PARC 3/12 lança 10 txs nas competências certas, sem inventar 1 e 2", () => {
     const { gastos, periodo } = parseOfx(FIXTURE_PARCELA_OFX);
     expect(gastos[0]).toMatchObject({ parcelaN: 3, parcelaTotal: 12, valorCentavos: 25000 });
-    expect(fraseParcelaOfx(3, 12)).toBe("parcela 3/12");
+    expect(fraseParcelaOfx(3, 12)).toBe("parcela 3/12 · lança 10 restantes");
     expect(periodo).toEqual({ inicio: "2026-09-01", fim: "2026-09-28" });
     expect(competenciaDoPeriodoOfx(periodo)).toEqual({ ano: 2026, mes: 9 });
 
@@ -290,19 +311,23 @@ describe("transacoesDoOfx", () => {
       carteiraID: "w1",
       cartaoID: "k1",
       cartao: CARTAO,
+      competenciaExtrato: competenciaDoPeriodoOfx(periodo),
     });
 
-    expect(txs).toHaveLength(1);
-    expect(txs[0]).toMatchObject({
-      valor: 25000,
-      parcelaN: 3,
-      parcelaTotal: 12,
-      hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
-    });
-    expect(txs[0]?.grupoParcela).toBeUndefined();
+    expect(txs).toHaveLength(10);
+    expect(txs.every((t) => t.valor === 25000 && t.grupoParcela === txs[0]?.grupoParcela)).toBe(true);
+    expect(txs.map((t) => t.parcelaN)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(txs.every((t) => t.parcelaTotal === 12)).toBe(true);
+    expect(txs[0]?.hashDedup).toBe(hashDedupOfx("k1", gastos[0]!.fitId));
+    expect(txs[1]?.hashDedup).toBe(`${hashDedupOfx("k1", gastos[0]!.fitId)}|p4de12`);
+    const competencias = txs.map((t) => competenciaDaCompra(new Date(t.data), CARTAO));
+    expect(competencias[0]).toEqual({ ano: 2026, mes: 9 });
+    expect(competencias[1]).toEqual({ ano: 2026, mes: 10 });
+    expect(competencias[9]).toEqual({ ano: 2027, mes: 6 });
+    expect(txs.some((t) => t.parcelaN === 1 || t.parcelaN === 2)).toBe(false);
   });
 
-  it("PARC 1/4 também é 1:1 — próxima fatura vem no próximo OFX", () => {
+  it("PARC 1/4 gera as quatro parcelas do grupo", () => {
     const txs = transacoesDoOfx({
       linhas: [{
         descricao: "NETFLIX PARCELA 01/04",
@@ -317,12 +342,27 @@ describe("transacoesDoOfx", () => {
       cartaoID: "k1",
       cartao: CARTAO,
     });
-    expect(txs).toHaveLength(1);
-    expect(txs[0]?.parcelaN).toBe(1);
-    expect(txs[0]?.parcelaTotal).toBe(4);
+    expect(txs).toHaveLength(4);
+    expect(txs.map((t) => t.parcelaN)).toEqual([1, 2, 3, 4]);
+    expect(competenciaDaCompra(new Date(txs[0]!.data), CARTAO)).toEqual({ ano: 2026, mes: 9 });
+    expect(competenciaDaCompra(new Date(txs[3]!.data), CARTAO)).toEqual({ ano: 2026, mes: 12 });
   });
 
-  it("dataOverride altera só a data do lançamento 1:1", () => {
+  it("dataOverride só na parcela atual — futuras ancoradas no OFX original", () => {
+    const base = transacoesDoOfx({
+      linhas: [{
+        descricao: "MAGAZINE LUIZA PARC 3/12",
+        valor: 25000,
+        data: "2026-09-10",
+        categoriaID: CATEGORIA_OUTROS_ID,
+        hashDedup: hashDedupOfx("k1", "FIT-SOFA-OV"),
+        parcelaN: 3,
+        parcelaTotal: 12,
+      }],
+      carteiraID: "w1",
+      cartaoID: "k1",
+      cartao: CARTAO,
+    });
     const comOverride = transacoesDoOfx({
       linhas: [{
         descricao: "MAGAZINE LUIZA PARC 3/12",
@@ -338,8 +378,63 @@ describe("transacoesDoOfx", () => {
       cartaoID: "k1",
       cartao: CARTAO,
     });
-    expect(comOverride).toHaveLength(1);
+    expect(comOverride).toHaveLength(10);
     expect(dataLocalISO(new Date(comOverride[0]!.data))).toBe("2026-09-01");
+    expect(dataLocalISO(new Date(base[0]!.data))).toBe("2026-09-10");
+    for (let i = 1; i < 10; i++) {
+      expect(comOverride[i]!.data).toBe(base[i]!.data);
+      expect(comOverride[i]!.parcelaN).toBe(base[i]!.parcelaN);
+    }
+    const comps = comOverride.map((t) => competenciaDaCompra(new Date(t.data), CARTAO));
+    expect(comps[1]).toEqual({ ano: 2026, mes: 10 });
+    expect(comps[9]).toEqual({ ano: 2027, mes: 6 });
+  });
+
+  it("carimba linha atual na competência do extrato (fech=1, DTPOSTED em ago → set)", () => {
+    const cartao: Cartao = { ...CARTAO, id: "fech1", diaFechamento: 1, diaVencimento: 10 };
+    const ofx = `
+      <BANKTRANLIST>
+      <DTSTART>20260802
+      <DTEND>20260901
+      <STMTTRN>
+      <TRNTYPE>DEBIT
+      <DTPOSTED>20260801
+      <TRNAMT>-100.00
+      <FITID>FIT-FECH1
+      <MEMO>LOJA PARC 2/4
+      </STMTTRN>
+      </BANKTRANLIST>
+    `;
+    const { gastos, periodo } = parseOfx(ofx);
+    expect(competenciaDoPeriodoOfx(periodo)).toEqual({ ano: 2026, mes: 9 });
+    expect(competenciaDaCompra(new Date(gastos[0]!.data + "T12:00:00"), cartao)).toEqual({
+      ano: 2026,
+      mes: 8,
+    });
+    const txs = transacoesDoOfx({
+      linhas: gastos.map((g) => ({
+        descricao: g.descricao,
+        valor: g.valorCentavos,
+        data: g.data,
+        categoriaID: CATEGORIA_OUTROS_ID,
+        hashDedup: hashDedupOfx("fech1", g.fitId),
+        parcelaN: g.parcelaN,
+        parcelaTotal: g.parcelaTotal,
+      })),
+      carteiraID: "w1",
+      cartaoID: "fech1",
+      cartao,
+      competenciaExtrato: competenciaDoPeriodoOfx(periodo),
+    });
+    // 2/4 → set + out + nov
+    expect(txs).toHaveLength(3);
+    expect(txs.map((t) => t.parcelaN)).toEqual([2, 3, 4]);
+    const comps = txs.map((t) => competenciaDaCompra(new Date(t.data), cartao));
+    expect(comps).toEqual([
+      { ano: 2026, mes: 9 },
+      { ano: 2026, mes: 10 },
+      { ano: 2026, mes: 11 },
+    ]);
   });
 
   it("não relança se o hash FITID+valor+memo já existe", () => {

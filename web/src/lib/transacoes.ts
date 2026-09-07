@@ -4,6 +4,8 @@ export type EdicaoLancamento = {
   id: string;
   descricao: string;
   categoriaID?: string;
+  /** ISO datetime (meio-dia local) — só a linha tocada; move a fatura sem relançar. */
+  data?: string;
   valor?: number;
   carteiraID?: string;
   contaID?: string;
@@ -39,7 +41,7 @@ export function idsParaEditar(transacoes: Transacao[], p: EdicaoLancamento): str
   return [alvo.id];
 }
 
-/** Valor só muda em lançamento à vista. Parcelas editam descrição e categoria. */
+/** Valor só muda em lançamento à vista. Data/descrição/categoria só na linha tocada. */
 export function aplicarEdicao(transacoes: Transacao[], p: EdicaoLancamento): Transacao[] {
   const ids = new Set(idsParaEditar(transacoes, p));
   return transacoes.map((t) => {
@@ -51,6 +53,7 @@ export function aplicarEdicao(transacoes: Transacao[], p: EdicaoLancamento): Tra
       ...t,
       descricao: tocada ? p.descricao : t.descricao,
       categoriaID: tocada ? p.categoriaID : t.categoriaID,
+      data: tocada && p.data ? p.data : t.data,
       valor,
     };
     if (p.carteiraID) proxima.carteiraID = p.carteiraID;

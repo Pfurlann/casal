@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { categoriasVisiveis } from "@/lib/categorias";
-import { ROTULO_TIPO_CONTA } from "@/lib/domain";
+import { ROTULO_TIPO_CONTA, dataDeLocalISO, dataLocalISO } from "@/lib/domain";
 import { EntradaValor } from "@/lib/money";
 import { carteiraMostraPagador, membroPodeEditarLancamento } from "@/lib/pagador";
 import { useLoja } from "@/lib/store";
@@ -52,6 +52,9 @@ export function EditarLancamento({
   );
   const [categoriaID, setCategoriaID] = useState(tx?.categoriaID ?? catsEdicao[0]?.id ?? "");
   const [descricao, setDescricao] = useState(tx?.descricao ?? "");
+  const [dataISO, setDataISO] = useState(() =>
+    tx?.data ? dataLocalISO(new Date(tx.data)) : dataLocalISO(),
+  );
   const [carteiraID, setCarteiraID] = useState(tx?.carteiraID ?? "");
   const [contaID, setContaID] = useState(tx?.contaID ?? "");
   const [cartaoID, setCartaoID] = useState(tx?.cartaoID ?? "");
@@ -161,6 +164,7 @@ export function EditarLancamento({
         descricao,
         categoriaID,
         valor: valorLivre ? entrada.centavos : undefined,
+        data: dataDeLocalISO(dataISO).toISOString(),
         carteiraID,
         contaID: cartaoID ? undefined : contaID || undefined,
         cartaoID: cartaoID || undefined,
@@ -241,6 +245,22 @@ export function EditarLancamento({
         )}
 
         <Campo label="Onde foi o gasto" value={descricao} onChange={setDescricao} />
+
+        <div className="mt-4">
+          <Rotulo>data</Rotulo>
+          <input
+            type="date"
+            value={dataISO}
+            aria-label="Data do lançamento"
+            onChange={(e) => setDataISO(e.target.value)}
+            className={SELECT}
+          />
+          {Boolean(cartaoID) && (
+            <p className="mt-2 text-[12px] text-cinza">
+              Trocar a data move o lançamento de fatura — sem excluir e relançar.
+            </p>
+          )}
+        </div>
 
         <div className="mt-4">
           <Rotulo>categoria</Rotulo>

@@ -176,38 +176,45 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
     setSalvando(true);
     try {
       const doExtrato = competenciaDoPeriodoOfx(extraido?.periodo);
+      const linhasParaImportar = escolhidas.map((l) => ({
+        descricao: l.descricao,
+        valor: l.valorCentavos,
+        data: l.dataOriginal,
+        ...(l.dataEfetiva !== l.dataOriginal ? { dataOverride: l.dataEfetiva } : {}),
+        categoriaID: l.categoriaID,
+        hashDedup: l.hashDedup,
+        tipo: l.tipo,
+        parcelaN: l.parcelaN,
+        parcelaTotal: l.parcelaTotal,
+      }));
+      const compsParaDestino = escolhidas.map((l) =>
+        competenciaDaCompra(dataDeLocalISO(l.dataEfetiva), cartao),
+      );
+      const destino =
+        doExtrato ??
+        compsParaDestino.reduce<Competencia | undefined>((acc, c) => {
+          if (!acc) return c;
+          return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
+        }, undefined) ??
+        competenciaDaCompra(new Date(), cartao);
+
       const r = await importarOfx({
         cartaoID: cartao.id,
         competenciaExtrato: doExtrato,
-        linhas: escolhidas.map((l) => ({
-          descricao: l.descricao,
-          valor: l.valorCentavos,
-          // Âncora da expansão = OFX original; override só na parcela/mês atual.
-          data: l.dataOriginal,
-          ...(l.dataEfetiva !== l.dataOriginal ? { dataOverride: l.dataEfetiva } : {}),
-          categoriaID: l.categoriaID,
-          hashDedup: l.hashDedup,
-          tipo: l.tipo,
-          parcelaN: l.parcelaN,
-          parcelaTotal: l.parcelaTotal,
-        })),
+        linhas: linhasParaImportar,
       });
+
+      setTexto(null);
+      setEscolhas({});
+      setMarcar({});
+      setDatasEfetivas({});
+
       avisar(
         "ok",
         r.importados === 0
           ? "Esses gastos já estavam na fatura."
           : `${r.importados} gasto${r.importados === 1 ? "" : "s"} na fatura.`,
       );
-      const comps = escolhidas.map((l) =>
-        competenciaDaCompra(dataDeLocalISO(l.dataEfetiva), cartao),
-      );
-      const destino =
-        doExtrato ??
-        comps.reduce<Competencia | undefined>((acc, c) => {
-          if (!acc) return c;
-          return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
-        }, undefined) ??
-        competenciaDaCompra(new Date(), cartao);
       router.push(hrefDoCartao(cartao.id, destino));
     } catch {
       avisar("erro", "Não deu para importar. Tente de novo.");

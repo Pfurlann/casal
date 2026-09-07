@@ -155,17 +155,31 @@ export function ImportarOfxConta({ contaId }: { contaId: string }) {
     if (!conta || escolhidas.length === 0 || salvando) return;
     setSalvando(true);
     try {
+      const linhasParaImportar = escolhidas.map((l) => ({
+        descricao: l.descricao,
+        valor: l.valorCentavos,
+        data: l.dataEfetiva,
+        categoriaID: l.categoriaID,
+        hashDedup: l.hashDedup,
+        tipo: l.tipo,
+      }));
+      const compsParaDestino = escolhidas.map((l) => competenciaDe(dataDeLocalISO(l.dataEfetiva)));
+      const destino =
+        compsParaDestino.reduce<Competencia | undefined>((acc, c) => {
+          if (!acc) return c;
+          return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
+        }, undefined) ?? competenciaDe(new Date());
+
       const r = await importarOfxConta({
         contaID: conta.id,
-        linhas: escolhidas.map((l) => ({
-          descricao: l.descricao,
-          valor: l.valorCentavos,
-          data: l.dataEfetiva,
-          categoriaID: l.categoriaID,
-          hashDedup: l.hashDedup,
-          tipo: l.tipo,
-        })),
+        linhas: linhasParaImportar,
       });
+
+      setTexto(null);
+      setEscolhas({});
+      setMarcar({});
+      setDatasEfetivas({});
+
       avisar(
         "ok",
         r.importados === 0
@@ -174,12 +188,6 @@ export function ImportarOfxConta({ contaId }: { contaId: string }) {
               r.repetidos > 0 ? ` · ${r.repetidos} já existiam` : ""
             }.`,
       );
-      const comps = escolhidas.map((l) => competenciaDe(dataDeLocalISO(l.dataEfetiva)));
-      const destino =
-        comps.reduce<Competencia | undefined>((acc, c) => {
-          if (!acc) return c;
-          return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
-        }, undefined) ?? competenciaDe(new Date());
       router.push(hrefDoMes(destino));
     } catch {
       avisar("erro", "Não deu para importar. Tente de novo.");

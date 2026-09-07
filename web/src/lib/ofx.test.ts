@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cartao, Categoria, Transacao } from "./domain";
-import { competenciaDaCompra } from "./domain";
+import { competenciaDaCompra, dataLocalISO } from "./domain";
 import { transacoesDoMes } from "./metas";
 import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX, FIXTURE_CONTA_OFX } from "./ofx-fixture";
 import {
@@ -184,6 +184,15 @@ describe("expansaoParcelasOfx", () => {
     expect(partes[9]).toEqual({ numero: 12, data: "2027-06-28" });
     expect(partes.map((p) => p.numero)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
+
+  it("override da parcela atual não desloca o cronograma futuro", () => {
+    const sem = expansaoParcelasOfx("2026-09-10", 3, 12, CARTAO);
+    const com = expansaoParcelasOfx("2026-09-10", 3, 12, CARTAO, "2026-09-01");
+    expect(com[0]).toEqual({ numero: 3, data: "2026-09-01" });
+    expect(com.slice(1)).toEqual(sem.slice(1));
+    expect(com[1]).toEqual({ numero: 4, data: "2026-10-28" });
+    expect(com[9]).toEqual({ numero: 12, data: "2027-06-28" });
+  });
 });
 
 describe("classificarCategoria", () => {
@@ -308,6 +317,49 @@ describe("transacoesDoOfx", () => {
     expect(txs.map((t) => t.parcelaN)).toEqual([1, 2, 3, 4]);
     expect(competenciaDaCompra(new Date(txs[0]!.data), CARTAO)).toEqual({ ano: 2026, mes: 9 });
     expect(competenciaDaCompra(new Date(txs[3]!.data), CARTAO)).toEqual({ ano: 2026, mes: 12 });
+  });
+
+  it("dataOverride só na parcela atual — futuras ancoradas no OFX original", () => {
+    const base = transacoesDoOfx({
+      linhas: [{
+        descricao: "MAGAZINE LUIZA PARC 3/12",
+        valor: 25000,
+        data: "2026-09-10",
+        categoriaID: CATEGORIA_OUTROS_ID,
+        hashDedup: hashDedupOfx("k1", "FIT-SOFA-OV"),
+        parcelaN: 3,
+        parcelaTotal: 12,
+      }],
+      carteiraID: "w1",
+      cartaoID: "k1",
+      cartao: CARTAO,
+    });
+    const comOverride = transacoesDoOfx({
+      linhas: [{
+        descricao: "MAGAZINE LUIZA PARC 3/12",
+        valor: 25000,
+        data: "2026-09-10",
+        dataOverride: "2026-09-01",
+        categoriaID: CATEGORIA_OUTROS_ID,
+        hashDedup: hashDedupOfx("k1", "FIT-SOFA-OV2"),
+        parcelaN: 3,
+        parcelaTotal: 12,
+      }],
+      carteiraID: "w1",
+      cartaoID: "k1",
+      cartao: CARTAO,
+    });
+    expect(comOverride).toHaveLength(10);
+    expect(dataLocalISO(new Date(comOverride[0]!.data))).toBe("2026-09-01");
+    expect(dataLocalISO(new Date(base[0]!.data))).toBe("2026-09-10");
+    // futuras idênticas às sem override (mesmo cronograma a partir do OFX)
+    for (let i = 1; i < 10; i++) {
+      expect(comOverride[i]!.data).toBe(base[i]!.data);
+      expect(comOverride[i]!.parcelaN).toBe(base[i]!.parcelaN);
+    }
+    const comps = comOverride.map((t) => competenciaDaCompra(new Date(t.data), CARTAO));
+    expect(comps[1]).toEqual({ ano: 2026, mes: 10 });
+    expect(comps[9]).toEqual({ ano: 2027, mes: 6 });
   });
 
   it("não relança o grupo se o FITID da linha atual já existe", () => {

@@ -31,7 +31,13 @@ export type LinhaOfx = {
 export type LinhaImportacaoOfx = {
   descricao: string;
   valor: Centavos;
+  /** Data original do OFX — âncora da expansão de parcelas. */
   data: string;
+  /**
+   * Override só da parcela/mês atual (ex.: aplicar data em lote na fatura deste mês).
+   * Não reancora competências futuras — essas seguem `data`.
+   */
+  dataOverride?: string;
   categoriaID: string;
   hashDedup: string;
   tipo?: TipoLinhaOfx;
@@ -81,21 +87,27 @@ export function fraseParcelaOfx(n: number, m: number): string | undefined {
   return `parcela ${n}/${m} · lança ${lanca} restante${lanca === 1 ? "" : "s"}`;
 }
 
-/** Competências da parcela n até m. Atual = data do OFX; futuras = fechamento. */
+/**
+ * Competências da parcela n até m.
+ * Âncora sempre = data original do OFX; futuras = fechamento a partir dessa competência.
+ * `dataOverrideAtual` altera só a data da parcela n (fatura/mês atual), sem reancorar o cronograma.
+ */
 export function expansaoParcelasOfx(
   dataISO: string,
   n: number,
   m: number,
   cartao: Cartao,
+  dataOverrideAtual?: string,
 ): { numero: number; data: string }[] {
-  if (!eParcelaValida(n, m)) return [{ numero: 1, data: dataISO }];
+  const dataAtual = dataOverrideAtual ?? dataISO;
+  if (!eParcelaValida(n, m)) return [{ numero: 1, data: dataAtual }];
   const atual = competenciaDaCompra(dataDeLocalISO(dataISO), cartao);
   const saida: { numero: number; data: string }[] = [];
   for (let k = n; k <= m; k++) {
     const competencia = avancando(atual, k - n);
     saida.push({
       numero: k,
-      data: k === n ? dataISO : fechamento(competencia, cartao),
+      data: k === n ? dataAtual : fechamento(competencia, cartao),
     });
   }
   return saida;
@@ -442,8 +454,8 @@ export function transacoesDoOfx(p: {
     const parc = parcelaDaLinha(linha);
     const partes =
       parc && p.cartao
-        ? expansaoParcelasOfx(linha.data, parc.n, parc.m, p.cartao)
-        : [{ numero: parc?.n ?? 1, data: linha.data }];
+        ? expansaoParcelasOfx(linha.data, parc.n, parc.m, p.cartao, linha.dataOverride)
+        : [{ numero: parc?.n ?? 1, data: linha.dataOverride ?? linha.data }];
     const grupo = partes.length > 1 ? uuid() : undefined;
     const total = parc?.m ?? 1;
     const atual = parc?.n ?? 1;

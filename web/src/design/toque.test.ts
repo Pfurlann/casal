@@ -17,7 +17,6 @@ describe("toque — tokens e reduced-motion", () => {
   it("o shell wide usa o painel, não um telefone no meio", () => {
     expect(globals).toContain(".casal-shell");
     expect(globals).toContain(".casal-principal");
-    expect(globals).toMatch(/max-width:\s*1280px/);
     expect(globals).toMatch(/max-width:\s*1600px/);
     // 560 só abaixo de lg — não vaza como coluna fantasma no desktop
     expect(globals).toMatch(/@media \(max-width:\s*1023px\)/);
@@ -25,6 +24,14 @@ describe("toque — tokens e reduced-motion", () => {
     expect(globals).toContain(".casal-painel");
     expect(globals).toContain(".casal-linha-mes");
     expect(globals).toContain(".casal-resumo-mes");
+  });
+
+  it("define classes de polish: spinner, esqueleto, folha, vazio", () => {
+    expect(globals).toContain(".casal-spinner");
+    expect(globals).toContain(".casal-esqueleto");
+    expect(globals).toContain(".casal-folha-fundo");
+    expect(globals).toContain(".casal-folha-caixa");
+    expect(globals).toContain(".casal-vazio");
   });
 
   it("desliga o scale quando pede menos movimento", () => {

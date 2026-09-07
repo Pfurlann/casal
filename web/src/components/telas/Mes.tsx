@@ -175,7 +175,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
           <div className="mt-8">
             <Rotulo>gasto neste mês</Rotulo>
             <div className="mt-2">
-              <Numero centavos={gastoR} tamanho="heroi" subordinaCentavos />
+              <Numero centavos={gastoR} tamanho="heroi" subordinaCentavos animar />
             </div>
             <p className="mt-2 font-numero text-[12px] tabular-nums text-cinza">
               {qtdR} lançamentos · {rotuloDaCompetencia(competencia)}
@@ -223,7 +223,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
         <div className="casal-painel lg:p-5">
           <Rotulo>gasto neste mês</Rotulo>
           <div className="mt-2">
-            <Numero centavos={gasto} tamanho="heroi" subordinaCentavos />
+            <Numero centavos={gasto} tamanho="heroi" subordinaCentavos animar />
           </div>
           <div className="mt-5">
             <Trilha consumido={gasto} total={gasto + comprometido} />

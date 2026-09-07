@@ -70,7 +70,7 @@ export function Folha({
         data-testid="folha-fundo"
         aria-label="Fechar"
         onClick={aoFechar}
-        className="absolute inset-0 z-0 cursor-default bg-grafite/40"
+        className="casal-folha-fundo absolute inset-0 z-0 cursor-default bg-grafite/40"
       />
       <div
         ref={caixa}
@@ -79,7 +79,7 @@ export function Folha({
         aria-label={rotulo}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
-        className={`relative z-10 flex w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] lg:max-w-[520px] ${
+        className={`casal-folha-caixa relative z-10 flex w-full max-w-[430px] flex-col rounded-t-[22px] bg-ar shadow-elevacao sm:rounded-[22px] lg:max-w-[520px] ${
           trava
             ? "h-[calc(100dvh-max(56px,env(safe-area-inset-top)+24px))] min-h-0 overflow-hidden sm:h-[min(840px,88dvh)]"
             : "max-h-[calc(100dvh-max(56px,env(safe-area-inset-top)+24px))] overflow-y-auto sm:max-h-[min(840px,88dvh)] lg:max-h-[min(840px,88dvh)]"

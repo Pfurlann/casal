@@ -137,4 +137,61 @@ describe("total da fatura pela competência", () => {
     expect(novas[0]?.valor).toBe(10_000);
     expect(transacoes.some((t) => t.hashDedup === hashDedupFatura("k1", { ano: 2026, mes: 9 }))).toBe(true);
   });
+
+  it("após deletar compras, sincroniza atualiza valor da fatura para valor residual", () => {
+    const c1 = compra();
+    const c2 = { ...compra(), id: "c2", valor: 5_000, hashDedup: "ofx|k1|c2" };
+    const faturaExistente = {
+      id: "f1",
+      carteiraID: "c1",
+      tipo: "despesa" as const,
+      valor: 15_000,
+      data: "2026-09-28T12:00:00.000Z",
+      descricao: "Fatura Roxinho",
+      cartaoID: "k1",
+      faturaID: "inv1",
+      hashDedup: "fatura|k1|2026-09",
+      parcelaN: 1,
+      parcelaTotal: 1,
+      status: "a_pagar" as const,
+    };
+    
+    const antes = [c1, c2, faturaExistente];
+    const aposDeleteC2 = [c1, faturaExistente];
+    
+    const { alteradas, transacoes } = sincronizarTotaisFatura([CARTAO], [FATURA_SET], aposDeleteC2);
+    
+    expect(alteradas).toHaveLength(1);
+    expect(alteradas[0]?.valor).toBe(10_000);
+    
+    const faturaAtualizada = transacoes.find((t) => t.hashDedup === "fatura|k1|2026-09");
+    expect(faturaAtualizada?.valor).toBe(10_000);
+  });
+
+  it("após deletar TODAS as compras, sincroniza atualiza fatura para ZERO", () => {
+    const faturaExistente = {
+      id: "f1",
+      carteiraID: "c1",
+      tipo: "despesa" as const,
+      valor: 15_000,
+      data: "2026-09-28T12:00:00.000Z",
+      descricao: "Fatura Roxinho",
+      cartaoID: "k1",
+      faturaID: "inv1",
+      hashDedup: "fatura|k1|2026-09",
+      parcelaN: 1,
+      parcelaTotal: 1,
+      status: "a_pagar" as const,
+    };
+    
+    const aposDeleteTudo = [faturaExistente];
+    
+    const { alteradas, transacoes } = sincronizarTotaisFatura([CARTAO], [FATURA_SET], aposDeleteTudo);
+    
+    expect(alteradas).toHaveLength(1);
+    expect(alteradas[0]?.valor).toBe(0);
+    
+    const faturaAtualizada = transacoes.find((t) => t.hashDedup === "fatura|k1|2026-09");
+    expect(faturaAtualizada?.valor).toBe(0);
+  });
 });

@@ -364,7 +364,7 @@ describe("totaisDoMes após deleção", () => {
     expect(totaisDoMes(depois, C, [CARTAO])).toEqual({ gasto: 130_000, receita: 0, fluxo: -130_000 });
   });
 
-  it("recalcula total mesmo com transação sintética de fatura presente", () => {
+  it("NUNCA dobra compras no cartão com fatura — conta UMA vez (via lançamentos)", () => {
     const compra1 = tx({ id: "c1", valor: 100_000, cartaoID: "k1", hashDedup: "ofx|k1|compra1", data: "2026-09-08T15:00:00.000Z" });
     const compra2 = tx({ id: "c2", valor: 50_000, cartaoID: "k1", hashDedup: "ofx|k1|compra2", data: "2026-09-10T15:00:00.000Z" });
     const fatura = tx({ id: "f", valor: 150_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-28T15:00:00.000Z" });
@@ -376,12 +376,20 @@ describe("totaisDoMes após deleção", () => {
     expect(totaisDoMes(depois, C, [CARTAO])).toEqual({ gasto: 100_000, receita: 0, fluxo: -100_000 });
   });
 
-  it("transação sintética de fatura desatualizada NÃO afeta totaisDoMes", () => {
+  it("fatura desatualizada (valor antigo) NÃO contamina o total — só compras contam", () => {
     const compra1 = tx({ id: "c1", valor: 100_000, cartaoID: "k1", hashDedup: "ofx|k1|compra1", data: "2026-09-08T15:00:00.000Z" });
-    const faturaDesatualizada = tx({ id: "f", valor: 150_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-28T15:00:00.000Z" });
+    const faturaDesatualizada = tx({ id: "f", valor: 200_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-28T15:00:00.000Z" });
     
-    const depois = [compra1, faturaDesatualizada];
+    const transacoes = [compra1, faturaDesatualizada];
     
-    expect(totaisDoMes(depois, C, [CARTAO])).toEqual({ gasto: 100_000, receita: 0, fluxo: -100_000 });
+    expect(totaisDoMes(transacoes, C, [CARTAO])).toEqual({ gasto: 100_000, receita: 0, fluxo: -100_000 });
+  });
+
+  it("após deletar TODAS as compras, total é ZERO mesmo com fatura antiga no array", () => {
+    const faturaAntiga = tx({ id: "f", valor: 150_000, cartaoID: "k1", hashDedup: "fatura|k1|2026-09", data: "2026-09-28T15:00:00.000Z" });
+    
+    const transacoes = [faturaAntiga];
+    
+    expect(totaisDoMes(transacoes, C, [CARTAO])).toEqual({ gasto: 0, receita: 0, fluxo: 0 });
   });
 });

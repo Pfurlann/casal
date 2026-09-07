@@ -31,7 +31,6 @@ import {
 import { eDonoDaOrigem } from "@/lib/visibilidade";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Botao } from "../ui/Botao";
-import { LinhaLista } from "../ui/LinhaLista";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { useAviso } from "../ui/Aviso";
@@ -100,7 +99,27 @@ export function CartaoDetalhe({
   const cartao = cartoes.find((c) => c.id === id);
   const podeApagar = Boolean(cartao && eDonoDaOrigem(cartao, usuarioID));
 
-  if (!cartao) {
+  const fatura = cartao ? faturaDaCompetencia(cartao, faturas, competencia) : null;
+  const total = cartao && fatura ? totalDaFatura(fatura, transacoes, cartao) : 0;
+  const papel = etiquetaFatura(competencia, atualComp);
+
+  const lancamentos = useMemo(() => {
+    if (!cartao || !fatura) return [];
+    return transacoes
+      .filter((t) => t.tipo === "despesa" && t.cartaoID === cartao.id)
+      .filter((t) => {
+        const x = competenciaDaCompra(new Date(t.data), cartao);
+        return x.ano === fatura.ano && x.mes === fatura.mes;
+      })
+      .slice()
+      .sort(porDataRecente);
+  }, [transacoes, cartao, fatura]);
+
+  const todosSelecionados = lancamentos.length > 0 && lancamentos.every((t) => selecionados.has(t.id));
+  const algunsSelecionados = lancamentos.some((t) => selecionados.has(t.id));
+  const qtdSelecionados = lancamentos.filter((t) => selecionados.has(t.id)).length;
+
+  if (!cartao || !fatura) {
     return (
       <div>
         <Cabecalho titulo="cartão" voltarPara="/cartoes" />
@@ -108,26 +127,6 @@ export function CartaoDetalhe({
       </div>
     );
   }
-
-  const fatura = faturaDaCompetencia(cartao, faturas, competencia);
-  const total = totalDaFatura(fatura, transacoes, cartao);
-  const papel = etiquetaFatura(competencia, atualComp);
-
-  const lancamentos = useMemo(() =>
-    transacoes
-      .filter((t) => t.tipo === "despesa" && t.cartaoID === cartao.id)
-      .filter((t) => {
-        const x = competenciaDaCompra(new Date(t.data), cartao);
-        return x.ano === fatura.ano && x.mes === fatura.mes;
-      })
-      .slice()
-      .sort(porDataRecente),
-    [transacoes, cartao, fatura.ano, fatura.mes],
-  );
-
-  const todosSelecionados = lancamentos.length > 0 && lancamentos.every((t) => selecionados.has(t.id));
-  const algunsSelecionados = lancamentos.some((t) => selecionados.has(t.id));
-  const qtdSelecionados = lancamentos.filter((t) => selecionados.has(t.id)).length;
 
   function alternarTodos(marcar: boolean) {
     setSelecionados((prev) => {

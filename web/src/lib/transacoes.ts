@@ -86,3 +86,17 @@ export function aplicarApagar(transacoes: Transacao[], p: ApagarLancamento): Tra
 export function ehGrupoParcela(t: Transacao): boolean {
   return Boolean(t.grupoParcela) && t.parcelaTotal > 1;
 }
+
+export type ApagarLancamentosEmLote = {
+  ids: string[];
+};
+
+export function idsParaApagarEmLote(transacoes: Transacao[], p: ApagarLancamentosEmLote): string[] {
+  const existentes = new Set(transacoes.map((t) => t.id));
+  return p.ids.filter((id) => existentes.has(id));
+}
+
+export function aplicarApagarEmLote(transacoes: Transacao[], p: ApagarLancamentosEmLote): Transacao[] {
+  const idsSet = new Set(p.ids);
+  return transacoes.filter((t) => !idsSet.has(t.id));
+}

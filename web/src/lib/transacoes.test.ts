@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Transacao } from "./domain";
-import { aplicarApagar, aplicarEdicao, ehGrupoParcela, idsParaApagar, idsParaEditar } from "./transacoes";
+import {
+  aplicarApagar,
+  aplicarApagarEmLote,
+  aplicarEdicao,
+  ehGrupoParcela,
+  idsParaApagar,
+  idsParaApagarEmLote,
+  idsParaEditar,
+} from "./transacoes";
 
 function tx(parcial: Partial<Transacao> & Pick<Transacao, "id">): Transacao {
   return {
@@ -130,5 +138,42 @@ describe("ehGrupoParcela", () => {
   it("reconhece só grupo com mais de uma parcela", () => {
     expect(ehGrupoParcela(tx({ id: "a", grupoParcela: "g", parcelaTotal: 3 }))).toBe(true);
     expect(ehGrupoParcela(tx({ id: "b" }))).toBe(false);
+  });
+});
+
+describe("idsParaApagarEmLote", () => {
+  it("retorna apenas IDs que existem nas transações", () => {
+    const lista = [tx({ id: "a" }), tx({ id: "b" }), tx({ id: "c" })];
+    expect(idsParaApagarEmLote(lista, { ids: ["a", "c", "x"] })).toEqual(["a", "c"]);
+  });
+
+  it("retorna array vazio se nenhum ID existe", () => {
+    const lista = [tx({ id: "a" })];
+    expect(idsParaApagarEmLote(lista, { ids: ["x", "y"] })).toEqual([]);
+  });
+
+  it("retorna todos os IDs pedidos se todos existem", () => {
+    const lista = [tx({ id: "a" }), tx({ id: "b" })];
+    expect(idsParaApagarEmLote(lista, { ids: ["a", "b"] })).toEqual(["a", "b"]);
+  });
+});
+
+describe("aplicarApagarEmLote", () => {
+  it("remove múltiplas transações de uma vez", () => {
+    const lista = [tx({ id: "a" }), tx({ id: "b" }), tx({ id: "c" }), tx({ id: "d" })];
+    const resultado = aplicarApagarEmLote(lista, { ids: ["a", "c"] });
+    expect(resultado.map((t) => t.id)).toEqual(["b", "d"]);
+  });
+
+  it("não faz nada se nenhum ID corresponde", () => {
+    const lista = [tx({ id: "a" }), tx({ id: "b" })];
+    const resultado = aplicarApagarEmLote(lista, { ids: ["x", "y"] });
+    expect(resultado.map((t) => t.id)).toEqual(["a", "b"]);
+  });
+
+  it("remove todas se todos IDs correspondem", () => {
+    const lista = [tx({ id: "a" }), tx({ id: "b" })];
+    const resultado = aplicarApagarEmLote(lista, { ids: ["a", "b"] });
+    expect(resultado).toEqual([]);
   });
 });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   avancando,
   chaveCompetencia,
@@ -86,7 +86,7 @@ export function CartaoDetalhe({
   /** Query `?c=AAAA-MM` — deep-link da fatura/competência. */
   competenciaRota?: string;
 }) {
-  const { cartoes, transacoes, faturas, apagarCartao, usuarioID } = useLoja();
+  const { cartoes, transacoes, faturas, apagarCartao, apagarLancamentos, usuarioID } = useLoja();
   const { avisar } = useAviso();
   const router = useRouter();
   const agora = new Date();
@@ -94,6 +94,9 @@ export function CartaoDetalhe({
   const competencia = competenciaDaConsulta(competenciaRota);
   const [confirmando, setConfirmando] = useState(false);
   const [apagando, setApagando] = useState(false);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
   const cartao = cartoes.find((c) => c.id === id);
   const podeApagar = Boolean(cartao && eDonoDaOrigem(cartao, usuarioID));
 
@@ -110,14 +113,57 @@ export function CartaoDetalhe({
   const total = totalDaFatura(fatura, transacoes, cartao);
   const papel = etiquetaFatura(competencia, atualComp);
 
-  const lancamentos = transacoes
-    .filter((t) => t.tipo === "despesa" && t.cartaoID === cartao.id)
-    .filter((t) => {
-      const x = competenciaDaCompra(new Date(t.data), cartao);
-      return x.ano === fatura.ano && x.mes === fatura.mes;
-    })
-    .slice()
-    .sort(porDataRecente);
+  const lancamentos = useMemo(() =>
+    transacoes
+      .filter((t) => t.tipo === "despesa" && t.cartaoID === cartao.id)
+      .filter((t) => {
+        const x = competenciaDaCompra(new Date(t.data), cartao);
+        return x.ano === fatura.ano && x.mes === fatura.mes;
+      })
+      .slice()
+      .sort(porDataRecente),
+    [transacoes, cartao, fatura.ano, fatura.mes],
+  );
+
+  const todosSelecionados = lancamentos.length > 0 && lancamentos.every((t) => selecionados.has(t.id));
+  const algunsSelecionados = lancamentos.some((t) => selecionados.has(t.id));
+  const qtdSelecionados = lancamentos.filter((t) => selecionados.has(t.id)).length;
+
+  function alternarTodos(marcar: boolean) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      for (const t of lancamentos) {
+        if (marcar) next.add(t.id);
+        else next.delete(t.id);
+      }
+      return next;
+    });
+  }
+
+  function alternarLancamento(id: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function excluirSelecionados() {
+    if (excluindo || qtdSelecionados === 0) return;
+    setExcluindo(true);
+    try {
+      const idsParaExcluir = lancamentos.filter((t) => selecionados.has(t.id)).map((t) => t.id);
+      await apagarLancamentos({ ids: idsParaExcluir });
+      setSelecionados(new Set());
+      setConfirmandoExclusao(false);
+      avisar("ok", `${idsParaExcluir.length} lançamento${idsParaExcluir.length === 1 ? "" : "s"} excluído${idsParaExcluir.length === 1 ? "" : "s"}.`);
+    } catch {
+      avisar("erro", "Não deu para excluir. Tente de novo.");
+    } finally {
+      setExcluindo(false);
+    }
+  }
 
   function subtituloLancamento(t: Transacao): string {
     const data = dataLocalISO(new Date(t.data)).split("-").reverse().join("/");
@@ -229,15 +275,87 @@ export function CartaoDetalhe({
               Nenhum lançamento nesta fatura
             </p>
           ) : (
-            lancamentos.map((t) => (
-              <LinhaLista
-                key={t.id}
-                href={`/lancamentos/${t.id}`}
-                titulo={t.descricao || "Sem descrição"}
-                subtitulo={subtituloLancamento(t)}
-                valor={t.valor}
-              />
-            ))
+            <>
+              <div className="flex flex-col gap-3 rounded-controle border border-nevoa p-3 mb-4">
+                <label
+                  htmlFor="cartao-selecionar-todos"
+                  className="relative z-[1] flex min-h-[44px] cursor-pointer items-center gap-3 text-[14px] text-grafite"
+                >
+                  <input
+                    id="cartao-selecionar-todos"
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    aria-label="Selecionar todos"
+                    onChange={(e) => alternarTodos(e.target.checked)}
+                    className="pointer-events-auto h-5 w-5 shrink-0"
+                  />
+                  Selecionar todos
+                  {algunsSelecionados && (
+                    <span className="text-[12px] text-cinza">
+                      ({qtdSelecionados} de {lancamentos.length})
+                    </span>
+                  )}
+                </label>
+                {algunsSelecionados && !confirmandoExclusao && (
+                  <Botao
+                    variante="destrutivo"
+                    onClick={() => setConfirmandoExclusao(true)}
+                  >
+                    Excluir {qtdSelecionados} selecionado{qtdSelecionados === 1 ? "" : "s"}
+                  </Botao>
+                )}
+                {confirmandoExclusao && (
+                  <div
+                    role="alertdialog"
+                    aria-labelledby="excluir-lancamentos-titulo"
+                    className="space-y-2"
+                  >
+                    <p id="excluir-lancamentos-titulo" className="text-[14px] text-grafite">
+                      Excluir {qtdSelecionados} lançamento{qtdSelecionados === 1 ? "" : "s"}? Esta ação é irreversível.
+                    </p>
+                    <Botao
+                      variante="destrutivo"
+                      disabled={excluindo}
+                      carregando={excluindo}
+                      onClick={() => void excluirSelecionados()}
+                    >
+                      Excluir
+                    </Botao>
+                    <Botao
+                      variante="secundario"
+                      onClick={() => setConfirmandoExclusao(false)}
+                      disabled={excluindo}
+                    >
+                      Cancelar
+                    </Botao>
+                  </div>
+                )}
+              </div>
+              {lancamentos.map((t) => (
+                <div key={t.id} className="flex items-start gap-3 border-b border-nevoa py-3">
+                  <label className="relative z-[1] flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(t.id)}
+                      aria-label={`Selecionar ${t.descricao || "lançamento"}`}
+                      onChange={() => alternarLancamento(t.id)}
+                      className="pointer-events-auto h-5 w-5 shrink-0"
+                    />
+                  </label>
+                  <Link
+                    href={`/lancamentos/${t.id}`}
+                    className="casal-toque flex flex-1 items-center justify-between min-h-[44px]"
+                    aria-label={`${t.descricao || "Sem descrição"}, ${subtituloLancamento(t)}`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] text-grafite">{t.descricao || "Sem descrição"}</span>
+                      <span className="block text-[12px] text-cinza">{subtituloLancamento(t)}</span>
+                    </span>
+                    <Numero centavos={t.valor} tamanho="corpo" />
+                  </Link>
+                </div>
+              ))}
+            </>
           )}
         </div>
 

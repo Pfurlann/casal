@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ACCEPT_ARQUIVO_OFX } from "@/lib/ofx";
+import { ACCEPT_ARQUIVO_OFX, hashDedupOfxConta, parseOfxConta } from "@/lib/ofx";
 import { FIXTURE_CONTA_OFX } from "@/lib/ofx-fixture";
 import { ImportarOfxConta } from "./ImportarOfxConta";
 import { ProvedorAviso } from "../ui/Aviso";
@@ -76,12 +76,14 @@ describe("ImportarOfxConta", () => {
     };
     expect(arg.contaID).toBe("cta1");
     expect(arg.linhas).toHaveLength(4);
-    expect(arg.linhas.some((l) => l.hashDedup === "ofx|cta1|CTA-IFOOD-1")).toBe(true);
+    const { gastos } = parseOfxConta(FIXTURE_CONTA_OFX);
+    expect(arg.linhas.some((l) => l.hashDedup === hashDedupOfxConta("cta1", gastos[0]!.fitId))).toBe(true);
     expect(arg.linhas.some((l) => l.tipo === "credito")).toBe(true);
     expect(empurrar).toHaveBeenCalled();
   });
 
   it("desmarca o que já está na conta", async () => {
+    const { gastos } = parseOfxConta(FIXTURE_CONTA_OFX);
     montar({
       transacoes: [
         {
@@ -92,7 +94,7 @@ describe("ImportarOfxConta", () => {
           data: "2026-08-12T12:00:00.000Z",
           descricao: "IFOOD",
           contaID: "cta1",
-          hashDedup: "ofx|cta1|CTA-IFOOD-1",
+          hashDedup: hashDedupOfxConta("cta1", gastos[0]!.fitId),
           status: "liquidado",
         },
       ],

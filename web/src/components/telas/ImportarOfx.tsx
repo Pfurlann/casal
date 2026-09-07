@@ -15,6 +15,7 @@ import {
 import {
   ACCEPT_ARQUIVO_OFX,
   classificarCategoria,
+  competenciaDoPeriodoOfx,
   creditoRelevanteNaFatura,
   erroSeNaoForOfx,
   fraseParcelaOfx,
@@ -176,13 +177,17 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
           ? "Esses gastos já estavam na fatura."
           : `${r.importados} gasto${r.importados === 1 ? "" : "s"} na fatura.`,
       );
+      const doExtrato = competenciaDoPeriodoOfx(extraido?.periodo);
       const comps = escolhidas.map((l) =>
         competenciaDaCompra(dataDeLocalISO(l.dataEfetiva), cartao),
       );
-      const destino = comps.reduce<Competencia | undefined>((acc, c) => {
-        if (!acc) return c;
-        return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
-      }, undefined) ?? competenciaDaCompra(new Date(), cartao);
+      const destino =
+        doExtrato ??
+        comps.reduce<Competencia | undefined>((acc, c) => {
+          if (!acc) return c;
+          return acc.ano * 12 + acc.mes >= c.ano * 12 + c.mes ? acc : c;
+        }, undefined) ??
+        competenciaDaCompra(new Date(), cartao);
       router.push(hrefDoCartao(cartao.id, destino));
     } catch {
       avisar("erro", "Não deu para importar. Tente de novo.");
@@ -206,8 +211,9 @@ export function ImportarOfx({ cartaoId }: { cartaoId: string }) {
       <div className="px-4 pt-6">
         <Rotulo>{cartao.apelido} · em {carteira.nome}</Rotulo>
         <p className="mt-2 text-[14px] text-cinza">
-          A competência segue o fechamento do cartão. Desmarque o que não entra — créditos vêm
-          desmarcados.
+          A competência da fatura vem do período do extrato (DTSTART/DTEND) — fechamento do cartão
+          não é o vencimento. Cada linha do OFX vira um lançamento (sem inventar parcelas
+          futuras). Desmarque o que não entra — créditos vêm desmarcados.
         </p>
 
         <label className="casal-toque mt-5 flex min-h-[44px] cursor-pointer items-center justify-center rounded-controle border border-nevoa font-texto text-[14px] font-semibold text-grafite">

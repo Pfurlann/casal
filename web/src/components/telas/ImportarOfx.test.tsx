@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ACCEPT_ARQUIVO_OFX } from "@/lib/ofx";
 import { FIXTURE_FATURA_OFX, FIXTURE_NANQUIM_OFX, FIXTURE_PARCELA_OFX } from "@/lib/ofx-fixture";
+import { hashDedupOfx, parseOfx } from "@/lib/ofx";
 import { ImportarOfx } from "./ImportarOfx";
 import { ProvedorAviso } from "../ui/Aviso";
 
@@ -144,12 +145,13 @@ describe("ImportarOfx", () => {
     expect(empurrar).toHaveBeenCalledWith("/cartoes/k1?c=2026-08");
   });
 
-  it("não relança linha já importada pelo FITID", async () => {
+  it("não relança linha já importada pelo FITID+valor+memo", async () => {
+    const { gastos } = parseOfx(FIXTURE_FATURA_OFX);
     montar({
       transacoes: [
         {
           id: "ja",
-          hashDedup: "ofx|k1|FIT-IFOOD-1",
+          hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
         },
       ],
     });
@@ -158,20 +160,21 @@ describe("ImportarOfx", () => {
     expect(screen.getByRole("button", { name: /Lançar 2 gastos/ })).toBeEnabled();
   });
 
-  it("mostra parcela 3/12 e lança o grupo com a categoria escolhida", async () => {
+  it("mostra parcela 3/12 e lança 1:1 com a categoria escolhida", async () => {
     montar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(
       input,
       new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
     );
-    expect(await screen.findByText(/parcela 3\/12 · lança 10 restantes/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Lançar 10 gastos/ })).toBeEnabled();
+    expect(await screen.findByText(/parcela 3\/12/)).toBeInTheDocument();
+    expect(screen.queryByText(/lança 10 restantes/)).toBeNull();
+    expect(screen.getByRole("button", { name: /Lançar 1 gasto/ })).toBeEnabled();
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: /Categoria de MAGAZINE LUIZA/ }),
       "Pet",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Lançar 10 gastos/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 1 gasto/ }));
     const arg = importar.fn.mock.calls[0]?.[0] as {
       linhas: { categoriaID: string; parcelaN: number; parcelaTotal: number }[];
     };
@@ -267,13 +270,13 @@ describe("ImportarOfx", () => {
       input,
       new File([FIXTURE_PARCELA_OFX], "parcela.ofx", { type: "application/x-ofx" }),
     );
-    await screen.findByRole("button", { name: /Lançar 10 gastos/ });
+    await screen.findByRole("button", { name: /Lançar 1 gasto/ });
     fireEvent.change(screen.getByLabelText("Data a aplicar aos selecionados"), {
       target: { value: "2026-09-01" },
     });
     await userEvent.click(screen.getByRole("button", { name: "Aplicar data" }));
     expect(screen.getByText(/OFX .* → efetiva 01\/09\/2026/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Lançar 10 gastos/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Lançar 1 gasto/ }));
     const arg = importar.fn.mock.calls[0]?.[0] as {
       linhas: { data: string; dataOverride?: string; parcelaN: number; parcelaTotal: number }[];
     };

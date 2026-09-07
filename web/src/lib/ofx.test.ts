@@ -23,8 +23,10 @@ import {
   hashDedupOfxConta,
   jaImportada,
   parcelaDoTexto,
+  competenciaDoPeriodoOfx,
   parseOfx,
   parseOfxConta,
+  periodoDoOfx,
   pareceCredito,
   transacoesDoOfx,
   transacoesDoOfxConta,
@@ -229,10 +231,14 @@ describe("transacoesDoOfx", () => {
       "cat-pet",
     ]);
     expect(txs.map((t) => t.valor)).toEqual([4590, 12000, 3250]);
-    expect(txs[0]?.hashDedup).toBe("ofx|k1|FIT-IFOOD-1");
+    expect(txs[0]?.hashDedup).toBe(hashDedupOfx("k1", gastos[0]!.fitId));
+    expect(gastos[0]!.fitId).toContain("FIT-IFOOD-1");
+    expect(gastos[0]!.fitId).toContain("|");
   });
 
-  it("não relança o mesmo FITID", () => {
+  it("não relança o mesmo FITID+valor+memo", () => {
+    const { gastos } = parseOfx(FIXTURE_FATURA_OFX);
+    const hashIfood = hashDedupOfx("k1", gastos[0]!.fitId);
     const existentes: Transacao[] = [
       {
         id: "ja",
@@ -242,12 +248,11 @@ describe("transacoesDoOfx", () => {
         data: "2026-08-15T15:00:00.000Z",
         descricao: "IFOOD *PIZZA NAPOLI",
         cartaoID: "k1",
-        hashDedup: "ofx|k1|FIT-IFOOD-1",
+        hashDedup: hashIfood,
         parcelaN: 1,
         parcelaTotal: 1,
       },
     ];
-    const { gastos } = parseOfx(FIXTURE_FATURA_OFX);
     const txs = transacoesDoOfx({
       linhas: gastos.map((g) => ({
         descricao: g.descricao,
@@ -261,14 +266,16 @@ describe("transacoesDoOfx", () => {
       existentes,
     });
     expect(txs).toHaveLength(2);
-    expect(txs.some((t) => t.hashDedup === "ofx|k1|FIT-IFOOD-1")).toBe(false);
-    expect(jaImportada(existentes, "ofx|k1|FIT-IFOOD-1")).toBe(true);
+    expect(txs.some((t) => t.hashDedup === hashIfood)).toBe(false);
+    expect(jaImportada(existentes, hashIfood)).toBe(true);
   });
 
-  it("PARC 3/12 lança 10 txs nas competências certas, sem inventar 1 e 2", () => {
-    const { gastos } = parseOfx(FIXTURE_PARCELA_OFX);
+  it("PARC 3/12 materializa 1:1 — rótulo N/M, sem inventar futuras", () => {
+    const { gastos, periodo } = parseOfx(FIXTURE_PARCELA_OFX);
     expect(gastos[0]).toMatchObject({ parcelaN: 3, parcelaTotal: 12, valorCentavos: 25000 });
-    expect(fraseParcelaOfx(3, 12)).toBe("parcela 3/12 · lança 10 restantes");
+    expect(fraseParcelaOfx(3, 12)).toBe("parcela 3/12");
+    expect(periodo).toEqual({ inicio: "2026-09-01", fim: "2026-09-28" });
+    expect(competenciaDoPeriodoOfx(periodo)).toEqual({ ano: 2026, mes: 9 });
 
     const txs = transacoesDoOfx({
       linhas: gastos.map((g) => ({
@@ -285,27 +292,24 @@ describe("transacoesDoOfx", () => {
       cartao: CARTAO,
     });
 
-    expect(txs).toHaveLength(10);
-    expect(txs.every((t) => t.valor === 25000 && t.grupoParcela === txs[0]?.grupoParcela)).toBe(true);
-    expect(txs.map((t) => t.parcelaN)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    expect(txs.every((t) => t.parcelaTotal === 12)).toBe(true);
-    expect(txs[0]?.hashDedup).toBe("ofx|k1|FIT-SOFA-3");
-    expect(txs[1]?.hashDedup).toBe("ofx|k1|FIT-SOFA-3|p4de12");
-    const competencias = txs.map((t) => competenciaDaCompra(new Date(t.data), CARTAO));
-    expect(competencias[0]).toEqual({ ano: 2026, mes: 9 });
-    expect(competencias[1]).toEqual({ ano: 2026, mes: 10 });
-    expect(competencias[9]).toEqual({ ano: 2027, mes: 6 });
-    expect(txs.some((t) => t.parcelaN === 1 || t.parcelaN === 2)).toBe(false);
+    expect(txs).toHaveLength(1);
+    expect(txs[0]).toMatchObject({
+      valor: 25000,
+      parcelaN: 3,
+      parcelaTotal: 12,
+      hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
+    });
+    expect(txs[0]?.grupoParcela).toBeUndefined();
   });
 
-  it("PARC 1/4 gera as quatro parcelas do grupo", () => {
+  it("PARC 1/4 também é 1:1 — próxima fatura vem no próximo OFX", () => {
     const txs = transacoesDoOfx({
       linhas: [{
         descricao: "NETFLIX PARCELA 01/04",
         valor: 2000,
         data: "2026-09-10",
         categoriaID: CATEGORIA_OUTROS_ID,
-        hashDedup: hashDedupOfx("k1", "FIT-NET-1"),
+        hashDedup: hashDedupOfx("k1", "FIT-NET-1|2000|netflix parcela 01/04"),
         parcelaN: 1,
         parcelaTotal: 4,
       }],
@@ -313,27 +317,12 @@ describe("transacoesDoOfx", () => {
       cartaoID: "k1",
       cartao: CARTAO,
     });
-    expect(txs).toHaveLength(4);
-    expect(txs.map((t) => t.parcelaN)).toEqual([1, 2, 3, 4]);
-    expect(competenciaDaCompra(new Date(txs[0]!.data), CARTAO)).toEqual({ ano: 2026, mes: 9 });
-    expect(competenciaDaCompra(new Date(txs[3]!.data), CARTAO)).toEqual({ ano: 2026, mes: 12 });
+    expect(txs).toHaveLength(1);
+    expect(txs[0]?.parcelaN).toBe(1);
+    expect(txs[0]?.parcelaTotal).toBe(4);
   });
 
-  it("dataOverride só na parcela atual — futuras ancoradas no OFX original", () => {
-    const base = transacoesDoOfx({
-      linhas: [{
-        descricao: "MAGAZINE LUIZA PARC 3/12",
-        valor: 25000,
-        data: "2026-09-10",
-        categoriaID: CATEGORIA_OUTROS_ID,
-        hashDedup: hashDedupOfx("k1", "FIT-SOFA-OV"),
-        parcelaN: 3,
-        parcelaTotal: 12,
-      }],
-      carteiraID: "w1",
-      cartaoID: "k1",
-      cartao: CARTAO,
-    });
+  it("dataOverride altera só a data do lançamento 1:1", () => {
     const comOverride = transacoesDoOfx({
       linhas: [{
         descricao: "MAGAZINE LUIZA PARC 3/12",
@@ -349,20 +338,11 @@ describe("transacoesDoOfx", () => {
       cartaoID: "k1",
       cartao: CARTAO,
     });
-    expect(comOverride).toHaveLength(10);
+    expect(comOverride).toHaveLength(1);
     expect(dataLocalISO(new Date(comOverride[0]!.data))).toBe("2026-09-01");
-    expect(dataLocalISO(new Date(base[0]!.data))).toBe("2026-09-10");
-    // futuras idênticas às sem override (mesmo cronograma a partir do OFX)
-    for (let i = 1; i < 10; i++) {
-      expect(comOverride[i]!.data).toBe(base[i]!.data);
-      expect(comOverride[i]!.parcelaN).toBe(base[i]!.parcelaN);
-    }
-    const comps = comOverride.map((t) => competenciaDaCompra(new Date(t.data), CARTAO));
-    expect(comps[1]).toEqual({ ano: 2026, mes: 10 });
-    expect(comps[9]).toEqual({ ano: 2027, mes: 6 });
   });
 
-  it("não relança o grupo se o FITID da linha atual já existe", () => {
+  it("não relança se o hash FITID+valor+memo já existe", () => {
     const { gastos } = parseOfx(FIXTURE_PARCELA_OFX);
     const linhas = gastos.map((g) => ({
       descricao: g.descricao,
@@ -381,8 +361,7 @@ describe("transacoesDoOfx", () => {
       data: "2026-09-10T15:00:00.000Z",
       descricao: "MAGAZINE LUIZA PARC 3/12",
       cartaoID: "k1",
-      hashDedup: "ofx|k1|FIT-SOFA-3",
-      grupoParcela: "g1",
+      hashDedup: hashDedupOfx("k1", gastos[0]!.fitId),
       parcelaN: 3,
       parcelaTotal: 12,
     }];
@@ -393,6 +372,34 @@ describe("transacoesDoOfx", () => {
       cartao: CARTAO,
       existentes,
     })).toHaveLength(0);
+  });
+
+  it("FITID repetido com memo/valor diferentes não colide", () => {
+    const ofx = `
+      <BANKTRANLIST>
+      <DTSTART>20260801
+      <DTEND>20260828
+      <STMTTRN>
+      <TRNTYPE>DEBIT
+      <DTPOSTED>20260810
+      <TRNAMT>-10.00
+      <FITID>NU-DUP
+      <MEMO>LOJA A
+      </STMTTRN>
+      <STMTTRN>
+      <TRNTYPE>DEBIT
+      <DTPOSTED>20260811
+      <TRNAMT>-20.00
+      <FITID>NU-DUP
+      <MEMO>LOJA B
+      </STMTTRN>
+      </BANKTRANLIST>
+    `;
+    const { gastos, periodo } = parseOfx(ofx);
+    expect(periodo).toEqual({ inicio: "2026-08-01", fim: "2026-08-28" });
+    expect(gastos).toHaveLength(2);
+    expect(gastos[0]!.fitId).not.toBe(gastos[1]!.fitId);
+    expect(gastos[0]!.fitId.startsWith("NU-DUP|")).toBe(true);
   });
 
   it("crédito de OFX vira abatimento da fatura", () => {
@@ -469,7 +476,7 @@ describe("OFX de conta bancária", () => {
     // No extrato de conta, CREDIT positivo vira crédito (não gasto BR).
     expect(conta.gastos).toHaveLength(3);
     expect(conta.creditos).toHaveLength(1);
-    expect(conta.creditos[0]?.fitId).toBe("FIT-PAGTO-4");
+    expect(conta.creditos[0]?.fitId.startsWith("FIT-PAGTO-4|")).toBe(true);
   });
 
   it("categoria de conta: despesa pelas regras, crédito → salário/reembolso", () => {
@@ -499,7 +506,7 @@ describe("OFX de conta bancária", () => {
     expect(txs.filter((t) => t.tipo === "despesa")).toHaveLength(2);
     expect(txs.filter((t) => t.tipo === "receita")).toHaveLength(2);
     expect(txs.every((t) => t.parcelaN === 1 && t.parcelaTotal === 1 && !t.grupoParcela)).toBe(true);
-    expect(txs[0]?.hashDedup).toBe("ofx|cta1|CTA-IFOOD-1");
+    expect(txs[0]?.hashDedup).toBe(hashDedupOfxConta("cta1", gastos[0]!.fitId));
   });
 
   it("dedup por hash da conta e atualiza saldo", () => {
@@ -525,7 +532,7 @@ describe("OFX de conta bancária", () => {
       existentes: primeiras,
     });
     expect(deNovo).toHaveLength(0);
-    expect(jaImportada(primeiras, "ofx|cta1|CTA-IFOOD-1")).toBe(true);
+    expect(jaImportada(primeiras, primeiras[0]!.hashDedup)).toBe(true);
     // 1000,00 − 89,90
     expect(saldoDaConta(CONTA, primeiras)).toBe(100000 - 8990);
   });

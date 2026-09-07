@@ -75,16 +75,14 @@ export function parcelaDaLinha(l: { descricao: string; parcelaN?: number; parcel
   return parcelaDoTexto(l.descricao);
 }
 
-/** Quantas transações esta linha OFX gera (atual + futuras). */
-export function lancamentosDaLinha(l: { descricao: string; parcelaN?: number; parcelaTotal?: number }): number {
-  const p = parcelaDaLinha(l);
-  return p ? p.m - p.n + 1 : 1;
+/** OFX cartão é 1:1 com o extrato — não inventa parcelas futuras. */
+export function lancamentosDaLinha(_l: { descricao: string; parcelaN?: number; parcelaTotal?: number }): number {
+  return 1;
 }
 
 export function fraseParcelaOfx(n: number, m: number): string | undefined {
   if (!eParcelaValida(n, m)) return undefined;
-  const lanca = m - n + 1;
-  return `parcela ${n}/${m} · lança ${lanca} restante${lanca === 1 ? "" : "s"}`;
+  return `parcela ${n}/${m}`;
 }
 
 /**
@@ -293,10 +291,11 @@ function descricaoDaLinha(bloco: string): string {
   return (memo || name || payee || "Sem descrição").replace(/\s+/g, " ").trim();
 }
 
+/** Dedupe: FITID sozinho quebra no Nu (FITID repetido). Sempre FITID+valor+memo. */
 function fitIdDaLinha(bloco: string, data: string, centavos: number, descricao: string): string {
   const fit = campo(bloco, "FITID") || campo(bloco, "REFNUM");
-  if (fit) return fit;
   const memo = descricao.toLowerCase().replace(/\s+/g, " ").slice(0, 80);
+  if (fit) return `${fit}|${centavos}|${memo}`;
   return `${data}|${centavos}|${memo}`;
 }
 
@@ -371,14 +370,45 @@ function parseStmttrn(
   return { gastos, creditos };
 }
 
+
+/** Janela do extrato (BANKTRANLIST DTSTART/DTEND). Define a competência da fatura. */
+export function periodoDoOfx(texto: string): { inicio: string; fim: string } | null {
+  const inicio = dataDePosted(campo(texto, "DTSTART") || "");
+  const fim = dataDePosted(campo(texto, "DTEND") || "");
+  if (inicio && fim) return { inicio, fim };
+  if (fim) return { inicio: fim, fim };
+  if (inicio) return { inicio, fim: inicio };
+  return null;
+}
+
+/** Competência do import = mês do DTEND do extrato (não só diaFechamento do cartão). */
+export function competenciaDoPeriodoOfx(
+  periodo: { inicio: string; fim: string } | null | undefined,
+  fallbackISO?: string,
+): { ano: number; mes: number } | null {
+  const iso = periodo?.fim || periodo?.inicio || fallbackISO;
+  if (!iso) return null;
+  const [ano, mes] = iso.split("-").map(Number);
+  if (!ano || !mes) return null;
+  return { ano, mes };
+}
+
 /** Extrai STMTTRN de OFX/OFC (SGML ou XML). Gastos e créditos separados — classificação de cartão BR. */
-export function parseOfx(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOfx[] } {
-  return parseStmttrn(texto, classificarTipoOfx);
+export function parseOfx(texto: string): {
+  gastos: LinhaOfx[];
+  creditos: LinhaOfx[];
+  periodo: { inicio: string; fim: string } | null;
+} {
+  return { ...parseStmttrn(texto, classificarTipoOfx), periodo: periodoDoOfx(texto) };
 }
 
 /** Extrato de conta bancária: sinal OFX padrão (não inverte como cartão BR). */
-export function parseOfxConta(texto: string): { gastos: LinhaOfx[]; creditos: LinhaOfx[] } {
-  return parseStmttrn(texto, classificarTipoOfxConta);
+export function parseOfxConta(texto: string): {
+  gastos: LinhaOfx[];
+  creditos: LinhaOfx[];
+  periodo: { inicio: string; fim: string } | null;
+} {
+  return { ...parseStmttrn(texto, classificarTipoOfxConta), periodo: periodoDoOfx(texto) };
 }
 
 export function hashDedupOfx(cartaoID: string, fitId: string): string {
@@ -452,36 +482,26 @@ export function transacoesDoOfx(p: {
   const novas: Transacao[] = [];
   for (const linha of p.linhas) {
     if (hashes.has(linha.hashDedup)) continue;
+    hashes.add(linha.hashDedup);
     const parc = parcelaDaLinha(linha);
-    const partes =
-      parc && p.cartao
-        ? expansaoParcelasOfx(linha.data, parc.n, parc.m, p.cartao, linha.dataOverride)
-        : [{ numero: parc?.n ?? 1, data: linha.dataOverride ?? linha.data }];
-    const grupo = partes.length > 1 ? uuid() : undefined;
-    const total = parc?.m ?? 1;
-    const atual = parc?.n ?? 1;
-    for (const parte of partes) {
-      const hash = hashDedupOfxParcela(linha.hashDedup, atual, parte.numero, total);
-      if (hashes.has(hash)) continue;
-      hashes.add(hash);
-      const valor = linha.tipo === "credito" ? -linha.valor : linha.valor;
-      novas.push({
-        id: uuid(),
-        carteiraID: p.carteiraID,
-        tipo: "despesa",
-        valor,
-        data: dataDeLocalISO(parte.data).toISOString(),
-        categoriaID: linha.categoriaID,
-        descricao: linha.descricao,
-        cartaoID: p.cartaoID,
-        pagadorID: p.pagadorID,
-        hashDedup: hash,
-        grupoParcela: grupo,
-        parcelaN: parte.numero,
-        parcelaTotal: total,
-        status: "liquidado",
-      });
-    }
+    const dataISO = linha.dataOverride ?? linha.data;
+    const valor = linha.tipo === "credito" ? -linha.valor : linha.valor;
+    // 1:1 com o extrato — parcela N/M é rótulo; não inventa futuras
+    novas.push({
+      id: uuid(),
+      carteiraID: p.carteiraID,
+      tipo: "despesa",
+      valor,
+      data: dataDeLocalISO(dataISO).toISOString(),
+      categoriaID: linha.categoriaID,
+      descricao: linha.descricao,
+      cartaoID: p.cartaoID,
+      pagadorID: p.pagadorID,
+      hashDedup: linha.hashDedup,
+      parcelaN: parc?.n ?? 1,
+      parcelaTotal: parc?.m ?? 1,
+      status: "liquidado",
+    });
   }
   return novas;
 }

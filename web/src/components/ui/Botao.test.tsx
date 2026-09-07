@@ -36,4 +36,15 @@ describe("Botao", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(onClick).toHaveBeenCalledOnce();
   });
+
+  it("largura auto não força w-full", () => {
+    render(
+      <Botao variante="secundario" largura="auto" onClick={() => {}}>
+        Aplicar data
+      </Botao>,
+    );
+    const cls = screen.getByRole("button", { name: "Aplicar data" }).className;
+    expect(cls).toContain("w-auto");
+    expect(cls).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
+  });
 });

@@ -34,6 +34,7 @@ import {
   type DespesaFixa,
   type Meta,
   type PeriodoMeta,
+  type Pessoa,
   type Transacao,
   type VisibilidadeCarteira,
   estadoCanonico,
@@ -501,6 +502,8 @@ type Loja = Estado & {
     contaID?: string;
     parcelas: number;
     pagadorID?: string;
+    /** DFCL V2. Guardada só no estado local até a migração das colunas ser aplicada. */
+    pessoa?: Pessoa;
     tipo?: "despesa" | "receita";
     metaID?: string;
   }) => Promise<void>;
@@ -1351,6 +1354,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
     contaID,
     parcelas,
     pagadorID,
+    pessoa,
     tipo,
     metaID,
   }) => {
@@ -1377,6 +1381,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       ...t,
       status: (tipo ?? "despesa") === "receita" || cartao ? "liquidado" as const : "a_pagar" as const,
       metaID: cartao ? undefined : metaID,
+      pessoa,
     }));
     const anterior = estado;
     const comNovas = { ...estado, transacoes: [...estado.transacoes, ...novas] };

@@ -11,7 +11,9 @@ import {
   dataDeLocalISO,
   dataLocalISO,
   hrefDoMes,
+  PESSOAS,
   type Categoria,
+  type Pessoa,
   type TipoTransacao,
 } from "@/lib/domain";
 import {
@@ -25,6 +27,7 @@ import {
 } from "@/lib/metas";
 import { EntradaValor, formatarBRL } from "@/lib/money";
 import { carteiraMostraPagador } from "@/lib/pagador";
+import { sugerir } from "@/lib/sugestao";
 import { useLoja } from "@/lib/store";
 import { origensDoPagador } from "@/lib/visibilidade";
 import { Botao } from "../ui/Botao";
@@ -44,6 +47,18 @@ import { useDesktop } from "@/lib/use-desktop";
 
 function categoriasDoTipo(tipo: "despesa" | "receita", custom?: Categoria[]) {
   return categoriasVisiveis(custom, tipo);
+}
+
+const CHAVE_PESSOA = "casal-pessoa";
+
+/** Quem lança costuma ser sempre a mesma pessoa: lembra a última escolha neste navegador. */
+function pessoaLembrada(): Pessoa {
+  try {
+    const guardada = localStorage.getItem(CHAVE_PESSOA);
+    return (PESSOAS as readonly string[]).includes(guardada ?? "") ? (guardada as Pessoa) : "Pedro";
+  } catch {
+    return "Pedro";
+  }
 }
 
 function classeSelect() {
@@ -93,7 +108,36 @@ export function Lancar({
   const [parcelas, setParcelas] = useState(1);
   const [pagadorEscolhido, setPagadorEscolhido] = useState<string | undefined>(undefined);
   const [salvando, setSalvando] = useState(false);
+  const [pessoa, setPessoa] = useState<Pessoa>(pessoaLembrada);
+  const [pessoaTocada, setPessoaTocada] = useState(false);
+  const [categoriaTocada, setCategoriaTocada] = useState(false);
   const campoValor = useRef<HTMLInputElement>(null);
+
+  /** Lançamentos anteriores do mesmo tipo, para sugerir categoria e pessoa pela descrição. */
+  const historico = useMemo(
+    () =>
+      (transacoes ?? [])
+        .filter((t) => t.tipo === tipo && t.categoriaID)
+        .map((t) => ({ descricao: t.descricao, conta: t.categoriaID!, pessoa: t.pessoa, data: t.data })),
+    [transacoes, tipo],
+  );
+
+  function mudarDescricao(texto: string) {
+    setDescricao(texto);
+    const s = sugerir(texto, historico);
+    if (s.conta && !categoriaTocada) setCategoriaID(s.conta);
+    if (s.pessoa && !pessoaTocada) setPessoa(s.pessoa);
+  }
+
+  function escolherPessoa(p: Pessoa) {
+    setPessoa(p);
+    setPessoaTocada(true);
+    try {
+      localStorage.setItem(CHAVE_PESSOA, p);
+    } catch {
+      /* sem armazenamento local: a escolha vale só nesta tela */
+    }
+  }
 
   const mostraPagador = carteiraMostraPagador(carteira);
   const pagadorID = pagadorEscolhido ?? usuarioID ?? "";
@@ -275,6 +319,7 @@ export function Lancar({
         contaID: origemCartao ? undefined : contaID || undefined,
         parcelas: origemCartao ? parcelas : 1,
         pagadorID: pagadorID || undefined,
+        pessoa,
         tipo: tipoLancamento,
         metaID: origemCartao || ehReceita ? undefined : metaID || undefined,
       });
@@ -458,7 +503,7 @@ export function Lancar({
             <Campo
               label={ehReceita ? "De onde veio" : "Onde foi o gasto"}
               value={descricao}
-              onChange={setDescricao}
+              onChange={mudarDescricao}
               erro={avisoDescricao}
             />
           </div>
@@ -467,8 +512,30 @@ export function Lancar({
               tipo={tipo}
               custom={categoriasCustom}
               valor={categoriaID}
-              onChange={setCategoriaID}
+              onChange={(id) => {
+                setCategoriaTocada(true);
+                setCategoriaID(id);
+              }}
             />
+          </div>
+          <div className="mt-4 px-4">
+            <Rotulo>de quem é</Rotulo>
+            <div role="group" aria-label="De quem é" className="mt-1 flex flex-wrap gap-2">
+              {PESSOAS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={pessoa === p}
+                  onClick={() => escolherPessoa(p)}
+                  className={
+                    "casal-toque min-h-[44px] rounded-etiqueta border px-3 text-[13px] " +
+                    (pessoa === p ? "border-grafite font-semibold text-grafite" : "border-nevoa text-cinza")
+                  }
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
           {progresso && (
             <p

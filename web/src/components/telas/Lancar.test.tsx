@@ -156,6 +156,62 @@ describe("Lancar", () => {
     expect(empurrar).not.toHaveBeenCalled();
   });
 
+  it("lançamento rápido: só valor e descrição bastam, com a pessoa lembrada", async () => {
+    lancar.fn.mockClear();
+    localStorage.clear();
+    montar();
+    await userEvent.keyboard("23000");
+    await informarDescricao("Mercado");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({ valor: 23000, descricao: "Mercado", pessoa: "Pedro" }),
+    );
+  });
+
+  it("escolher a pessoa é lembrado e vai no lançamento", async () => {
+    lancar.fn.mockClear();
+    localStorage.clear();
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Daniele" }));
+    await userEvent.keyboard("500");
+    await informarDescricao("Cosméticos");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(expect.objectContaining({ pessoa: "Daniele" }));
+    expect(localStorage.getItem("casal-pessoa")).toBe("Daniele");
+  });
+
+  it("sugere categoria e pessoa pela descrição de um lançamento anterior", async () => {
+    lancar.fn.mockClear();
+    localStorage.clear();
+    montar({
+      transacoes: [
+        {
+          id: "t0",
+          carteiraID: "c1",
+          tipo: "despesa",
+          valor: 5000,
+          data: "2026-10-01T12:00:00Z",
+          descricao: "Mercado Angeloni",
+          categoriaID: "00000000-0000-0000-0000-000000000002",
+          hashDedup: "",
+          parcelaN: 1,
+          parcelaTotal: 1,
+          pessoa: "Conjunto",
+        },
+      ],
+    });
+    await userEvent.keyboard("1000");
+    await informarDescricao("mercado");
+    expect(screen.getByRole("button", { name: "Conjunto" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(lancar.fn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categoriaID: "00000000-0000-0000-0000-000000000002",
+        pessoa: "Conjunto",
+      }),
+    );
+  });
+
   it("na folha mobile, fecha com back e depois vai ao mês certo", async () => {
     lancar.fn.mockClear();
     montar({ comoFolha: true });

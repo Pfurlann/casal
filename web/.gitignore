@@ -45,3 +45,6 @@ next-env.d.ts
 
 # dump temporário da troca de conta Supabase
 /.tmp-migrate/
+
+# dados reais das planilhas (nao commitar)
+/importacao/

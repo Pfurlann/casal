@@ -6,3 +6,7 @@ App/Casal.xcodeproj/
 App/Info.plist
 DerivedData/
 *.xcuserstate
+
+# planilhas pessoais e temporarios do Excel (dados financeiros reais)
+*.xlsx
+~$*

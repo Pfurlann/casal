@@ -30,21 +30,21 @@ describe("Navegacao", () => {
   it("oferece os destinos sem duplicar home", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
-    for (const nome of ["mês", "relatórios", "cartões", "metas", "mais"]) {
+    for (const nome of ["mês", "dfcl", "portadores", "cartões", "relatórios", "mais"]) {
       expect(screen.getByRole("link", { name: nome })).toBeInTheDocument();
     }
     expect(screen.queryByRole("link", { name: "visão" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "metas" })).not.toBeInTheDocument();
   });
 
-  it("coloca relatórios entre mês e cartões, fora de Mais", () => {
+  it("coloca dfcl e portadores logo depois de mês; relatórios só no desktop", () => {
     caminho.atual = "/relatorios";
     render(<Navegacao />);
     const nomes = screen.getAllByRole("link").map((a) => a.textContent);
     const mes = nomes.findIndex((n) => n === "mês");
-    const rel = nomes.findIndex((n) => n === "relatórios");
-    const cartoes = nomes.findIndex((n) => n === "cartões");
-    expect(rel).toBe(mes + 1);
-    expect(cartoes).toBe(rel + 1);
+    expect(nomes[mes + 1]).toBe("dfcl");
+    expect(nomes[mes + 2]).toBe("portadores");
+    expect(screen.getByRole("link", { name: "relatórios" }).className).toContain("hidden lg:flex");
     expect(screen.getByRole("link", { name: "relatórios" })).toHaveAttribute(
       "href",
       "/relatorios",

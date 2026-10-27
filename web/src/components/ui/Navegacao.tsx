@@ -14,9 +14,10 @@ const DESTINOS: readonly {
   soDesktop?: boolean;
 }[] = [
   { href: "/mes", nome: "mês", icone: "inicio" },
-  { href: "/relatorios", nome: "relatórios", icone: "relatorios" },
+  { href: "/dfcl", nome: "dfcl", icone: "relatorios" },
+  { href: "/portadores", nome: "portadores", icone: "metas" },
   { href: "/cartoes", nome: "cartões", icone: "cartoes" },
-  { href: "/metas", nome: "metas", icone: "metas" },
+  { href: "/relatorios", nome: "relatórios", icone: "relatorios", soDesktop: true },
   { href: "/mais", nome: "mais", icone: "mais" },
 ];
 

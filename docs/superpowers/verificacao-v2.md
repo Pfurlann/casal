@@ -13,7 +13,7 @@ Branch: `v2-dfcl` (não foi enviada ao GitHub). Design: `specs/2026-10-27-v2-web
 
 ## Verificação feita
 
-- Testes novos: 62 (motores, planilhas, telas, formulário). Todos passam.
+- Testes novos: 48 (motores, planilhas, telas, formulário), mais 2 de navegação ajustados. Todos passam.
 - `tsc --noEmit` limpo, ESLint sem erros, `npm run cores` limpo, `npm run build` passou.
 - Aceite com as suas planilhas reais: 191 realizados e 322 metas lidos. As saídas previstas de outubro/2026 dão R$ 16.791,00, igual à sua aba DFCL.
 - **17 testes antigos falham** em `Cartoes.test.tsx` e `CartaoDetalhe.test.tsx`. Eu não alterei esses arquivos nem o código que eles testam. Os testes fixam datas de setembro de 2026 (`new Date(2026, 8, ...)`), e a data de hoje é 27/10/2026. Não rodei na `main` limpa para provar; a causa é uma dedução minha.

@@ -118,7 +118,19 @@ export type Transacao = {
   parcelaTotal: number;
   status?: StatusLancamento;
   metaID?: string;
+  /** DFCL V2: de quem é o lançamento (rótulo, não usuário). */
+  pessoa?: Pessoa;
+  /** DFCL V2: data de vencimento (ISO), separada da data do fato. */
+  vencimento?: string;
+  /** DFCL V2: `movimento` só mexe no saldo do portador, não entra no DFCL. */
+  natureza?: Natureza;
+  /** DFCL V2: portador (conta ou cartão) do lançamento. */
+  portadorID?: string;
 };
+
+export type Pessoa = "Pedro" | "Daniele" | "Conjunto" | "PHF";
+export const PESSOAS: readonly Pessoa[] = ["Pedro", "Daniele", "Conjunto", "PHF"];
+export type Natureza = "resultado" | "movimento";
 
 /** Fixo mensal da carteira. Gera lançamentos no horizonte (ou até a última parcela). */
 export type DespesaFixa = {

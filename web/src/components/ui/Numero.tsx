@@ -13,6 +13,8 @@ const TAMANHO = {
 const TOM = {
   normal: "text-grafite",
   atencao: "text-ambar-texto",
+  entrada: "text-entrada",
+  saida: "text-saida",
 } as const;
 
 const DURACAO_MS = 720;

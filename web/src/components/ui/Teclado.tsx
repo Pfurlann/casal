@@ -62,18 +62,23 @@ export function Teclado({
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [aoDigitar, aoApagar, aoSalvar, aoFechar, aoAlternarSinal, podeSalvar]);
 
+  // Sem "mais opções" nem sinal, a célula de baixo à esquerda fica livre: o apagar mora nela.
+  const celulaLivre = !(mostraSalvar && aoMaisOpcoes) && !aoAlternarSinal;
+
   return (
     <div className="px-2 pt-2 pb-[max(8px,env(safe-area-inset-bottom))]">
-      <div className="mb-2 flex justify-end">
-        <button
-          type="button"
-          onClick={aoApagar}
-          aria-label="Apagar último dígito"
-          className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center rounded-controle text-grafite"
-        >
-          <IconeApagar size={22} />
-        </button>
-      </div>
+      {!celulaLivre && (
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={aoApagar}
+            aria-label="Apagar último dígito"
+            className="casal-toque flex min-h-[44px] min-w-[44px] items-center justify-center rounded-controle text-grafite"
+          >
+            <IconeApagar size={22} />
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
           <Tecla key={n} aoClicar={() => aoDigitar(n)}>
@@ -89,7 +94,9 @@ export function Teclado({
             +/−
           </Tecla>
         ) : (
-          <div />
+          <Tecla aoClicar={aoApagar} rotulo="Apagar último dígito">
+            <IconeApagar size={22} />
+          </Tecla>
         )}
         <Tecla aoClicar={() => aoDigitar(0)}>0</Tecla>
         {mostraSalvar ? (

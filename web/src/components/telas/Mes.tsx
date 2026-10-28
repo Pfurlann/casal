@@ -36,6 +36,7 @@ import { Cabecalho } from "../ui/Cabecalho";
 import { Etiqueta } from "../ui/Etiqueta";
 import { LinhaDeslizavel } from "../ui/LinhaDeslizavel";
 import { LinhaLista } from "../ui/LinhaLista";
+import { formatarBRL } from "@/lib/money";
 import { Numero } from "../ui/Numero";
 import { Rotulo } from "../ui/Rotulo";
 import { BolinhaCor } from "../ui/SeletorCor";
@@ -98,6 +99,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
   const receitas = doMes.filter((t) => t.tipo === "receita");
   const gasto = gastos.reduce((s, t) => s + t.valor, 0);
   const receita = receitas.reduce((s, t) => s + t.valor, 0);
+  const gastoPago = gastos.filter((t) => eLancamentoPago(t, faturas)).reduce((s, t) => s + t.valor, 0);
   const comprometido = cartoes.reduce((s, cartao) => {
     const f = faturaDaCompetencia(cartao, faturas, competencia);
     return s + saldoDevedor(f, totalDaFatura(f, transacoes, cartao));
@@ -226,23 +228,34 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
             <Numero centavos={gasto} tamanho="heroi" subordinaCentavos animar />
           </div>
           <div className="mt-5">
-            <Trilha consumido={gasto} total={gasto + comprometido} />
+            <Trilha consumido={gastoPago} total={gasto} />
           </div>
-          <p className="mt-2 font-numero text-[12px] tabular-nums text-cinza">
-            {gastos.length} lançamentos
+          <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px] tabular-nums text-cinza">
+            <span>{gastos.length} lançamentos</span>
+            <span>{formatarBRL(gastoPago)} pagos</span>
+            <span>{formatarBRL(gasto - gastoPago)} a pagar</span>
           </p>
         </div>
-        <div className="casal-painel mt-4 empty:hidden lg:mt-0">
+        <div className="casal-painel mt-4 flex flex-col justify-center gap-5 empty:hidden lg:mt-0">
           {receita > 0 && (
             <div>
               <Rotulo>receita neste mês</Rotulo>
               <div className="mt-1">
-                <Numero centavos={receita} tamanho="secao" />
+                <Numero centavos={receita} tamanho="secao" tom="entrada" />
               </div>
             </div>
           )}
+          {(receita > 0 || gasto > 0) && (
+            <div className={receita > 0 ? "border-t border-nevoa pt-5" : undefined}>
+              <Rotulo>resultado do mês</Rotulo>
+              <div className="mt-1">
+                <Numero centavos={receita - gasto} tamanho="secao" tom={receita - gasto >= 0 ? "entrada" : "saida"} />
+              </div>
+              <p className="mt-1 text-[12px] text-cinza">receitas menos gastos</p>
+            </div>
+          )}
           {comprometido > 0 && (
-            <div className={receita > 0 ? "mt-5" : undefined}>
+            <div className="border-t border-nevoa pt-5">
               <Rotulo>comprometido em faturas</Rotulo>
               <div className="mt-1">
                 <Numero centavos={comprometido} tamanho="secao" tom="atencao" />
@@ -251,7 +264,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
             </div>
           )}
           {alertasTeto.length > 0 && (
-            <div className={receita > 0 || comprometido > 0 ? "mt-5" : undefined}>
+            <div className="border-t border-nevoa pt-5">
               <Rotulo>tetos</Rotulo>
               <div className="mt-2">
                 {alertasTeto.map(({ meta, progresso }) => {
@@ -331,14 +344,15 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
               </Etiqueta>
             </div>
           </div>
-          <div className="casal-tabela-cabeca mt-4" role="row">
+          <div className="casal-lista-card mt-4">
+          <div className="casal-tabela-cabeca" role="row">
             <span>descrição</span>
             <span>categoria</span>
             <span>origem</span>
             <span>valor</span>
             <span>estado</span>
           </div>
-          <div className="mt-2">
+          <div>
             {linhas.length === 0 ? (
               <p className="py-4 text-[14px] text-cinza">
                 {filtro === "pagos" ? "Nenhum pago neste mês." : "Nada a pagar neste mês."}
@@ -428,6 +442,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
                 );
               })
             )}
+          </div>
           </div>
         </div>
       )}

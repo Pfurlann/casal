@@ -241,7 +241,7 @@ export function EditarLancamento({
           </p>
         )}
         {valorLivre && !teclado && (
-          <p className="pt-1 text-center text-[12px] text-cinza">Toque no valor para alterar</p>
+          <p className="pb-3 pt-1 text-center text-[12px] text-cinza">Toque no valor para alterar</p>
         )}
 
         <Campo label="Onde foi o gasto" value={descricao} onChange={setDescricao} />

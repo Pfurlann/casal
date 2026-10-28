@@ -561,21 +561,26 @@ export function Lancar({
           )}
         </div>
         <div className="relative z-20 shrink-0 border-t border-nevoa bg-ar px-4 pt-3 pb-3">
-          <Rotulo>data</Rotulo>
-          <input
-            type="date"
-            value={dataISO}
-            onChange={(e) => setDataISO(e.target.value)}
-            aria-label="Data do lançamento"
-            className={classeSelect()}
-          />
-          {corOrigem && nomeOrigem && (
-            <div className="mt-2 flex items-center gap-2 text-[12px] text-cinza">
-              <BolinhaCor cor={corOrigem} />
-              <span>{nomeOrigem}</span>
+          {/* No celular data e origem dividem a linha: libera altura para categorias e pessoa. */}
+          <div className={desktop ? undefined : "grid grid-cols-2 items-start gap-3"}>
+            <div>
+              <Rotulo>data</Rotulo>
+              <input
+                type="date"
+                value={dataISO}
+                onChange={(e) => setDataISO(e.target.value)}
+                aria-label="Data do lançamento"
+                className={classeSelect()}
+              />
+              {corOrigem && nomeOrigem && (
+                <div className="mt-2 hidden items-center gap-2 text-[12px] text-cinza lg:flex">
+                  <BolinhaCor cor={corOrigem} />
+                  <span>{nomeOrigem}</span>
+                </div>
+              )}
             </div>
-          )}
-          {seletorOrigem}
+            <div className={desktop ? undefined : "[&_.mt-3]:mt-0"}>{seletorOrigem}</div>
+          </div>
           {desktop && (
             <div className="mt-3" data-testid="lancar-salvar-desktop">
               <Botao variante="primario" onClick={() => void salvar()} disabled={!pode}>

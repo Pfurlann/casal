@@ -81,7 +81,7 @@ export function CategoriaForm({ id }: { id?: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="casal-form flex h-full flex-col">
       <Cabecalho
         titulo={existente ? "editar categoria" : "nova categoria"}
         voltarPara="/mais/categorias"

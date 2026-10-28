@@ -135,7 +135,7 @@ export function Entrar() {
 
   return (
     <ForcarTemaClaro>
-      <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-ar lg:[background:linear-gradient(135deg,var(--marca)_0%,var(--marca-escura)_100%)]">
+      <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-ar lg:[background:linear-gradient(135deg,var(--marca)_0%,var(--marca-fim)_100%)]">
         <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-ar px-6 text-grafite lg:min-h-0 lg:max-w-[440px] lg:rounded-[28px] lg:px-10 lg:py-12 lg:shadow-elevacao">
         <div className="pt-[max(48px,env(safe-area-inset-top))]">
           <Assinatura variante="base" largura={132} />

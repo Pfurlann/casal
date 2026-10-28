@@ -83,7 +83,7 @@ export function ContaForm({ id }: { id?: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="casal-form flex h-full flex-col">
       <Cabecalho
         titulo={existente ? "editar conta" : "nova conta"}
         voltarPara="/mais/contas"

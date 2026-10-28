@@ -282,6 +282,42 @@ select {
   }
 }
 
+/* Cabeçalho dentro do modal: respiro lateral (na página o desktop zera o padding). */
+.casal-folha-caixa .casal-cabecalho {
+  padding-inline: var(--e-4);
+  padding-top: var(--e-4);
+}
+
+/* Título dentro do modal: menor que o da página, sem cortar a descendente. */
+.casal-folha-caixa h1 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+/* Formulário de cadastro: no desktop vira um card de largura de leitura, não uma faixa de 1000px. */
+@media (min-width: 1024px) {
+  .casal-form {
+    max-width: 640px;
+    margin-inline: auto;
+    margin-block: var(--e-4);
+    padding: var(--e-5) var(--e-4) var(--e-6);
+    border: 1px solid var(--nevoa);
+    border-radius: var(--r-card);
+    background: var(--ar);
+    box-shadow: var(--sombra-card);
+  }
+
+  .casal-folha-caixa .casal-form {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
 /* Assinatura sobre a barra lateral escura (desktop). */
 @media (min-width: 1024px) {
   .casal-lateral [role="img"],
@@ -295,7 +331,7 @@ select {
   position: relative;
   overflow: hidden;
   border-radius: var(--r-card);
-  background: linear-gradient(135deg, var(--marca) 0%, var(--marca-escura) 100%);
+  background: linear-gradient(135deg, var(--marca) 0%, var(--marca-fim) 100%);
   color: var(--sobre-marca);
   box-shadow: var(--sombra-card);
   padding: var(--e-6);

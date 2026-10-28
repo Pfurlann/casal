@@ -97,7 +97,7 @@ export function Numero({
   return (
     <span className={classe}>
       {inteiro}
-      <span className="text-[47%] opacity-[0.42]">{resto}</span>
+      <span className="text-[55%] opacity-[0.7]">{resto}</span>
     </span>
   );
 }

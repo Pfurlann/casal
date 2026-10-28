@@ -124,7 +124,7 @@ export function CartaoForm({ id }: { id?: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="casal-form flex h-full flex-col">
       <Cabecalho
         titulo={existente ? "editar cartão" : "novo cartão"}
         voltarPara={existente ? `/cartoes/${existente.id}` : "/cartoes"}

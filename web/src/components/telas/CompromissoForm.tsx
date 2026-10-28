@@ -173,7 +173,7 @@ export function CompromissoForm({ id }: { id?: string }) {
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="casal-form flex h-full flex-col">
       <Cabecalho titulo={titulo} voltarPara="/mais/compromissos" />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="pt-2 text-[12px] text-cinza">

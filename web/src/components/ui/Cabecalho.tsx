@@ -28,7 +28,7 @@ export function Cabecalho({
   const nomeCarteira = carteira?.nome;
 
   return (
-    <div className="flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] lg:mb-2 lg:min-h-[52px] lg:gap-4 lg:px-0 lg:pt-0">
+    <div className="casal-cabecalho flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] lg:mb-2 lg:min-h-[52px] lg:gap-4 lg:px-0 lg:pt-0">
       {aoVoltar ? (
         <button
           type="button"

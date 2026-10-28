@@ -11,6 +11,7 @@
   /* marca (violeta) */
   --marca: #6d28d9;
   --marca-escura: #4c1d95;
+  --marca-fim: #4c1d95;
   --marca-suave: #f1ebfe;
   --marca-texto: #5b21b6;
   --sobre-marca: #ffffff;
@@ -46,6 +47,7 @@
   --r-amostra: 4px;
   --r-controle: 12px;
   --r-card: 20px;
+  --r-folha: 24px;
   --r-icone: 22px;
   --r-etiqueta: 999px;
 
@@ -111,6 +113,7 @@
   --color-nevoa: var(--nevoa);
   --color-marca: var(--marca);
   --color-marca-escura: var(--marca-escura);
+  --color-marca-fim: var(--marca-fim);
   --color-marca-suave: var(--marca-suave);
   --color-marca-texto: var(--marca-texto);
   --color-sobre-marca: var(--sobre-marca);
@@ -131,6 +134,7 @@
   --radius-amostra: var(--r-amostra);
   --radius-controle: var(--r-controle);
   --radius-card: var(--r-card);
+  --radius-folha: var(--r-folha);
   --radius-icone: var(--r-icone);
   --radius-etiqueta: var(--r-etiqueta);
 

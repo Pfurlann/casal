@@ -147,7 +147,7 @@ export function DespesaFixaForm({ id }: { id?: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="casal-form flex h-full flex-col">
       <div className="sticky top-0 z-10 bg-ar">
         <Cabecalho
           titulo={existente ? "editar fixo" : "novo fixo"}

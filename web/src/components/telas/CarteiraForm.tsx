@@ -99,7 +99,7 @@ export function CarteiraForm({ id }: { id?: string }) {
   }
 
   return (
-    <div>
+    <div className="casal-form">
       <Cabecalho titulo={titulo} voltarPara="/mais/carteiras" />
       <div className="px-4 pt-6">
         <Campo

@@ -15,11 +15,12 @@ export function Etiqueta({
       onClick={aoClicar}
       aria-pressed={ativa}
       style={{
-        color: ativa ? "var(--ar)" : "var(--grafite)",
-        backgroundColor: ativa ? "var(--grafite)" : undefined,
+        color: ativa ? "var(--marca-texto)" : "var(--grafite)",
+        backgroundColor: ativa ? "var(--marca-suave)" : undefined,
+        borderColor: ativa ? "var(--marca)" : undefined,
       }}
-      className={`casal-toque flex min-h-[44px] items-center justify-center gap-1.5 rounded-etiqueta px-3 text-[12px] ${
-        ativa ? "bg-grafite" : "border border-nevoa"
+      className={`casal-toque flex min-h-[44px] items-center justify-center gap-1.5 rounded-etiqueta border px-3 text-[12px] font-semibold ${
+        ativa ? "bg-marca-suave" : "border-nevoa bg-ar"
       } ${className}`}
     >
       {children}

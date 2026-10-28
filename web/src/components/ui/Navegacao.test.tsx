@@ -61,7 +61,7 @@ describe("Navegacao", () => {
     const cartoes = screen.getByRole("link", { name: "cartões" });
     expect(cartoes).toHaveAttribute("aria-current", "page");
     expect(cartoes.className).toContain("font-semibold");
-    expect(cartoes.className).toContain("lg:shadow-[inset_3px_0_0_0_var(--grafite)]");
+    expect(cartoes.className).toContain("lg:bg-marca");
     expect(screen.getByRole("link", { name: "mês" })).not.toHaveAttribute(
       "aria-current",
     );
@@ -120,11 +120,11 @@ describe("Navegacao — trilho de desktop", () => {
     expect(screen.getAllByRole("link", { name: "mês" })).toHaveLength(1);
   });
 
-  it("no desktop o trilho é um painel de 260px, não uma barra apertada", () => {
+  it("no desktop o trilho é um painel de 272px, não uma barra apertada", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
     expect(screen.getByRole("navigation", { name: "Seções" }).className).toContain(
-      "lg:w-[260px]",
+      "lg:w-[272px]",
     );
     expect(screen.getByRole("navigation", { name: "Seções" }).className).toContain(
       "lg:sticky",
@@ -166,13 +166,13 @@ describe("Navegacao — trilho de desktop", () => {
     expect(rodape?.className).toMatch(/lg:pb-\[var\(--e-7\)\]/);
   });
 
-  it("topo do trilho alinha a marca com o miolo (pt-5 + mb-6 na assinatura)", () => {
+  it("topo do trilho dá respiro à marca (pt-7 + mb-8 na assinatura)", () => {
     caminho.atual = "/mes";
     render(<Navegacao />);
     const nav = screen.getByRole("navigation", { name: "Seções" });
-    expect(nav.className).toContain("lg:pt-5");
+    expect(nav.className).toContain("lg:pt-7");
     const marca = screen.getByRole("img", { name: "casal" }).parentElement;
-    expect(marca?.className).toContain("lg:mb-6");
+    expect(marca?.className).toContain("lg:mb-8");
   });
 
   it("abas e lançar têm press e alvo de 44px", () => {

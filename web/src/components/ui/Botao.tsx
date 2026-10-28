@@ -1,6 +1,6 @@
 const VARIANTE = {
-  primario: "bg-grafite text-ar",
-  secundario: "border border-nevoa text-grafite",
+  primario: "bg-marca text-sobre-marca shadow-card",
+  secundario: "border border-nevoa bg-ar text-grafite",
   destrutivo: "text-ambar-texto",
 } as const;
 

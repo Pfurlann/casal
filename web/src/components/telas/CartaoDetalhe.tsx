@@ -257,7 +257,7 @@ export function CartaoDetalhe({
         {fatura.status !== "paga" && total > 0 && (
           <Link
             href={`/cartoes/${cartao.id}/faturas/${rotuloDaCompetencia(fatura)}/pagar`}
-            className="casal-toque mt-5 flex min-h-[44px] items-center justify-center rounded-controle bg-grafite font-texto text-[14px] font-semibold text-ar"
+            className="casal-toque mt-5 flex min-h-[44px] items-center justify-center rounded-controle bg-marca font-texto text-[14px] font-semibold text-sobre-marca"
           >
             Pagar
           </Link>

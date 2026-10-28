@@ -17,7 +17,7 @@ describe("toque — tokens e reduced-motion", () => {
   it("o shell wide usa o painel, não um telefone no meio", () => {
     expect(globals).toContain(".casal-shell");
     expect(globals).toContain(".casal-principal");
-    expect(globals).toMatch(/max-width:\s*1600px/);
+    expect(globals).toMatch(/max-width:\s*1320px/);
     // 560 só abaixo de lg — não vaza como coluna fantasma no desktop
     expect(globals).toMatch(/@media \(max-width:\s*1023px\)/);
     expect(globals).toContain(".casal-paineis");

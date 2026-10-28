@@ -88,7 +88,7 @@ export function Metas() {
             acao={
               <Link
                 href="/metas/nova"
-                className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                className="flex min-h-[44px] items-center rounded-controle bg-marca px-4 font-texto text-[14px] font-semibold text-sobre-marca"
               >
                 Criar meta
               </Link>

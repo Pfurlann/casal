@@ -36,14 +36,14 @@ export function Navegacao() {
       aria-label="Seções"
       className={
         // até lg: barra fixa no rodapé. de lg em diante: trilho à esquerda.
-        "fixed inset-x-0 bottom-0 z-20 flex items-stretch border-t border-nevoa bg-ar " +
+        "casal-lateral fixed inset-x-0 bottom-0 z-20 flex items-stretch border-t border-nevoa bg-ar shadow-elevacao " +
         "pb-[env(safe-area-inset-bottom)] " +
-        "lg:sticky lg:top-0 lg:h-dvh lg:w-[260px] lg:shrink-0 lg:flex-col lg:items-stretch " +
-        "lg:overflow-y-auto lg:border-r lg:border-t-0 lg:px-4 lg:pt-5 lg:pb-0"
+        "lg:sticky lg:top-0 lg:h-dvh lg:w-[272px] lg:shrink-0 lg:flex-col lg:items-stretch lg:gap-1 " +
+        "lg:overflow-y-auto lg:border-0 lg:bg-lateral lg:px-4 lg:pt-7 lg:pb-0 lg:shadow-none"
       }
     >
-      <div className="hidden lg:mb-6 lg:block lg:px-2 lg:text-left">
-        <Assinatura variante="base" largura={112} />
+      <div className="hidden lg:mb-8 lg:block lg:px-3 lg:text-left">
+        <Assinatura variante="horizontal" largura={120} />
       </div>
 
       {DESTINOS.map((d) => {
@@ -56,10 +56,10 @@ export function Navegacao() {
             className={
               "casal-toque min-h-[44px] flex-1 flex-col items-center justify-center gap-1 text-[10px] " +
               (d.soDesktop ? "hidden lg:flex " : "flex ") +
-              "lg:min-h-[40px] lg:w-full lg:flex-none lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:py-2 lg:text-left lg:text-[14px] " +
+              "lg:min-h-[44px] lg:w-full lg:flex-none lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:rounded-controle lg:px-3 lg:py-2 lg:text-left lg:text-[14px] " +
               (atual
-                ? "font-semibold text-grafite lg:bg-nevoa lg:shadow-[inset_3px_0_0_0_var(--grafite)]"
-                : "text-cinza lg:hover:bg-nevoa lg:hover:text-grafite")
+                ? "font-semibold text-marca-texto lg:bg-marca lg:text-sobre-marca"
+                : "text-cinza lg:text-lateral-texto lg:hover:bg-[var(--lateral-ativo)] lg:hover:text-sobre-marca")
             }
           >
             <span aria-hidden className="shrink-0">
@@ -77,7 +77,7 @@ export function Navegacao() {
           aria-label="Novo lançamento"
           className={
             "casal-toque absolute left-1/2 -translate-x-1/2 -top-[68px] flex h-[52px] w-[52px] items-center justify-center " +
-            "rounded-etiqueta bg-grafite text-[24px] text-ar shadow-elevacao " +
+            "rounded-etiqueta bg-marca text-[26px] text-sobre-marca shadow-elevacao " +
             "lg:hidden"
           }
         >
@@ -91,19 +91,19 @@ export function Navegacao() {
           <Link
             href="/mais/carteiras"
             aria-label={`Carteira ${carteira?.nome ?? "carteira"}`}
-            className="casal-toque inline-flex max-w-full items-center self-start rounded-etiqueta border border-nevoa px-2.5 py-1 text-[12px] font-semibold text-grafite"
+            className="casal-toque inline-flex max-w-full items-center self-start rounded-etiqueta bg-[var(--lateral-ativo)] px-3 py-1 text-[12px] font-semibold text-sobre-marca"
           >
             <span className="truncate">{carteira?.nome ?? "carteira"}</span>
           </Link>
           {usuario?.email ? (
-            <p className="truncate text-[12px] text-cinza" title={usuario.email}>
+            <p className="truncate text-[12px] text-lateral-texto" title={usuario.email}>
               {usuario.email}
             </p>
           ) : null}
           <button
             type="button"
             onClick={() => void sair()}
-            className="casal-toque self-start text-left text-[13px] font-semibold text-cinza hover:text-grafite"
+            className="casal-toque self-start text-left text-[13px] font-semibold text-lateral-texto hover:text-sobre-marca"
           >
             Sair
           </button>
@@ -114,7 +114,7 @@ export function Navegacao() {
             aria-label="Novo lançamento"
             className={
               "casal-toque flex h-[44px] w-full items-center justify-center rounded-controle " +
-              "bg-grafite text-[14px] font-semibold text-ar"
+              "bg-marca text-[14px] font-semibold text-sobre-marca shadow-card"
             }
           >
             Novo lançamento

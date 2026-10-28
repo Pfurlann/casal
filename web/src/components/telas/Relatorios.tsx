@@ -157,7 +157,7 @@ export function Relatorios({ competenciaRota }: { competenciaRota?: string } = {
                     <div className="flex flex-col items-center gap-2">
                       <Link
                         href="/lancar?tipo=gasto"
-                        className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                        className="flex min-h-[44px] items-center rounded-controle bg-marca px-4 font-texto text-[14px] font-semibold text-sobre-marca"
                       >
                         Novo gasto
                       </Link>

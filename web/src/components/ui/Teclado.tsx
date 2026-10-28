@@ -97,7 +97,7 @@ export function Teclado({
             type="button"
             disabled={!podeSalvar}
             onClick={aoSalvar}
-            className="casal-toque min-h-[44px] rounded-controle bg-grafite font-texto text-[14px] font-semibold uppercase tracking-[0.1em] text-ar disabled:opacity-40"
+            className="casal-toque min-h-[44px] rounded-controle bg-marca font-texto text-[14px] font-semibold uppercase tracking-[0.1em] text-sobre-marca disabled:opacity-40"
           >
             Salvar
           </button>

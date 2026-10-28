@@ -220,7 +220,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
         }
       />
       <div className="casal-resumo-mes px-4 pt-8 lg:px-0">
-        <div className="casal-painel lg:p-5">
+        <div className="casal-heroi">
           <Rotulo>gasto neste mês</Rotulo>
           <div className="mt-2">
             <Numero centavos={gasto} tamanho="heroi" subordinaCentavos animar />
@@ -232,7 +232,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
             {gastos.length} lançamentos
           </p>
         </div>
-        <div className="casal-painel mt-8 lg:mt-0 lg:p-5">
+        <div className="casal-painel mt-4 empty:hidden lg:mt-0">
           {receita > 0 && (
             <div>
               <Rotulo>receita neste mês</Rotulo>
@@ -296,7 +296,7 @@ export function Mes({ competenciaRota }: { competenciaRota?: string } = {}) {
             acao={
               <Link
                 href="/lancar"
-                className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                className="flex min-h-[44px] items-center rounded-controle bg-marca px-4 font-texto text-[14px] font-semibold text-sobre-marca"
               >
                 Novo gasto
               </Link>

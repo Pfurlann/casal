@@ -250,7 +250,7 @@ export function Lancar({
             <div className="flex flex-col items-center gap-2">
               <Link
                 href="/mais/contas/novo"
-                className="flex min-h-[44px] items-center rounded-controle bg-grafite px-4 font-texto text-[14px] font-semibold text-ar"
+                className="flex min-h-[44px] items-center rounded-controle bg-marca px-4 font-texto text-[14px] font-semibold text-sobre-marca"
               >
                 Adicionar conta
               </Link>
@@ -528,8 +528,10 @@ export function Lancar({
                   aria-pressed={pessoa === p}
                   onClick={() => escolherPessoa(p)}
                   className={
-                    "casal-toque min-h-[44px] rounded-etiqueta border px-3 text-[13px] " +
-                    (pessoa === p ? "border-grafite font-semibold text-grafite" : "border-nevoa text-cinza")
+                    "casal-toque min-h-[44px] rounded-etiqueta border px-4 text-[13px] font-semibold " +
+                    (pessoa === p
+                      ? "border-marca bg-marca-suave text-marca-texto"
+                      : "border-nevoa bg-ar text-cinza")
                   }
                 >
                   {p}

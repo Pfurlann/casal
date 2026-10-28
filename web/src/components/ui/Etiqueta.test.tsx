@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Etiqueta } from "./Etiqueta";
 
 describe("Etiqueta", () => {
-  it("pinta o estado ativo com ar sobre grafite", () => {
+  it("pinta o estado ativo com o texto da marca sobre o tom suave da marca", () => {
     render(
       <Etiqueta ativa aoClicar={() => {}}>
         Claro
@@ -12,8 +12,8 @@ describe("Etiqueta", () => {
     );
     const botao = screen.getByRole("button", { name: "Claro" });
     expect(botao).toHaveAttribute("aria-pressed", "true");
-    expect(botao.style.color).toBe("var(--ar)");
-    expect(botao.style.backgroundColor).toBe("var(--grafite)");
+    expect(botao.style.color).toBe("var(--marca-texto)");
+    expect(botao.style.backgroundColor).toBe("var(--marca-suave)");
   });
 
   it("mantém o rótulo grafite no estado inativo", () => {

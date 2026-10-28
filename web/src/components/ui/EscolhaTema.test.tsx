@@ -21,13 +21,13 @@ describe("EscolhaTema", () => {
     }
   });
 
-  it("deixa o rótulo da opção ativa invertido sobre o fundo", async () => {
+  it("destaca a opção ativa com o tom da marca", async () => {
     montar();
     await userEvent.click(screen.getByRole("button", { name: "Claro" }));
     const claro = screen.getByRole("button", { name: "Claro" });
     expect(claro).toHaveAttribute("aria-pressed", "true");
-    expect(claro.style.color).toBe("var(--ar)");
-    expect(claro.style.backgroundColor).toBe("var(--grafite)");
+    expect(claro.style.color).toBe("var(--marca-texto)");
+    expect(claro.style.backgroundColor).toBe("var(--marca-suave)");
     expect(screen.getByRole("button", { name: "Escuro" }).style.color).toBe(
       "var(--grafite)",
     );

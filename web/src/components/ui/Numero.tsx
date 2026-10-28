@@ -45,7 +45,7 @@ export function Numero({
   subordinaCentavos?: boolean;
   animar?: boolean;
 }) {
-  const classe = `font-numero font-medium tabular-nums ${TAMANHO[tamanho]} ${TOM[tom]}`;
+  const classe = `font-numero font-bold tabular-nums ${TAMANHO[tamanho]} ${TOM[tom]}`;
 
   const devePular = !animar || process.env.VITEST || prefereMenosMovimento();
   const [valorAtual, setValorAtual] = useState(devePular ? centavos : 0);

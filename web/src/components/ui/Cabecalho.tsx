@@ -28,7 +28,7 @@ export function Cabecalho({
   const nomeCarteira = carteira?.nome;
 
   return (
-    <div className="flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] lg:min-h-[52px] lg:gap-4 lg:px-0 lg:pt-0">
+    <div className="flex min-h-[44px] items-center gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] lg:mb-2 lg:min-h-[52px] lg:gap-4 lg:px-0 lg:pt-0">
       {aoVoltar ? (
         <button
           type="button"
@@ -49,7 +49,7 @@ export function Cabecalho({
           </Link>
         )
       )}
-      <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-semibold leading-none tracking-[-0.02em] text-grafite lg:text-[22px] lg:tracking-[-0.03em]">
+      <h1 className="min-w-0 flex-1 truncate font-texto text-[17px] font-bold leading-none tracking-[-0.02em] text-grafite lg:text-[30px] lg:tracking-[-0.03em]">
         {titulo}
       </h1>
       {chipCarteira && nomeCarteira ? (
@@ -63,7 +63,11 @@ export function Cabecalho({
       ) : null}
       {(marca || acao) && (
         <div className="flex shrink-0 items-center gap-1">
-          {marca && <Marca tamanho={26} folga={folga} />}
+          {marca && (
+            <span className="lg:hidden">
+              <Marca tamanho={26} folga={folga} />
+            </span>
+          )}
           {acao}
         </div>
       )}

@@ -29,11 +29,47 @@ const reais = (centavos: number) =>
   centavos === 0 ? "–" : Math.round(centavos / 100).toLocaleString("pt-BR");
 
 /** Entradas: bater a meta é bom. Saídas: ficar dentro da meta é bom. */
-function tomDoPercentual(linha: LinhaDfcl, pct: number | null): string {
-  if (pct === null) return "text-cinza";
-  const entrada = linha.id.startsWith("Entrada");
+function pillDoPercentual(entrada: boolean, pct: number | null): string {
+  if (pct === null) return "casal-pill";
   const bom = entrada ? pct >= 100 : pct <= 100;
-  return bom ? "text-[var(--pago)]" : "text-ambar-texto";
+  return bom ? "casal-pill casal-pill-bom" : "casal-pill casal-pill-ruim";
+}
+
+const moeda = (centavos: number) =>
+  (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function Indicador({
+  titulo,
+  prev,
+  real,
+  entrada,
+  resultado = false,
+}: {
+  titulo: string;
+  prev: number;
+  real: number;
+  entrada: boolean;
+  resultado?: boolean;
+}) {
+  const pct = prev === 0 ? null : Math.round((real / prev) * 100);
+  const positivo = resultado ? real >= 0 : null;
+  return (
+    <div className="casal-card p-5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[13px] font-semibold text-cinza">{titulo}</p>
+        {resultado ? null : <span className={pillDoPercentual(entrada, pct)}>{pct === null ? "–" : `${pct}%`}</span>}
+      </div>
+      <p
+        className={
+          "mt-2 text-[26px] font-bold tabular-nums " +
+          (positivo === null ? "text-grafite" : positivo ? "text-entrada" : "text-saida")
+        }
+      >
+        {moeda(real)}
+      </p>
+      <p className="mt-1 text-[12px] text-cinza">previsto {moeda(prev)}</p>
+    </div>
+  );
 }
 
 export function Dfcl() {
@@ -124,7 +160,7 @@ export function Dfcl() {
       <button
         type="button"
         onClick={() => entrada.current?.click()}
-        className="casal-toque min-h-[44px] rounded-controle border border-nevoa px-3 text-[13px] font-semibold text-grafite"
+        className="casal-toque min-h-[40px] shrink-0 rounded-controle border border-nevoa bg-ar px-3 text-[12px] font-semibold text-grafite lg:text-[13px]"
       >
         importar planilhas
       </button>
@@ -162,11 +198,36 @@ export function Dfcl() {
     );
   }
 
+  const hojeYm = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  const iKpi = Math.max(0, competencias.indexOf(hojeYm));
+  const totalEntradas = resultado.linhas.find((l) => l.id === "Entrada");
+  const totalSaidas = resultado.linhas.find((l) => l.id === "Saída");
+  const kpiEntradaPrev = totalEntradas?.prev[iKpi] ?? 0;
+  const kpiEntradaReal = totalEntradas?.real[iKpi] ?? 0;
+  const kpiSaidaPrev = totalSaidas?.prev[iKpi] ?? 0;
+  const kpiSaidaReal = totalSaidas?.real[iKpi] ?? 0;
+
   return (
     <div>
-      <Cabecalho titulo="dfcl · previsto x realizado" marca acao={botaoImportar} />
+      <Cabecalho titulo="dfcl" marca acao={botaoImportar} />
+      <p className="px-4 pt-1 text-[14px] text-cinza lg:px-0">Previsto x realizado, mês a mês</p>
 
-      <div className="flex flex-wrap items-center gap-2 px-4 pt-4 lg:px-0">
+      <section
+        aria-label={`Resumo de ${rotuloMes(competencias[iKpi]!)}`}
+        className="grid gap-3 px-4 pt-5 sm:grid-cols-3 lg:px-0"
+      >
+        <Indicador titulo={`Entradas · ${rotuloMes(competencias[iKpi]!)}`} prev={kpiEntradaPrev} real={kpiEntradaReal} entrada />
+        <Indicador titulo={`Saídas · ${rotuloMes(competencias[iKpi]!)}`} prev={kpiSaidaPrev} real={kpiSaidaReal} entrada={false} />
+        <Indicador
+          titulo={`Resultado · ${rotuloMes(competencias[iKpi]!)}`}
+          prev={kpiEntradaPrev - kpiSaidaPrev}
+          real={kpiEntradaReal - kpiSaidaReal}
+          entrada
+          resultado
+        />
+      </section>
+
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-5 lg:px-0">
         {(["Todos", ...PESSOAS] as const).map((p) => (
           <button
             key={p}
@@ -174,8 +235,10 @@ export function Dfcl() {
             aria-pressed={pessoa === p}
             onClick={() => setPessoa(p)}
             className={
-              "casal-toque min-h-[44px] rounded-etiqueta border px-3 text-[13px] " +
-              (pessoa === p ? "border-grafite font-semibold text-grafite" : "border-nevoa text-cinza")
+              "casal-toque min-h-[40px] rounded-etiqueta border px-4 text-[13px] font-semibold " +
+              (pessoa === p
+                ? "border-marca bg-marca-suave text-marca-texto"
+                : "border-nevoa bg-ar text-cinza hover:text-grafite")
             }
           >
             {p}
@@ -213,47 +276,63 @@ export function Dfcl() {
         </p>
       ) : null}
 
-      <div className="mt-4 overflow-x-auto px-4 pb-24 lg:px-0 lg:pb-8">
-        <table className="w-full border-collapse whitespace-nowrap text-[13px]">
+      <div className="mx-4 mt-4 mb-24 lg:mx-0 lg:mb-8">
+        <div className="casal-card overflow-x-auto">
+          <table className="w-full border-collapse whitespace-nowrap text-[13px]">
           <thead>
             <tr className="text-cinza">
-              <th rowSpan={2} className="sticky left-0 bg-ar px-2 py-2 text-left font-semibold">
+              <th rowSpan={2} className="sticky left-0 z-10 bg-ar px-4 py-3 text-left font-semibold">
                 Descrição
               </th>
               {competencias.map((c) => (
-                <th key={c} colSpan={3} className="border-l-2 border-nevoa px-2 py-2 text-center font-semibold">
+                <th key={c} colSpan={3} className="border-l border-nevoa px-3 py-3 text-center font-semibold text-grafite">
                   {rotuloMes(c)}
                 </th>
               ))}
             </tr>
-            <tr className="text-[11px] text-cinza">
+            <tr className="border-b border-nevoa text-[11px] uppercase tracking-wide text-cinza">
               {competencias.map((c) => (
                 <FragmentoCab key={c} />
               ))}
             </tr>
           </thead>
           <tbody>
-            {resultado.linhas.map((l) => (
-              <tr key={l.id} className={l.nivel <= 1 ? "border-t border-nevoa font-semibold" : ""}>
-                <td
-                  className="sticky left-0 bg-ar px-2 py-1.5 text-left"
-                  style={{ paddingLeft: `${8 + l.nivel * 12}px` }}
+            {resultado.linhas.map((l) => {
+              const fundo = l.nivel === 0 ? "bg-marca-suave" : "bg-ar";
+              return (
+                <tr
+                  key={l.id}
+                  className={
+                    (l.nivel === 0
+                      ? "bg-marca-suave font-bold text-marca-texto"
+                      : l.nivel === 1
+                        ? "border-t border-nevoa font-semibold"
+                        : l.nivel === 2
+                          ? "text-grafite"
+                          : "text-cinza") + " hover:bg-fundo"
+                  }
                 >
-                  {l.rotulo}
-                </td>
-                {competencias.map((c, i) => (
-                  <Celulas key={c} linha={l} i={i} />
-                ))}
-              </tr>
-            ))}
-            <tr className="border-t-2 border-nevoa font-semibold">
-              <td className="sticky left-0 bg-ar px-2 py-2 text-left">Saldo acumulado</td>
+                  <td
+                    className={`sticky left-0 z-10 px-4 py-2 text-left ${fundo}`}
+                    style={{ paddingLeft: `${16 + l.nivel * 14}px` }}
+                  >
+                    {l.rotulo}
+                  </td>
+                  {competencias.map((c, i) => (
+                    <Celulas key={c} linha={l} i={i} futuro={c > hojeYm} />
+                  ))}
+                </tr>
+              );
+            })}
+            <tr className="border-t-2 border-nevoa font-bold">
+              <td className="sticky left-0 z-10 bg-ar px-4 py-3 text-left">Saldo acumulado</td>
               {competencias.map((c, i) => (
                 <FragmentoSaldo key={c} prev={resultado.acumulado.prev[i]} real={resultado.acumulado.real[i]} />
               ))}
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -262,21 +341,23 @@ export function Dfcl() {
 function FragmentoCab() {
   return (
     <>
-      <th className="border-l-2 border-nevoa px-2 pb-2 text-right font-normal">Prev</th>
-      <th className="px-2 pb-2 text-right font-normal">Real</th>
-      <th className="px-2 pb-2 text-right font-normal">%</th>
+      <th className="border-l border-nevoa px-3 pb-2 text-right font-semibold">Prev</th>
+      <th className="px-3 pb-2 text-right font-semibold">Real</th>
+      <th className="px-3 pb-2 text-right font-semibold">%</th>
     </>
   );
 }
 
-function Celulas({ linha, i }: { linha: LinhaDfcl; i: number }) {
-  const pct = linha.pct[i];
+function Celulas({ linha, i, futuro }: { linha: LinhaDfcl; i: number; futuro: boolean }) {
+  // Mês que ainda não aconteceu: 0% não é desvio, é só falta de realizado.
+  const pct = futuro && linha.real[i] === 0 ? null : linha.pct[i];
+  const entrada = linha.id.startsWith("Entrada");
   return (
     <>
-      <td className="border-l-2 border-nevoa px-2 py-1.5 text-right tabular-nums">{reais(linha.prev[i])}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{reais(linha.real[i])}</td>
-      <td className={`px-2 py-1.5 text-right tabular-nums ${tomDoPercentual(linha, pct)}`}>
-        {pct === null ? "" : `${pct}%`}
+      <td className="border-l border-nevoa px-3 py-2 text-right tabular-nums">{reais(linha.prev[i])}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{reais(linha.real[i])}</td>
+      <td className="px-3 py-2 text-right">
+        {pct === null ? null : <span className={pillDoPercentual(entrada, pct)}>{`${pct}%`}</span>}
       </td>
     </>
   );
@@ -285,9 +366,9 @@ function Celulas({ linha, i }: { linha: LinhaDfcl; i: number }) {
 function FragmentoSaldo({ prev, real }: { prev: number; real: number }) {
   return (
     <>
-      <td className="border-l-2 border-nevoa px-2 py-2 text-right tabular-nums">{reais(prev)}</td>
-      <td className="px-2 py-2 text-right tabular-nums">{reais(real)}</td>
-      <td className="px-2 py-2" />
+      <td className="border-l border-nevoa px-3 py-3 text-right tabular-nums">{reais(prev)}</td>
+      <td className={"px-3 py-3 text-right tabular-nums " + (real < 0 ? "text-saida" : "")}>{reais(real)}</td>
+      <td className="px-3 py-3" />
     </>
   );
 }

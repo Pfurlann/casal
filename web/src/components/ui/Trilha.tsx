@@ -12,8 +12,8 @@ export function Trilha({
   const usado = total > 0 ? Math.min(consumido, total) : 0;
   const resta = total > 0 ? total - usado : 1;
   return (
-    <div aria-hidden="true" className="flex h-[3px] gap-[2px]">
-      <div className="bg-grafite" style={{ flexGrow: usado }} />
+    <div aria-hidden="true" className="flex h-2 gap-[3px] overflow-hidden rounded-full">
+      <div className="bg-marca" style={{ flexGrow: usado }} />
       <div className="bg-nevoa" style={{ flexGrow: resta }} />
     </div>
   );

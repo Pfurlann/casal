@@ -79,7 +79,9 @@ export function lancsDoDfcl(p: PacoteDfcl, transacoes: Transacao[], categorias: 
       natureza: t.natureza ?? "resultado",
     }),
   );
-  return [...p.lancs, ...doApp_];
+  // Com lançamentos no banco, eles são a fonte. O arquivo importado só vale sem eles (modo local),
+  // senão cada realizado apareceria duas vezes.
+  return doApp_.length > 0 ? doApp_ : [...p.lancs];
 }
 
 export function movsDosPortadores(p: PacoteDfcl, transacoes: Transacao[]): MovPortador[] {
@@ -107,5 +109,5 @@ export function movsDosPortadores(p: PacoteDfcl, transacoes: Transacao[]): MovPo
         natureza: t.natureza ?? "resultado",
       }),
     );
-  return [...importados, ...doApp_];
+  return doApp_.length > 0 ? doApp_ : importados;
 }

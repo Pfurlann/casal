@@ -83,10 +83,14 @@ describe("lancsDoDfcl", () => {
   });
   const cat = [{ id: "mercado", nome: "Mercado", icone: "", cor: "", tipo: "despesa" as const }];
 
-  it("inclui os lançamentos feitos no app que têm pessoa", () => {
+  it("com lançamentos no banco, só eles contam (o arquivo importado não duplica)", () => {
     const l = lancsDoDfcl(p, [t({})], cat);
-    expect(l).toHaveLength(3);
-    expect(l[2]).toMatchObject({ conta: "Mercado", pessoa: "Daniele", tipo: "Saída", valor: 5000, competencia: "2026-10" });
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatchObject({ conta: "Mercado", pessoa: "Daniele", tipo: "Saída", valor: 5000, competencia: "2026-10" });
+  });
+
+  it("sem lançamentos no banco, vale o arquivo importado", () => {
+    expect(lancsDoDfcl(p, [], cat)).toHaveLength(2);
   });
 
   it("ignora lançamento do app sem pessoa e transferência", () => {

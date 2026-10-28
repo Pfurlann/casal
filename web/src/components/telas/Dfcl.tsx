@@ -73,7 +73,7 @@ function Indicador({
 }
 
 export function Dfcl() {
-  const { transacoes, categorias, pronto, carteira } = useLoja();
+  const { transacoes, categoriasTodas, pronto, carteira } = useLoja();
   const { usuario } = useAuth();
   const entrada = useRef<HTMLInputElement>(null);
 
@@ -88,29 +88,37 @@ export function Dfcl() {
     [usuario, pronto],
   );
 
-  // Sem dados neste navegador: traz do banco as metas que o outro login já gravou.
+  // As metas e contas do banco valem mais que o que ficou no navegador: traz sempre ao abrir.
+  const pacoteAtual = useRef(pacote);
+  pacoteAtual.current = pacote;
   useEffect(() => {
-    if (!lido || pacote || !remoto) return;
+    if (!lido || !remoto) return;
     let ativo = true;
     lerMetasEContas(remoto, carteira.id)
       .then((r) => {
         if (ativo && r) {
-          definir({ ...r, lancs: [], avisos: [], importadoEm: new Date().toISOString() });
+          const local = pacoteAtual.current;
+          definir({
+            ...r,
+            lancs: local?.lancs ?? [],
+            avisos: local?.avisos ?? [],
+            importadoEm: new Date().toISOString(),
+          });
         }
       })
       .catch(() => {
-        /* sem rede ou sem a migração: segue sem metas */
+        /* sem rede ou sem a migração: segue com o que há no navegador */
       });
     return () => {
       ativo = false;
     };
-  }, [lido, pacote, remoto, carteira.id, definir]);
+  }, [lido, remoto, carteira.id, definir]);
 
   const competencias = useMemo(() => competenciasA(new Date(), deslocamento), [deslocamento]);
 
   const resultado = useMemo(() => {
     if (!pacote) return null;
-    const lancs = lancsDoDfcl(pacote, transacoes ?? [], categorias ?? []);
+    const lancs = lancsDoDfcl(pacote, transacoes ?? [], categoriasTodas ?? []);
     const saldoInicial = lancs
       .filter((l) => l.conta === "Saldo Inicial" && (pessoa === "Todos" || l.pessoa === pessoa))
       .reduce((s, l) => s + (l.tipo === "Entrada" ? l.valor : -l.valor), 0);
@@ -122,7 +130,7 @@ export function Dfcl() {
       pessoa,
       saldoInicial,
     });
-  }, [pacote, transacoes, categorias, competencias, pessoa]);
+  }, [pacote, transacoes, categoriasTodas, competencias, pessoa]);
 
   async function importar(arquivo: File | undefined) {
     if (!arquivo) return;

@@ -1,5 +1,6 @@
 import type { ContaDfcl, Meta } from "./dfcl";
 import type { Pessoa } from "./domain";
+import type { Portador } from "./portadores";
 import type { PacoteDfcl } from "./dados-dfcl";
 import { portadoresDoPacote } from "./dados-dfcl";
 
@@ -110,4 +111,19 @@ export async function lerMetasEContas(
       classe: r.classe as ContaDfcl["classe"],
     })),
   };
+}
+
+/** Portadores (contas e cartões) cadastrados na carteira, com o id do banco. */
+export async function lerPortadores(sb: ClienteRemoto, carteiraId: string): Promise<Portador[]> {
+  const r = await sb.from("portadores").select("id,dono,instituicao,tipo,nome,deleted_at").eq("wallet_id", carteiraId);
+  falhou("portadores", r.error);
+  return (r.data ?? [])
+    .filter((p) => !p.deleted_at)
+    .map((p) => ({
+      id: String(p.id),
+      dono: p.dono as Pessoa,
+      instituicao: String(p.instituicao),
+      tipo: p.tipo as Portador["tipo"],
+      nome: String(p.nome),
+    }));
 }

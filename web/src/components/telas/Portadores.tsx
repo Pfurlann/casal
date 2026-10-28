@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { movsDosPortadores, portadoresDoPacote } from "@/lib/dados-dfcl";
+import { movsDosPortadores, portadoresDoPacote, type PacoteDfcl } from "@/lib/dados-dfcl";
+import { usePortadores } from "@/lib/usar-portadores";
 import { formatarBRL } from "@/lib/money";
 import { saldosPorPortador } from "@/lib/portadores";
 import { useLoja } from "@/lib/store";
@@ -11,6 +12,7 @@ import { Esqueleto } from "../ui/Esqueleto";
 import { Vazio } from "../ui/Vazio";
 
 const MESES = 6;
+const SEM_ARQUIVO: PacoteDfcl = { metas: [], contas: [], lancs: [], avisos: [], importadoEm: "" };
 const NOMES_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 function rotuloMes(deslocamento: number): string {
@@ -23,16 +25,19 @@ function rotuloMes(deslocamento: number): string {
 export function Portadores() {
   const { transacoes, pronto } = useLoja();
   const { pacote, lido } = usePacote();
+  const doBanco = usePortadores();
 
   const resultado = useMemo(() => {
-    if (!pacote) return null;
+    // Banco primeiro; o arquivo importado só serve de alternativa sem banco.
+    const lista = doBanco.length > 0 ? doBanco : pacote ? portadoresDoPacote(pacote) : [];
+    if (lista.length === 0) return null;
     return saldosPorPortador({
-      portadores: portadoresDoPacote(pacote),
-      movs: movsDosPortadores(pacote, transacoes ?? []),
+      portadores: lista,
+      movs: movsDosPortadores(pacote ?? SEM_ARQUIVO, transacoes ?? []),
       hoje: new Date().toISOString(),
       meses: MESES,
     });
-  }, [pacote, transacoes]);
+  }, [doBanco, pacote, transacoes]);
 
   if (!pronto || !lido) {
     return (

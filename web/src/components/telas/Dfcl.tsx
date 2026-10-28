@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { construirPacote, lancsDoDfcl, type DadosBrutos } from "@/lib/dados-dfcl";
 import { montarDfcl, type LinhaDfcl } from "@/lib/dfcl";
+import { gravarPacote, lerMetasEContas, type ClienteRemoto } from "@/lib/dfcl-remoto";
 import { PESSOAS, type Pessoa } from "@/lib/domain";
 import { useLoja } from "@/lib/store";
+import { clienteSupabase } from "@/lib/supabase";
 import { usePacote } from "@/lib/usar-pacote";
 import { Cabecalho } from "../ui/Cabecalho";
 import { Esqueleto } from "../ui/Esqueleto";
@@ -34,13 +37,38 @@ function tomDoPercentual(linha: LinhaDfcl, pct: number | null): string {
 }
 
 export function Dfcl() {
-  const { transacoes, categorias, pronto } = useLoja();
+  const { transacoes, categorias, pronto, carteira } = useLoja();
+  const { usuario } = useAuth();
   const entrada = useRef<HTMLInputElement>(null);
 
   const { pacote, lido, definir } = usePacote();
   const [pessoa, setPessoa] = useState<Pessoa | "Todos">("Todos");
   const [deslocamento, setDeslocamento] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
+  const [gravacao, setGravacao] = useState<string | null>(null);
+
+  const remoto = useMemo(
+    () => (usuario && pronto ? (clienteSupabase() as unknown as ClienteRemoto | null) : null),
+    [usuario, pronto],
+  );
+
+  // Sem dados neste navegador: traz do banco as metas que o outro login já gravou.
+  useEffect(() => {
+    if (!lido || pacote || !remoto) return;
+    let ativo = true;
+    lerMetasEContas(remoto, carteira.id)
+      .then((r) => {
+        if (ativo && r) {
+          definir({ ...r, lancs: [], avisos: [], importadoEm: new Date().toISOString() });
+        }
+      })
+      .catch(() => {
+        /* sem rede ou sem a migração: segue sem metas */
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [lido, pacote, remoto, carteira.id, definir]);
 
   const competencias = useMemo(() => competenciasA(new Date(), deslocamento), [deslocamento]);
 
@@ -67,8 +95,17 @@ export function Dfcl() {
       if (!Array.isArray(dados.realizados) || !Array.isArray(dados.metas) || !Array.isArray(dados.config)) {
         throw new Error("formato");
       }
-      definir(construirPacote(dados));
+      const novo = construirPacote(dados);
+      definir(novo);
       setErro(null);
+      if (remoto) {
+        try {
+          const r = await gravarPacote(remoto, carteira.id, novo);
+          setGravacao(`Gravado no banco: ${r.metas} metas, ${r.contas} contas, ${r.portadoresNovos} portadores novos.`);
+        } catch {
+          setGravacao("Importado neste navegador, mas não consegui gravar no banco. Tente de novo.");
+        }
+      }
     } catch {
       setErro("Esse arquivo não parece ser o dados.json gerado pelo script de planilhas.");
     }
@@ -163,6 +200,12 @@ export function Dfcl() {
           </button>
         </span>
       </div>
+
+      {gravacao ? (
+        <p role="status" className="px-4 pt-2 text-[12px] text-cinza lg:px-0">
+          {gravacao}
+        </p>
+      ) : null}
 
       {pacote.avisos.length > 0 ? (
         <p className="px-4 pt-2 text-[12px] text-cinza lg:px-0">

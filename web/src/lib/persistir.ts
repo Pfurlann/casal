@@ -50,6 +50,10 @@ export function linhaDaTransacao(t: Transacao) {
     parcela_total: t.parcelaTotal,
     status: estadoCanonico(t.status),
     goal_id: t.metaID ?? null,
+    pessoa: t.pessoa ?? null,
+    vencimento: t.vencimento ?? null,
+    natureza: t.natureza ?? "resultado",
+    portador_id: t.portadorID ?? null,
   };
 }
 

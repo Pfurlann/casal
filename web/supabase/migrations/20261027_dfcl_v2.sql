@@ -1,7 +1,7 @@
 -- DFCL V2: pessoa, vencimento, natureza e portador nos lançamentos; cadastro de portadores,
 -- de contas do DFCL e metas (previsto) por conta, mês e pessoa.
 -- Só acrescenta: não altera nem apaga dado existente. Idempotente.
--- NÃO APLICADA em produção: revisar e aplicar manualmente (ver docs/superpowers/verificacao-v2.md).
+-- APLICADA em 2026-10-28 no projeto "Casal Finanças" (lxatvhjhywctnpcexfqg), migração "dfcl_v2".
 
 -- 1. Lançamentos ---------------------------------------------------------------------
 

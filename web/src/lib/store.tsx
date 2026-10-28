@@ -850,6 +850,10 @@ export function LojaProvider({ children }: { children: ReactNode }) {
               parcelaTotal: (t.parcela_total as number) ?? 1,
               status: estadoCanonico(t.status as string | null | undefined),
               metaID: (t.goal_id as string | null) ?? undefined,
+              pessoa: (t.pessoa as Transacao["pessoa"] | null) ?? undefined,
+              vencimento: (t.vencimento as string | null) ?? undefined,
+              natureza: (t.natureza as Transacao["natureza"] | null) ?? undefined,
+              portadorID: (t.portador_id as string | null) ?? undefined,
             })),
       despesasFixasTodas,
       despesasFixas: despesasFixasTodas.filter((f) => f.carteiraID === walletId),
@@ -1599,6 +1603,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         account_id: t.contaID ?? null,
         card_id: t.cartaoID ?? null,
         pagador_id: t.pagadorID ?? null,
+        pessoa: t.pessoa ?? null,
         updated_at: agora,
       });
       try {
